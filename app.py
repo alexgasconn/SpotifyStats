@@ -5,6 +5,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.express as px
 
+import logging
+
+# CONFIGURACIÓN DE LOGGING
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # CONFIGURACIÓN DE LA APP DE SPOTIFY
 CLIENT_ID = "772f387bafac4393a8cafbf09ee5aa86"
 CLIENT_SECRET = "07d0d3b97c68425a832b6dcc6d5838ec"
@@ -14,8 +20,10 @@ SCOPE = "user-top-read user-read-recently-played user-library-read"
 st.set_page_config(page_title="Spotify Stats Dashboard", layout="wide")
 st.title("🎧 Spotify Stats Dashboard")
 
+
 @st.cache_resource
 def authenticate():
+    logger.info("Authenticating with Spotify...")
     return spotipy.Spotify(auth_manager=SpotifyOAuth(
         client_id=CLIENT_ID,
         client_secret=CLIENT_SECRET,
@@ -23,7 +31,10 @@ def authenticate():
         scope=SCOPE
     ))
 
+
+logger.info("Starting authentication process")
 sp = authenticate()
+logger.info("Authentication complete")
 
 # SELECCIÓN DEL PERIODO DE ANÁLISIS
 range_map = {
@@ -33,10 +44,16 @@ range_map = {
 }
 time_range = st.selectbox("Periodo de análisis", list(range_map.keys()))
 selected_range = range_map[time_range]
+logger.info(f"Selected time range: {selected_range}")
 
 # CARGA Y PROCESAMIENTO DE DATOS
+logger.info("Fetching top tracks...")
 top_tracks = sp.current_user_top_tracks(limit=20, time_range=selected_range)
+logger.info(f"Fetched {len(top_tracks['items'])} top tracks")
+
+logger.info("Fetching top artists...")
 top_artists = sp.current_user_top_artists(limit=20, time_range=selected_range)
+logger.info(f"Fetched {len(top_artists['items'])} top artists")
 
 tracks_df = pd.DataFrame([{
     'name': t['name'],
@@ -44,6 +61,7 @@ tracks_df = pd.DataFrame([{
     'album': t['album']['name'],
     'duration_min': t['duration_ms'] / 60000
 } for t in top_tracks['items']])
+logger.info(f"Tracks DataFrame shape: {tracks_df.shape}")
 
 artists_df = pd.DataFrame([{
     'name': a['name'],
@@ -51,6 +69,7 @@ artists_df = pd.DataFrame([{
     'genres': ", ".join(a['genres']),
     'followers': a['followers']['total']
 } for a in top_artists['items']])
+logger.info(f"Artists DataFrame shape: {artists_df.shape}")
 
 # VISUALIZACIONES
 col1, col2 = st.columns(2)
@@ -91,4 +110,5 @@ st.pyplot(fig4)
 
 # TIEMPO TOTAL DE ESCUCHA
 total_minutes = tracks_df['duration_min'].sum()
-st.info(f"🕒 Tiempo estimado escuchando tu Top 20: **{int(total_minutes)} minutos**")
+st.info(
+    f"🕒 Tiempo estimado escuchando tu Top 20: **{int(total_minutes)} minutos**")
