@@ -3,3 +3,4 @@ spotipy
 pandas
 matplotlib
 plotly
+seaborn
