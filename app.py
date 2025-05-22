@@ -1,114 +1,109 @@
 import streamlit as st
-import spotipy
-from spotipy.oauth2 import SpotifyOAuth
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 import plotly.express as px
+import zipfile
+import os
+import json
+from io import BytesIO
+from datetime import datetime
 
-import logging
+st.set_page_config(page_title="Spotify Extended Dashboard", layout="wide")
+st.title("📦 Spotify Extended Streaming History Dashboard")
 
-# CONFIGURACIÓN DE LOGGING
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# SUBIR ARCHIVO ZIP
+uploaded_file = st.sidebar.file_uploader("Sube tu archivo ZIP con los datos de Spotify", type="zip")
 
-# CONFIGURACIÓN DE LA APP DE SPOTIFY
-CLIENT_ID = "772f387bafac4393a8cafbf09ee5aa86"
-CLIENT_SECRET = "07d0d3b97c68425a832b6dcc6d5838ec"
-REDIRECT_URI = "http://localhost:8888/callback"
-SCOPE = "user-top-read user-read-recently-played user-library-read"
+if uploaded_file:
+    with zipfile.ZipFile(uploaded_file, 'r') as archive:
+        target_dir = "Spotify Extended Streaming History"
+        json_files = [f for f in archive.namelist() if f.startswith(target_dir) and f.endswith('.json')]
 
-st.set_page_config(page_title="Spotify Stats Dashboard", layout="wide")
-st.title("🎧 Spotify Stats Dashboard")
+        data = []
+        for file in json_files:
+            with archive.open(file) as f:
+                content = json.load(f)
+                data.extend(content)
 
+    df = pd.DataFrame(data)
 
-@st.cache_resource
-def authenticate():
-    logger.info("Authenticating with Spotify...")
-    return spotipy.Spotify(auth_manager=SpotifyOAuth(
-        client_id=CLIENT_ID,
-        client_secret=CLIENT_SECRET,
-        redirect_uri=REDIRECT_URI,
-        scope=SCOPE
-    ))
+    # Preprocesado básico
+    df['ts'] = pd.to_datetime(df['ts'], errors='coerce')
+    df = df.dropna(subset=['ts'])
+    df['minutes'] = df['ms_played'] / 60000
+    df['year'] = df['ts'].dt.year
+    df['month'] = df['ts'].dt.month
+    df['weekday'] = df['ts'].dt.dayofweek
+    df['hour'] = df['ts'].dt.hour
+    df['date'] = df['ts'].dt.date
 
+    artist_filter = st.sidebar.multiselect("Filtrar por artista", df['master_metadata_album_artist_name'].dropna().unique())
+    album_filter = st.sidebar.multiselect("Filtrar por álbum", df['master_metadata_album_album_name'].dropna().unique())
+    track_filter = st.sidebar.multiselect("Filtrar por canción", df['master_metadata_track_name'].dropna().unique())
 
-logger.info("Starting authentication process")
-sp = authenticate()
-logger.info("Authentication complete")
+    filtered_df = df.copy()
+    if artist_filter:
+        filtered_df = filtered_df[filtered_df['master_metadata_album_artist_name'].isin(artist_filter)]
+    if album_filter:
+        filtered_df = filtered_df[filtered_df['master_metadata_album_album_name'].isin(album_filter)]
+    if track_filter:
+        filtered_df = filtered_df[filtered_df['master_metadata_track_name'].isin(track_filter)]
 
-# SELECCIÓN DEL PERIODO DE ANÁLISIS
-range_map = {
-    "Corto plazo (últimas 4 semanas)": "short_term",
-    "Medio plazo (últimos 6 meses)": "medium_term",
-    "Largo plazo (todo el historial)": "long_term"
-}
-time_range = st.selectbox("Periodo de análisis", list(range_map.keys()))
-selected_range = range_map[time_range]
-logger.info(f"Selected time range: {selected_range}")
+    tabs = st.tabs(["Top", "Temporal", "Distribuciones", "Heatmaps", "Rachas", "Artistas & Álbumes", "Resumen"])
 
-# CARGA Y PROCESAMIENTO DE DATOS
-logger.info("Fetching top tracks...")
-top_tracks = sp.current_user_top_tracks(limit=20, time_range=selected_range)
-logger.info(f"Fetched {len(top_tracks['items'])} top tracks")
+    with tabs[0]:
+        st.subheader("🎵 Canciones más escuchadas")
+        top_tracks = filtered_df.groupby('master_metadata_track_name')['minutes'].sum().sort_values(ascending=False).head(20)
+        st.bar_chart(top_tracks)
 
-logger.info("Fetching top artists...")
-top_artists = sp.current_user_top_artists(limit=20, time_range=selected_range)
-logger.info(f"Fetched {len(top_artists['items'])} top artists")
+        st.subheader("👩‍🎤 Artistas más escuchados")
+        top_artists = filtered_df.groupby('master_metadata_album_artist_name')['minutes'].sum().sort_values(ascending=False).head(20)
+        st.bar_chart(top_artists)
 
-tracks_df = pd.DataFrame([{
-    'name': t['name'],
-    'artist': t['artists'][0]['name'],
-    'album': t['album']['name'],
-    'duration_min': t['duration_ms'] / 60000
-} for t in top_tracks['items']])
-logger.info(f"Tracks DataFrame shape: {tracks_df.shape}")
+        st.subheader("📀 Álbumes más escuchados")
+        top_albums = filtered_df.groupby('master_metadata_album_album_name')['minutes'].sum().sort_values(ascending=False).head(20)
+        st.bar_chart(top_albums)
 
-artists_df = pd.DataFrame([{
-    'name': a['name'],
-    'popularity': a['popularity'],
-    'genres': ", ".join(a['genres']),
-    'followers': a['followers']['total']
-} for a in top_artists['items']])
-logger.info(f"Artists DataFrame shape: {artists_df.shape}")
+    with tabs[1]:
+        st.subheader("📈 Evolución mensual")
+        monthly = filtered_df.groupby(filtered_df['ts'].dt.to_period("M")).sum(numeric_only=True)['minutes']
+        st.line_chart(monthly)
 
-# VISUALIZACIONES
-col1, col2 = st.columns(2)
+    with tabs[2]:
+        st.subheader("📊 Distribuciones")
+        fig, axs = plt.subplots(3, 2, figsize=(14, 10))
+        sns.histplot(filtered_df['hour'], bins=24, ax=axs[0, 0]).set_title("Por hora del día")
+        sns.histplot(filtered_df['weekday'], bins=7, ax=axs[0, 1]).set_title("Por día de la semana")
+        sns.histplot(filtered_df['month'], bins=12, ax=axs[1, 0]).set_title("Por mes")
+        sns.histplot(filtered_df['year'], bins=len(filtered_df['year'].unique()), ax=axs[1, 1]).set_title("Por año")
+        sns.histplot(filtered_df['minutes'], bins=30, ax=axs[2, 0]).set_title("Duración sesiones")
+        axs[2, 1].axis('off')
+        st.pyplot(fig)
 
-with col1:
-    st.subheader("🎵 Top Canciones")
-    fig1 = px.bar(tracks_df, x='name', y='duration_min', color='artist',
-                  title="Duración de tus canciones más escuchadas",
-                  labels={'duration_min': 'Duración (min)'},
-                  height=400)
-    st.plotly_chart(fig1, use_container_width=True)
+    with tabs[3]:
+        st.subheader("🗺️ Heatmaps cruzados")
+        pivot = filtered_df.pivot_table(index='weekday', columns='hour', values='minutes', aggfunc='sum', fill_value=0)
+        fig = plt.figure(figsize=(10, 4))
+        sns.heatmap(pivot, cmap="YlGnBu")
+        st.pyplot(fig)
 
-with col2:
-    st.subheader("👩‍🎤 Top Artistas")
-    fig2 = px.bar(artists_df, x='name', y='followers', title="Seguidores por artista",
-                  labels={'followers': 'Seguidores'}, height=400)
-    st.plotly_chart(fig2, use_container_width=True)
+    with tabs[4]:
+        st.subheader("📆 Rachas de escucha")
+        streak_data = filtered_df.groupby('date')['minutes'].sum()
+        streak_days = streak_data[streak_data > 0].count()
+        st.metric("Días con escucha", streak_days)
 
-st.subheader("📀 Álbumes más escuchados")
-album_counts = tracks_df['album'].value_counts().nlargest(10)
-fig3, ax3 = plt.subplots()
-album_counts.plot(kind='bar', ax=ax3)
-ax3.set_ylabel("Veces en Top")
-ax3.set_title("Álbumes más frecuentes en tu top")
-st.pyplot(fig3)
+    with tabs[5]:
+        st.subheader("👑 Comparativa artistas y álbumes")
+        artist_year = filtered_df.groupby(['year', 'master_metadata_album_artist_name'])['minutes'].sum().reset_index()
+        top = artist_year.sort_values(['year','minutes'], ascending=[True, False]).groupby('year').head(5)
+        fig = px.bar(top, x='year', y='minutes', color='master_metadata_album_artist_name', barmode='group')
+        st.plotly_chart(fig, use_container_width=True)
 
-st.subheader("🏷️ Géneros más escuchados")
-genres = []
-for a in top_artists['items']:
-    genres.extend(a['genres'])
-genre_series = pd.Series(genres).value_counts().head(10)
-fig4, ax4 = plt.subplots()
-genre_series.plot(kind='barh', ax=ax4)
-ax4.invert_yaxis()
-ax4.set_xlabel("Frecuencia")
-ax4.set_title("Top Géneros")
-st.pyplot(fig4)
-
-# TIEMPO TOTAL DE ESCUCHA
-total_minutes = tracks_df['duration_min'].sum()
-st.info(
-    f"🕒 Tiempo estimado escuchando tu Top 20: **{int(total_minutes)} minutos**")
+    with tabs[6]:
+        st.subheader("📋 Estadísticas globales")
+        st.write(f"Total de minutos: {int(filtered_df['minutes'].sum())} min")
+        st.write(f"Total de horas: {round(filtered_df['minutes'].sum()/60, 2)} h")
+        st.write(f"Canción más escuchada: {filtered_df.groupby('master_metadata_track_name')['minutes'].sum().idxmax()}")
+        st.write(f"Artista más escuchado: {filtered_df.groupby('master_metadata_album_artist_name')['minutes'].sum().idxmax()}")
