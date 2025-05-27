@@ -377,10 +377,10 @@ if uploaded_file:
             )
 
         if game_type == "Artistas":
-            top_df = get_top_df(filtered_df, 'master_metadata_album_artist_name')
+            top_df = get_top_df(filtered_df, 'master_metadata_album_artist_name').head(50)
             label = "artista"
         else:
-            top_df = get_top_df(filtered_df, 'master_metadata_track_name')
+            top_df = get_top_df(filtered_df, 'master_metadata_track_name').head(300)
             label = "canción"
 
         score_key = f"{label}_score"
