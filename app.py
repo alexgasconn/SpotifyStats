@@ -363,37 +363,43 @@ if uploaded_file:
             st.write("⏰ **No consecutive hours with listening found.**")
 
     with tabs[7]:
+        st.subheader("🎲 Juego: ¿Cuál es el más escuchado? (Artistas o Canciones)")
 
+        game_type = st.radio("¿Qué quieres comparar?", ["Artistas", "Canciones"])
 
-        # ===========================
-        # 🎲 Juego: ¿Cuál es el más escuchado?
-        # ===========================
+        def get_top_df(df, col_name):
+            return (
+                df.groupby(col_name)['minutes']
+                .sum()
+                .sort_values(ascending=False)
+                .reset_index()
+                .rename(columns={col_name: 'name', 'minutes': 'minutes'})
+            )
 
-        st.subheader("🎲 Juego: ¿Cuál es el más escuchado?")
+        if game_type == "Artistas":
+            top_df = get_top_df(filtered_df, 'master_metadata_album_artist_name')
+            label = "artista"
+        else:
+            top_df = get_top_df(filtered_df, 'master_metadata_track_name')
+            label = "canción"
 
-        tabs = st.tabs(["Juego de Artistas", "Juego de Álbumes", "Juego de Canciones"])
+        score_key = f"{label}_score"
+        if score_key not in st.session_state:
+            st.session_state[score_key] = 0
 
-        def quiz_game(df, label, display_col):
-            # Inicializar puntuación si no existe
-            score_key = f"{label}_score"
-            if score_key not in st.session_state:
-                st.session_state[score_key] = 0
+        if len(top_df) < 2:
+            st.warning("No hay suficientes datos para jugar.")
+        else:
+            idx1, idx2 = random.sample(range(len(top_df)), 2)
+            option1 = top_df.iloc[idx1]
+            option2 = top_df.iloc[idx2]
 
-            # Seleccionar dos opciones distintas al azar
-            if len(df) < 2:
-                st.warning("No hay suficientes datos para jugar.")
-                return
-
-            idx1, idx2 = random.sample(range(len(df)), 2)
-            option1 = df.iloc[idx1]
-            option2 = df.iloc[idx2]
-
-            st.write(f"¿Cuál {label} está más arriba en tu ranking?")
+            st.write(f"¿Cuál {label} has escuchado más?")
 
             colA, colB = st.columns(2)
             with colA:
-                if st.button(option1[display_col], key=f"{label}_A_{idx1}_{idx2}"):
-                    if idx1 < idx2:
+                if st.button(option1['name'], key=f"{label}_A_{idx1}_{idx2}"):
+                    if option1['minutes'] >= option2['minutes']:
                         st.success("¡Correcto!")
                         st.session_state[score_key] += 1
                     else:
@@ -401,8 +407,8 @@ if uploaded_file:
                         st.session_state[score_key] = 0
                     st.experimental_rerun()
             with colB:
-                if st.button(option2[display_col], key=f"{label}_B_{idx1}_{idx2}"):
-                    if idx2 < idx1:
+                if st.button(option2['name'], key=f"{label}_B_{idx2}_{idx1}"):
+                    if option2['minutes'] >= option1['minutes']:
                         st.success("¡Correcto!")
                         st.session_state[score_key] += 1
                     else:
@@ -411,39 +417,3 @@ if uploaded_file:
                     st.experimental_rerun()
 
             st.info(f"Puntuación actual: {st.session_state[score_key]}")
-            # Prepara los dataframes para los juegos
-            # Top artistas
-            artists_df = (
-                filtered_df.groupby('master_metadata_album_artist_name')['minutes']
-                .sum()
-                .sort_values(ascending=False)
-                .reset_index()
-                .rename(columns={'master_metadata_album_artist_name': 'name', 'minutes': 'minutes'})
-            )
-
-            # Top álbumes
-            albums_df = (
-                filtered_df.groupby('master_metadata_album_album_name')['minutes']
-                .sum()
-                .sort_values(ascending=False)
-                .reset_index()
-                .rename(columns={'master_metadata_album_album_name': 'name', 'minutes': 'minutes'})
-            )
-
-            # Top canciones
-            tracks_df = (
-                filtered_df.groupby('master_metadata_track_name')['minutes']
-                .sum()
-                .sort_values(ascending=False)
-                .reset_index()
-                .rename(columns={'master_metadata_track_name': 'name', 'minutes': 'minutes'})
-            )
-
-            with tabs[0]:
-                quiz_game(artists_df, "artista", "name")
-
-            with tabs[1]:
-                quiz_game(albums_df, "álbum", "name")
-
-            with tabs[2]:
-                quiz_game(tracks_df, "canción", "name")
