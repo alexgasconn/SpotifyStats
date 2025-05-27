@@ -363,57 +363,78 @@ if uploaded_file:
             st.write("⏰ **No consecutive hours with listening found.**")
 
     with tabs[7]:
-        st.subheader("🎲 Juego: ¿Cuál es el más escuchado? (Artistas o Canciones)")
+        st.subheader("🎲 Game: Which is the most played? (Artists or Songs)")
 
-        game_type = st.radio("¿Qué quieres comparar?", ["Artistas", "Canciones"])
+        game_type = st.radio("What do you want to compare?", ["Artists", "Songs"])
 
-        def get_top_df(df, col_name):
+        @st.cache_data(show_spinner=False)
+        def get_top_df(df, col_name, n):
             return (
                 df.groupby(col_name)['minutes']
                 .sum()
                 .sort_values(ascending=False)
                 .reset_index()
                 .rename(columns={col_name: 'name', 'minutes': 'minutes'})
+                .head(n)
             )
 
-        if game_type == "Artistas":
-            top_df = get_top_df(filtered_df, 'master_metadata_album_artist_name').head(50)
-            label = "artista"
+        if game_type == "Artists":
+            top_df = get_top_df(filtered_df, 'master_metadata_album_artist_name', 50)
+            label = "artist"
         else:
-            top_df = get_top_df(filtered_df, 'master_metadata_track_name').head(300)
-            label = "canción"
+            top_df = get_top_df(filtered_df, 'master_metadata_track_name', 300)
+            label = "song"
 
-        score_key = f"{label}_score"
-        if score_key not in st.session_state:
-            st.session_state[score_key] = 0
+        # Initialize counters in session state
+        correct_key = f"{label}_correct"
+        incorrect_key = f"{label}_incorrect"
+        if correct_key not in st.session_state:
+            st.session_state[correct_key] = 0
+        if incorrect_key not in st.session_state:
+            st.session_state[incorrect_key] = 0
 
         if len(top_df) < 2:
-            st.warning("No hay suficientes datos para jugar.")
+            st.warning("Not enough data to play.")
         else:
-            idx1, idx2 = random.sample(range(len(top_df)), 2)
+            # Use session state to persist the current pair until answered
+            pair_key = f"{label}_pair"
+            if pair_key not in st.session_state or st.session_state.get(f"{label}_answered", True):
+                idx1, idx2 = random.sample(range(len(top_df)), 2)
+                st.session_state[pair_key] = (idx1, idx2)
+                st.session_state[f"{label}_answered"] = False
+            else:
+                idx1, idx2 = st.session_state[pair_key]
+
             option1 = top_df.iloc[idx1]
             option2 = top_df.iloc[idx2]
 
-            st.write(f"¿Cuál {label} has escuchado más?")
+            st.write(f"Which {label} have you listened to more?")
 
             colA, colB = st.columns(2)
-            with colA:
-                if st.button(option1['name'], key=f"{label}_A_{idx1}_{idx2}"):
-                    if option1['minutes'] >= option2['minutes']:
-                        st.success("¡Correcto!")
-                        st.session_state[score_key] += 1
+            answered = st.session_state.get(f"{label}_answered", False)
+
+            def handle_answer(selected, other):
+                if not st.session_state.get(f"{label}_answered", False):
+                    if selected['minutes'] >= other['minutes']:
+                        st.success("Correct!")
+                        st.session_state[correct_key] += 1
                     else:
-                        st.error("Incorrecto.")
-                        st.session_state[score_key] = 0
-                    st.experimental_rerun()
-            with colB:
-                if st.button(option2['name'], key=f"{label}_B_{idx2}_{idx1}"):
-                    if option2['minutes'] >= option1['minutes']:
-                        st.success("¡Correcto!")
-                        st.session_state[score_key] += 1
-                    else:
-                        st.error("Incorrecto.")
-                        st.session_state[score_key] = 0
+                        st.error("Incorrect.")
+                        st.session_state[incorrect_key] += 1
+                    st.session_state[f"{label}_answered"] = True
                     st.experimental_rerun()
 
-            st.info(f"Puntuación actual: {st.session_state[score_key]}")
+            with colA:
+                if st.button(option1['name'], key=f"{label}_A_{idx1}_{idx2}") and not answered:
+                    handle_answer(option1, option2)
+
+            with colB:
+                if st.button(option2['name'], key=f"{label}_B_{idx2}_{idx1}") and not answered:
+                    handle_answer(option2, option1)
+
+            st.info(f"Correct: {st.session_state[correct_key]} | Incorrect: {st.session_state[incorrect_key]}")
+
+            if st.session_state.get(f"{label}_answered", False):
+                if st.button("Next", key=f"{label}_next_{idx1}_{idx2}"):
+                    st.session_state[f"{label}_answered"] = False
+                    st.experimental_rerun()
