@@ -51,7 +51,7 @@ if uploaded_file:
     if track_filter:
         filtered_df = filtered_df[filtered_df['master_metadata_track_name'].isin(track_filter)]
 
-    tabs = st.tabs(["Top", "Temporal", "Distributions", "Heatmaps", "Streaks", "Artists & Albums", "Summary"])
+    tabs = st.tabs(["Top", "Temporal", "Distributions", "Heatmaps", "Streaks", "Artists & Albums", "Summary", "Game"])
 
     with tabs[0]:
         st.subheader("🎵 Most Played Tracks")
