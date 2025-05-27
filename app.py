@@ -422,7 +422,7 @@ if uploaded_file:
                         st.error("Incorrect.")
                         st.session_state[incorrect_key] += 1
                     st.session_state[f"{label}_answered"] = True
-                    st.experimental_rerun()
+                    st.rerun()
 
             with colA:
                 if st.button(option1['name'], key=f"{label}_A_{idx1}_{idx2}") and not answered:
@@ -437,4 +437,4 @@ if uploaded_file:
             if st.session_state.get(f"{label}_answered", False):
                 if st.button("Next", key=f"{label}_next_{idx1}_{idx2}"):
                     st.session_state[f"{label}_answered"] = False
-                    st.experimental_rerun()
+                    st.rerun()
