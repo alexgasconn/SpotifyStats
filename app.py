@@ -362,64 +362,88 @@ if uploaded_file:
         else:
             st.write("⏰ **No consecutive hours with listening found.**")
 
+    with tabs[7]:
 
 
+        # ===========================
+        # 🎲 Juego: ¿Cuál es el más escuchado?
+        # ===========================
 
-# ===========================
-# 🎲 Juego: ¿Cuál es el más escuchado?
-# ===========================
+        st.subheader("🎲 Juego: ¿Cuál es el más escuchado?")
 
-st.subheader("🎲 Juego: ¿Cuál es el más escuchado?")
+        tabs = st.tabs(["Juego de Artistas", "Juego de Álbumes", "Juego de Canciones"])
 
-tabs = st.tabs(["Juego de Artistas", "Juego de Álbumes", "Juego de Canciones"])
-
-def quiz_game(df, label, display_col):
-    # Inicializar puntuación si no existe
-    score_key = f"{label}_score"
-    if score_key not in st.session_state:
-        st.session_state[score_key] = 0
-
-    # Seleccionar dos opciones distintas al azar
-    if len(df) < 2:
-        st.warning("No hay suficientes datos para jugar.")
-        return
-
-    idx1, idx2 = random.sample(range(len(df)), 2)
-    option1 = df.iloc[idx1]
-    option2 = df.iloc[idx2]
-
-    st.write(f"¿Cuál {label} está más arriba en tu ranking?")
-
-    colA, colB = st.columns(2)
-    with colA:
-        if st.button(option1[display_col], key=f"{label}_A_{idx1}_{idx2}"):
-            if idx1 < idx2:
-                st.success("¡Correcto!")
-                st.session_state[score_key] += 1
-            else:
-                st.error("Incorrecto.")
+        def quiz_game(df, label, display_col):
+            # Inicializar puntuación si no existe
+            score_key = f"{label}_score"
+            if score_key not in st.session_state:
                 st.session_state[score_key] = 0
-            st.experimental_rerun()
-    with colB:
-        if st.button(option2[display_col], key=f"{label}_B_{idx1}_{idx2}"):
-            if idx2 < idx1:
-                st.success("¡Correcto!")
-                st.session_state[score_key] += 1
-            else:
-                st.error("Incorrecto.")
-                st.session_state[score_key] = 0
-            st.experimental_rerun()
 
-    st.info(f"Puntuación actual: {st.session_state[score_key]}")
+            # Seleccionar dos opciones distintas al azar
+            if len(df) < 2:
+                st.warning("No hay suficientes datos para jugar.")
+                return
 
-with tabs[0]:
-    quiz_game(artists_df, "artista", "name")
+            idx1, idx2 = random.sample(range(len(df)), 2)
+            option1 = df.iloc[idx1]
+            option2 = df.iloc[idx2]
 
-with tabs[1]:
-    albums_df = tracks_df[['album']].copy()
-    albums_df['count'] = albums_df['album'].map(tracks_df['album'].value_counts())
-    albums_df = albums_df.drop_duplicates().sort_values('count', ascending=False).reset_index(drop=True)
-    quiz_game(albums_df, "álbum", "album")
+            st.write(f"¿Cuál {label} está más arriba en tu ranking?")
 
-with tabs[2]:
-    quiz_game(tracks_df, "canción", "name")
+            colA, colB = st.columns(2)
+            with colA:
+                if st.button(option1[display_col], key=f"{label}_A_{idx1}_{idx2}"):
+                    if idx1 < idx2:
+                        st.success("¡Correcto!")
+                        st.session_state[score_key] += 1
+                    else:
+                        st.error("Incorrecto.")
+                        st.session_state[score_key] = 0
+                    st.experimental_rerun()
+            with colB:
+                if st.button(option2[display_col], key=f"{label}_B_{idx1}_{idx2}"):
+                    if idx2 < idx1:
+                        st.success("¡Correcto!")
+                        st.session_state[score_key] += 1
+                    else:
+                        st.error("Incorrecto.")
+                        st.session_state[score_key] = 0
+                    st.experimental_rerun()
+
+            st.info(f"Puntuación actual: {st.session_state[score_key]}")
+            # Prepara los dataframes para los juegos
+            # Top artistas
+            artists_df = (
+                filtered_df.groupby('master_metadata_album_artist_name')['minutes']
+                .sum()
+                .sort_values(ascending=False)
+                .reset_index()
+                .rename(columns={'master_metadata_album_artist_name': 'name', 'minutes': 'minutes'})
+            )
+
+            # Top álbumes
+            albums_df = (
+                filtered_df.groupby('master_metadata_album_album_name')['minutes']
+                .sum()
+                .sort_values(ascending=False)
+                .reset_index()
+                .rename(columns={'master_metadata_album_album_name': 'name', 'minutes': 'minutes'})
+            )
+
+            # Top canciones
+            tracks_df = (
+                filtered_df.groupby('master_metadata_track_name')['minutes']
+                .sum()
+                .sort_values(ascending=False)
+                .reset_index()
+                .rename(columns={'master_metadata_track_name': 'name', 'minutes': 'minutes'})
+            )
+
+            with tabs[0]:
+                quiz_game(artists_df, "artista", "name")
+
+            with tabs[1]:
+                quiz_game(albums_df, "álbum", "name")
+
+            with tabs[2]:
+                quiz_game(tracks_df, "canción", "name")
