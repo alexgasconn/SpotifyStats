@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spotify Extended Streaming Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>Spotify Extended Streaming History Dashboard</h1>
+
+  <input type="file" id="zipFileInput" accept=".zip" />
+  <div id="loading">Waiting for ZIP file...</div>
+
+  <div id="dashboard" style="display:none">
+    <section id="top-stats">
+      <h2>Top Statistics</h2>
+      <canvas id="topTracksChart"></canvas>
+      <canvas id="topArtistsChart"></canvas>
+      <canvas id="topAlbumsChart"></canvas>
+    </section>
+
+    <section id="temporal-charts">
+      <h2>Temporal Analysis</h2>
+      <canvas id="monthlyChart"></canvas>
+      <canvas id="weeklyChart"></canvas>
+    </section>
+
+    <section id="distribution-charts">
+      <h2>Distributions</h2>
+      <canvas id="hourDist"></canvas>
+      <canvas id="weekdayDist"></canvas>
+      <canvas id="monthDist"></canvas>
+      <canvas id="yearDist"></canvas>
+      <canvas id="durationDist"></canvas>
+    </section>
+
+    <section id="heatmaps">
+      <h2>Heatmaps</h2>
+      <canvas id="hourlyHeatmap"></canvas>
+      <canvas id="monthlyHeatmap"></canvas>
+      <canvas id="dailyHeatmap"></canvas>
+    </section>
+
+    <section id="streaks">
+      <h2>Listening Streaks</h2>
+      <div id="streakStats"></div>
+    </section>
+
+    <section id="summary">
+      <h2>Summary</h2>
+      <div id="globalStats"></div>
+    </section>
+
+    <section id="game">
+      <h2>🎲 Game: Which is the most played?</h2>
+      <div id="gameQuestion"></div>
+      <button id="option1"></button>
+      <button id="option2"></button>
+      <p id="gameFeedback"></p>
+      <button id="nextRound" style="display:none">Next</button>
+      <p id="score"></p>
+    </section>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/papaparse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.3.0"></script>
+  <script src="script.js"></script>
+</body>
+</html>
