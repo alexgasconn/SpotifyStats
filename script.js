@@ -1,6 +1,3 @@
-// Spotify Dashboard Script
-// Requires: JSZip, Chart.js, and zip file with Spotify JSON history
-
 let allData = [];
 let charts = {};
 let correct = 0;
