@@ -11,7 +11,8 @@ from datetime import datetime
 import random
 
 st.set_page_config(page_title="Spotify Extended Dashboard", layout="wide")
-st.title("📦 Spotify Extended Streaming History Dashboard")
+st.markdown("## 📦 Spotify Extended Streaming History Dashboard")
+
 
 # UPLOAD ZIP FILE
 uploaded_file = st.sidebar.file_uploader("Upload your ZIP file with Spotify data", type="zip")
@@ -40,6 +41,7 @@ if uploaded_file:
     df['date'] = df['ts'].dt.date
 
     # Sidebar date filter
+    st.sidebar.markdown("### 📅 Date Filters")
     min_date = df['date'].min()
     max_date = df['date'].max()
     start_date, end_date = st.sidebar.date_input(
