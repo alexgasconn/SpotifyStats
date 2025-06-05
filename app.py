@@ -39,6 +39,25 @@ if uploaded_file:
     df['hour'] = df['ts'].dt.hour
     df['date'] = df['ts'].dt.date
 
+    # Sidebar date filter
+    min_date = df['date'].min()
+    max_date = df['date'].max()
+    start_date, end_date = st.sidebar.date_input(
+        "Filter by date range",
+        [min_date, max_date],
+        min_value=min_date,
+        max_value=max_date
+    )
+    
+    # Validar y aplicar filtro
+    if isinstance(start_date, datetime):
+        start_date = start_date.date()
+    if isinstance(end_date, datetime):
+        end_date = end_date.date()
+    
+    df = df[(df['date'] >= start_date) & (df['date'] <= end_date)]
+
+
     artist_filter = st.sidebar.multiselect("Filter by artist", df['master_metadata_album_artist_name'].dropna().unique())
     album_filter = st.sidebar.multiselect("Filter by album", df['master_metadata_album_album_name'].dropna().unique())
     track_filter = st.sidebar.multiselect("Filter by track", df['master_metadata_track_name'].dropna().unique())
