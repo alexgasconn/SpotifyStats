@@ -120,10 +120,14 @@ if uploaded_file:
             weekly_minutes = df_copy.groupby(['week_id', 'master_metadata_track_name'])['minutes'].sum().reset_index()
 
             # Assign points based on rank within each week
-            points_map = {1: 10, 2: 7, 3: 5, 4: 3, 5: 1}
+            # points_map = {1: 10, 2: 7, 3: 5, 4: 3, 5: 1}
+            points_map = {
+                1: 25, 2: 18, 3: 15, 4: 12, 5: 10, 
+                6: 8, 7: 6, 8: 4, 9: 2, 10: 1
+                }
 
             def rank_and_score(group):
-                top5 = group.nlargest(5, 'minutes').copy()
+                top5 = group.nlargest(10, 'minutes').copy()
                 top5['rank'] = range(1, len(top5) + 1)
                 top5['points'] = top5['rank'].map(points_map)
                 return top5
