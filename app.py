@@ -9,7 +9,7 @@ from datetime import datetime
 import random
 
 st.set_page_config(page_title="Spotify Extended Dashboard", layout="wide")
-st.markdown("## 📦 Spotify Extended Streaming History Dashboard")
+st.markdown("### 📦 Spotify Extended Streaming History Dashboard")
 
 
 # UPLOAD ZIP FILE
