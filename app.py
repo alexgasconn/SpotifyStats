@@ -147,9 +147,33 @@ if uploaded_file:
             st.subheader("🏁 All-Time Points Leaderboard")
             
             # Calculate overall scores
-            overall_scores = weekly_results_df.groupby('master_metadata_track_name')['points'].sum().sort_values(ascending=False).reset_index()
-            overall_scores.rename(columns={'master_metadata_track_name': 'Track Name', 'points': 'Total Points'}, inplace=True)
-            overall_scores.index += 1 # Start index from 1 for rank
+            overall_scores = (
+                weekly_results_df.groupby('master_metadata_track_name')
+                .agg(
+                    total_points=('points', 'sum'),
+                    total_minutes=('minutes', 'sum')
+                )
+                .sort_values(by='total_points', ascending=False)
+                .reset_index()
+            )
+            
+            # Renombramos y formateamos las columnas para la visualización
+            overall_scores.rename(
+                columns={
+                    'master_metadata_track_name': 'Track Name',
+                    'total_points': 'Total Points',
+                    'total_minutes': 'Total Minutes'
+                },
+                inplace=True
+            )
+            
+            # Redondeamos los minutos para que sea más legible
+            overall_scores['Total Minutes'] = overall_scores['Total Minutes'].round(1)
+            
+            # Reordenamos las columnas para una mejor presentación
+            overall_scores = overall_scores[['Track Name', 'Total Points', 'Total Minutes']]
+            
+            overall_scores.index += 1
             
             st.dataframe(overall_scores, use_container_width=True)
 
