@@ -102,6 +102,7 @@ if uploaded_file:
         This chart calculates a leaderboard for your most listened-to tracks. Here's how it works:
         - Each week, we find your top 5 most-listened tracks (by total minutes).
         - Points are awarded: **1st place (10), 2nd (7), 3rd (5), 4th (3), 5th (1)**.
+        - Points are awarded like in F1: **1st (25), 2nd (18), 3rd (15), 4th (12), 5th (10), 6th (8), 7th (6), 8th (4), 9th (2), 10th (1)**.
         - The "All-Time Leaderboard" shows the total points accumulated by each track over the selected period.
         - You can also select a specific week to see the Top 5 for that period.
         """)
