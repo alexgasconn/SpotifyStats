@@ -96,32 +96,30 @@ if uploaded_file:
         st.bar_chart(top_albums)
 
     ## NUEVO: Pestaña completa de Ranking Semanal con récords y historial por canción
+    # NUEVO: Pestaña completa de Ranking Semanal con récords masivos y analytics de "data nerd"
     with tabs[1]:
         st.subheader("🏆 Weekly Ranking Leaderboard (F1 Style)")
         st.markdown("""
         This chart calculates a leaderboard for your most listened-to tracks using a Formula 1 style scoring system.
         - Each week, we find your **top 10** most-listened tracks (by total minutes).
         - Points are awarded like in F1: **1st (25), 2nd (18), 3rd (15), 4th (12), 5th (10), 6th (8), 7th (6), 8th (4), 9th (2), 10th (1)**.
-        - Below, you'll find the all-time leaderboard, fun facts, and a detailed history for each track.
+        - Below, you'll find the all-time leaderboard, a deep-dive into records, and a detailed history for each track.
         """)
 
         @st.cache_data(show_spinner="Calculating weekly rankings...")
         def calculate_weekly_ranking(df):
+            track_artist_map = df.drop_duplicates(subset=['master_metadata_track_name'])[['master_metadata_track_name', 'master_metadata_album_artist_name']]
             df_copy = df.copy()
-            df_copy['week_id'] = df_copy['ts'].dt.isocalendar().year.astype(str) + \
-                                '-W' + df_copy['ts'].dt.isocalendar().week.astype(str).str.zfill(2)
-            
+            df_copy['week_id'] = df_copy['ts'].dt.isocalendar().year.astype(str) + '-W' + df_copy['ts'].dt.isocalendar().week.astype(str).str.zfill(2)
             weekly_minutes = df_copy.groupby(['week_id', 'master_metadata_track_name'])['minutes'].sum().reset_index()
-
             points_map = {1: 25, 2: 18, 3: 15, 4: 12, 5: 10, 6: 8, 7: 6, 8: 4, 9: 2, 10: 1}
-
             def rank_and_score(group):
                 top10 = group.nlargest(10, 'minutes').copy()
                 top10['rank'] = range(1, len(top10) + 1)
                 top10['points'] = top10['rank'].map(points_map)
                 return top10
-
             weekly_ranking_df = weekly_minutes.groupby('week_id', group_keys=False).apply(rank_and_score)
+            weekly_ranking_df = pd.merge(weekly_ranking_df, track_artist_map, on='master_metadata_track_name', how='left')
             return weekly_ranking_df
 
         weekly_results_df = calculate_weekly_ranking(filtered_df)
@@ -131,116 +129,131 @@ if uploaded_file:
         else:
             st.markdown("---")
             st.subheader("🏁 All-Time Points Leaderboard")
-            
-            overall_scores = (
-                weekly_results_df.groupby('master_metadata_track_name')
-                .agg(
-                    total_points=('points', 'sum'),
-                    total_minutes=('minutes', 'sum')
-                )
-                .sort_values(by='total_points', ascending=False)
-                .reset_index()
-            )
-            
+            overall_scores = weekly_results_df.groupby('master_metadata_track_name').agg(total_points=('points', 'sum'), total_minutes=('minutes', 'sum')).sort_values(by='total_points', ascending=False).reset_index()
             overall_scores.rename(columns={'master_metadata_track_name': 'Track Name', 'total_points': 'Total Points', 'total_minutes': 'Total Minutes'}, inplace=True)
             overall_scores['Total Minutes'] = overall_scores['Total Minutes'].round(1)
             overall_scores = overall_scores[['Track Name', 'Total Points', 'Total Minutes']]
             overall_scores.index += 1
-            
             st.dataframe(overall_scores, use_container_width=True)
 
-            # --- SECCIÓN DE RÉCORDS Y FUN FACTS ---
+            # --- SECCIÓN DE RÉCORDS Y FUN FACTS AMPLIADA ---
             st.markdown("---")
             st.subheader("🏆 All-Time Records & Fun Facts")
 
-            # Récords
-            most_weeks_on_chart = overall_scores.shape[0] > 0 and weekly_results_df.groupby('master_metadata_track_name').size().idxmax()
-            most_weeks_count = weekly_results_df.groupby('master_metadata_track_name').size().max()
+            # --- Función de ayuda para calcular rachas consecutivas ---
+            def get_max_consecutive_streak(df, rank_threshold):
+                filtered_df = df[df['rank'] <= rank_threshold].copy()
+                if filtered_df.empty: return ("N/A", 0)
+                
+                def calculate_streaks(group):
+                    group = group.sort_values('week_id')
+                    group['week_num'] = group['week_id'].str.split('-W').str[1].astype(int)
+                    streaks = (group['week_num'].diff() != 1).cumsum()
+                    return streaks.value_counts().max()
+
+                streak_series = filtered_df.groupby('master_metadata_track_name').apply(calculate_streaks)
+                if streak_series.empty: return ("N/A", 0)
+                song = streak_series.idxmax()
+                count = streak_series.max()
+                return (song, count)
+
+            # --- Data prep para análisis de volatilidad ---
+            lag_df = weekly_results_df.sort_values(['master_metadata_track_name', 'week_id']).copy()
+            lag_df['prev_rank'] = lag_df.groupby('master_metadata_track_name')['rank'].shift(1)
+            lag_df['rank_diff'] = lag_df['prev_rank'] - lag_df['rank'] # Positivo = subida, Negativo = bajada
+
+            with st.expander("👑 The GOATs (Greatest of All Time - Track Records)", expanded=True):
+                col1, col2, col3 = st.columns(3)
+                # Most weeks at #1
+                top_1_df = weekly_results_df[weekly_results_df['rank'] == 1]
+                most_weeks_at_no1 = top_1_df.groupby('master_metadata_track_name').size().idxmax() if not top_1_df.empty else "N/A"
+                most_weeks_at_no1_count = top_1_df.groupby('master_metadata_track_name').size().max() if not top_1_df.empty else 0
+                col1.metric("Most Weeks at #1", f"{most_weeks_at_no1}", f"{int(most_weeks_at_no1_count)} weeks")
+
+                # Most consecutive weeks at #1
+                song_no1_streak, count_no1_streak = get_max_consecutive_streak(weekly_results_df, 1)
+                col2.metric("Most Consecutive Weeks at #1", f"{song_no1_streak}", f"{int(count_no1_streak)} weeks")
+
+                # Most weeks on chart
+                most_weeks_on_chart = weekly_results_df.groupby('master_metadata_track_name').size().idxmax()
+                most_weeks_count = weekly_results_df.groupby('master_metadata_track_name').size().max()
+                col3.metric("Most Weeks in Top 10", f"{most_weeks_on_chart}", f"{int(most_weeks_count)} weeks")
+                
+                st.divider()
+                colA, colB, colC = st.columns(3)
+                # Most Top 3/5/10 finishes
+                most_top_3s = weekly_results_df[weekly_results_df['rank'] <= 3].groupby('master_metadata_track_name').size()
+                colA.metric("Most Top 3 Finishes", f"{most_top_3s.idxmax()}", f"{int(most_top_3s.max())} times")
+                
+                most_top_5s = weekly_results_df[weekly_results_df['rank'] <= 5].groupby('master_metadata_track_name').size()
+                colB.metric("Most Top 5 Finishes", f"{most_top_5s.idxmax()}", f"{int(most_top_5s.max())} times")
+                
+                # Bridesmaid Award
+                songs_with_no1 = top_1_df['master_metadata_track_name'].unique()
+                bridesmaid_df = weekly_results_df[~weekly_results_df['master_metadata_track_name'].isin(songs_with_no1)]
+                bridesmaid_weeks = bridesmaid_df.groupby('master_metadata_track_name').size()
+                bridesmaid_song = bridesmaid_weeks.idxmax() if not bridesmaid_weeks.empty else "N/A"
+                bridesmaid_count = bridesmaid_weeks.max() if not bridesmaid_weeks.empty else 0
+                colC.metric("The 'Bridesmaid' (Most weeks without #1)", f"{bridesmaid_song}", f"{int(bridesmaid_count)} weeks")
+
+
+            with st.expander("📈 Chart Movement & Volatility Records"):
+                col1, col2, col3 = st.columns(3)
+                # Rocket Ship Award
+                biggest_jump_idx = lag_df['rank_diff'].idxmax()
+                jump_song = lag_df.loc[biggest_jump_idx]
+                col1.metric("The 'Rocket Ship' (Biggest Jump)", f"{jump_song['master_metadata_track_name']}", f"#{int(jump_song['prev_rank'])} → #{int(jump_song['rank'])}")
+
+                # Free Fall Award
+                biggest_fall_idx = lag_df['rank_diff'].idxmin()
+                fall_song = lag_df.loc[biggest_fall_idx]
+                col2.metric("The 'Free Fall' (Biggest Drop)", f"{fall_song['master_metadata_track_name']}", f"#{int(fall_song['prev_rank'])} → #{int(fall_song['rank'])}")
+                
+                # Highest Debut
+                debuts = weekly_results_df.loc[weekly_results_df.groupby('master_metadata_track_name')['week_id'].idxmin()]
+                highest_debut = debuts.loc[debuts['rank'].idxmin()]
+                col3.metric("Highest Debut of All Time", f"#{int(highest_debut['rank'])}", f"{highest_debut['master_metadata_track_name']}")
+
+            with st.expander("👩‍🎤 Artist Dominance Records"):
+                col1, col2, col3 = st.columns(3)
+                # Constructor's Champion
+                constructor_points = weekly_results_df.groupby('master_metadata_album_artist_name')['points'].sum()
+                col1.metric("Constructor's Champion", f"{constructor_points.idxmax()}", f"{int(constructor_points.max())} total points")
+                
+                # Most Chart Hits
+                artist_chart_hits = weekly_results_df.groupby('master_metadata_album_artist_name')['master_metadata_track_name'].nunique()
+                col2.metric("Most Chart Hits", f"{artist_chart_hits.idxmax()}", f"{int(artist_chart_hits.max())} unique songs")
+                
+                # Beatles Award
+                top_3_artists_per_week = weekly_results_df[weekly_results_df['rank']<=3].groupby('week_id')['master_metadata_album_artist_name'].unique()
+                beatles_week = top_3_artists_per_week[top_3_artists_per_week.apply(lambda x: len(x) == 1)].first_valid_index()
+                beatles_artist = weekly_results_df[weekly_results_df['week_id'] == beatles_week]['master_metadata_album_artist_name'].iloc[0] if beatles_week else "None Yet"
+                col3.metric("The 'Beatles' Award (Held Top 3)", f"{beatles_artist}", f"in {beatles_week}" if beatles_week else " ")
             
-            top_1_df = weekly_results_df[weekly_results_df['rank'] == 1]
-            most_weeks_at_no1 = top_1_df.groupby('master_metadata_track_name').size().idxmax() if not top_1_df.empty else "N/A"
-            most_weeks_at_no1_count = top_1_df.groupby('master_metadata_track_name').size().max() if not top_1_df.empty else 0
-
-            top_3_df = weekly_results_df[weekly_results_df['rank'] <= 3]
-            most_top_3s = top_3_df.groupby('master_metadata_track_name').size().idxmax() if not top_3_df.empty else "N/A"
-            most_top_3s_count = top_3_df.groupby('master_metadata_track_name').size().max() if not top_3_df.empty else 0
-            
-            top_5_df = weekly_results_df[weekly_results_df['rank'] <= 5]
-            most_top_5s = top_5_df.groupby('master_metadata_track_name').size().idxmax() if not top_5_df.empty else "N/A"
-            most_top_5s_count = top_5_df.groupby('master_metadata_track_name').size().max() if not top_5_df.empty else 0
-
-            # Racha consecutiva
-            def get_max_streak(df_group):
-                df_group = df_group.sort_values('week_id')
-                df_group['week_num'] = df_group['week_id'].str.split('-W').str[1].astype(int)
-                streaks = (df_group['week_num'].diff() != 1).cumsum()
-                return streaks.value_counts().max()
-
-            streak_df = weekly_results_df.groupby('master_metadata_track_name').apply(get_max_streak)
-            longest_streak_song = streak_df.idxmax() if not streak_df.empty else "N/A"
-            longest_streak_count = streak_df.max() if not streak_df.empty else 0
-            
-            # Debut más alto
-            debuts = weekly_results_df.loc[weekly_results_df.groupby('master_metadata_track_name')['week_id'].idxmin()]
-            highest_debut = debuts.loc[debuts['rank'].idxmin()]
-
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Most Weeks on Chart", f"{most_weeks_count} weeks", delta=most_weeks_on_chart, delta_color="off")
-                st.metric("Most Weeks at #1", f"{most_weeks_at_no1_count} weeks", delta=most_weeks_at_no1, delta_color="off")
-
-            with col2:
-                st.metric("Most Finishes in Top 3", f"{most_top_3s_count} times", delta=most_top_3s, delta_color="off")
-                st.metric("Most Finishes in Top 5", f"{most_top_5s_count} times", delta=most_top_5s, delta_color="off")
-            
-            with col3:
-                st.metric("Longest Consecutive Streak", f"{longest_streak_count} weeks", delta=longest_streak_song, delta_color="off")
-                st.metric(f"Highest Debut Position", f"#{int(highest_debut['rank'])}", delta=f"{highest_debut['master_metadata_track_name']}", delta_color="off")
-
             # --- SECCIÓN DE HISTORIAL POR CANCIÓN ---
             st.markdown("---")
             st.subheader("📜 Track Position History")
-
-            track_list = ["Select a track..."] + overall_scores['Track Name'].tolist()
+            track_list = ["Select a track..."] + sorted(weekly_results_df['master_metadata_track_name'].unique())
             selected_track = st.selectbox("Choose a track to see its full history:", track_list)
-
             if selected_track != "Select a track...":
                 history_df = weekly_results_df[weekly_results_df['master_metadata_track_name'] == selected_track].sort_values('week_id')
-                
-                # Gráfico de evolución
-                fig = px.line(
-                    history_df, 
-                    x='week_id', 
-                    y='rank',
-                    title=f'Weekly Rank for "{selected_track}"',
-                    markers=True,
-                    labels={'week_id': 'Week', 'rank': 'Rank'}
-                )
-                # Invertir el eje Y para que #1 esté arriba
+                fig = px.line(history_df, x='week_id', y='rank', title=f'Weekly Rank for "{selected_track}"', markers=True, labels={'week_id': 'Week', 'rank': 'Rank'})
                 fig.update_yaxes(autorange="reversed", tick0=1, dtick=1)
                 st.plotly_chart(fig, use_container_width=True)
-
-                # Tabla de datos
                 st.write("#### Weekly Data")
-                history_display = history_df[['week_id', 'rank', 'minutes', 'points']].rename(columns={
-                    'week_id': 'Week', 'rank': 'Rank', 'minutes': 'Minutes Listened', 'points': 'Points Awarded'
-                }).set_index('Week')
+                history_display = history_df[['week_id', 'rank', 'minutes', 'points']].rename(columns={'week_id': 'Week', 'rank': 'Rank', 'minutes': 'Minutes Listened', 'points': 'Points Awarded'}).set_index('Week')
                 history_display['Minutes Listened'] = history_display['Minutes Listened'].round(1)
                 st.dataframe(history_display, use_container_width=True)
 
-
+            # --- VISTA SEMANAL ---
             st.markdown("---")
             st.subheader("📅 View a Specific Week's Ranking")
-            
             unique_weeks = sorted(weekly_results_df['week_id'].unique(), reverse=True)
             selected_week = st.selectbox("Choose a week to inspect:", unique_weeks)
-            
             if selected_week:
                 week_data = weekly_results_df[weekly_results_df['week_id'] == selected_week].sort_values('rank').copy()
                 week_data['Minutes Listened'] = week_data['minutes'].round(1)
-                week_data_display = week_data[['rank', 'master_metadata_track_name', 'Minutes Listened', 'points']]
-                week_data_display.rename(columns={'rank': 'Rank', 'master_metadata_track_name': 'Track Name', 'points': 'Points Awarded'}, inplace=True)
-                
+                week_data_display = week_data[['rank', 'master_metadata_track_name', 'minutes', 'points']].rename(columns={'rank': 'Rank', 'master_metadata_track_name': 'Track Name', 'minutes': 'Minutes Listened', 'points': 'Points Awarded'})
                 st.dataframe(week_data_display.set_index('Rank'), use_container_width=True)
 
     with tabs[2]:
