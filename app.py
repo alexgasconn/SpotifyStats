@@ -752,14 +752,17 @@ if uploaded_file:
                 
                 # Agrupar por mes
                 monthly_data = item_df.set_index('ts').resample('ME').agg(minutes=('minutes', 'sum')).reset_index()
+                st.dataframe(monthly_data, use_container_width=True)
                 
                 # Rellenar meses faltantes para un año completo
                 all_months = pd.date_range(start=f'{selected_year}-01-01', end=f'{selected_year}-12-31', freq='ME')
                 monthly_data = monthly_data.set_index('ts').reindex(all_months, fill_value=0).reset_index()
                 monthly_data.rename(columns={'index': 'ts'}, inplace=True)
+                st.dataframe(monthly_data, use_container_width=True)
                 
                 monthly_data['month_name'] = monthly_data['ts'].dt.strftime('%b')
                 monthly_data['cumulative_minutes'] = monthly_data['minutes'].cumsum()
+                st.dataframe(monthly_data, use_container_width=True)
                 
                 fig_bar = px.bar(monthly_data, x='month_name', y='minutes', title=f"Monthly Listening for: {item_value}", labels={'month_name': 'Month', 'minutes': 'Minutes Listened'})
                 st.plotly_chart(fig_bar, use_container_width=True)
