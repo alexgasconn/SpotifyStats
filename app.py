@@ -855,5 +855,4 @@ if uploaded_file:
                 </div>
                 """
                 st.html(card_html)
-48.9s
 
