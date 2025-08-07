@@ -704,16 +704,22 @@ if uploaded_file:
 
             # Fun Facts Ampliado
             st.subheader("🧐 Did You Know?")
-            facts_cols = st.columns(4)
+            facts_cols = st.columns(5)
+            # 1. Busiest Day
             most_listened_day = wrapped_df.groupby('date')['minutes'].sum().idxmax()
             most_listened_day_minutes = wrapped_df.groupby('date')['minutes'].sum().max()
-            top_hour = wrapped_df['hour'].mode()[0]
-            loyalty_artist = wrapped_df.groupby('master_metadata_album_artist_name')['month'].nunique().idxmax()
-
             facts_cols[0].metric("Busiest Day", most_listened_day.strftime('%b %d'), f"{int(most_listened_day_minutes)} min")
+            # 2. Unique Artists
             facts_cols[1].metric("Unique Artists", f"{wrapped_df['master_metadata_album_artist_name'].nunique():,}")
-            facts_cols[2].metric("Top Listening Hour", f"{top_hour}:00 - {top_hour+1}:00")
-            facts_cols[3].metric("Loyalty Award", loyalty_artist, "Most months listened")
+            # 3. Unique Tracks
+            facts_cols[2].metric("Unique Tracks", f"{wrapped_df['master_metadata_track_name'].nunique():,}")
+            # 4. Top Listening Hour
+            top_hour = wrapped_df['hour'].mode()[0]
+            facts_cols[3].metric("Top Listening Hour", f"{top_hour}:00 - {top_hour+1}:00")
+            # 5. Most Played Album
+            top_album = wrapped_df.groupby('master_metadata_album_album_name')['minutes'].sum().idxmax()
+            top_album_minutes = wrapped_df.groupby('master_metadata_album_album_name')['minutes'].sum().max()
+            facts_cols[4].metric("Top Album", top_album, f"{int(top_album_minutes)} min")
             
             st.markdown("---")
 
@@ -840,42 +846,96 @@ if uploaded_file:
                 fig_decade = px.bar(decade_dist, x='decade', y='minutes', color='decade', title="Listening by Decade")
                 st.plotly_chart(fig_decade, use_container_width=True)
 
-            # --- SECCIÓN 6: TARJETA "MASTERPIECE" (MEJORADA) ---
+            # --- SECCIÓN 6: TARJETA "MASTERPIECE" (MEJORADA Y AMPLIADA) ---
             st.markdown("---")
             st.header(f"Your {selected_year} Masterpiece")
             st.markdown("This is your year, summarized. The ultimate shareable card.")
 
             with st.container():
+                # Main stats
                 total_tracks_unique = wrapped_df['master_metadata_track_name'].nunique()
+                total_albums_unique = wrapped_df['master_metadata_album_album_name'].nunique()
+                total_artists_unique = wrapped_df['master_metadata_album_artist_name'].nunique()
+                total_hours = round(total_minutes / 60, 1)
+                total_days = wrapped_df['date'].nunique()
                 top_dna = dna_df.loc[dna_df['Minutes'].idxmax()]['Category'] if not dna_df.empty else "Unique"
                 top_decade = decade_dist.loc[decade_dist['minutes'].idxmax()]['decade'] if not decade_dist.empty else "Timeless"
-                
+
+                # % of new songs (not listened in previous years)
+                first_listen_df = df.loc[df.groupby('master_metadata_track_name')['ts'].idxmin()]
+                new_songs_this_year = first_listen_df[first_listen_df['year'] == selected_year]['master_metadata_track_name'].unique()
+                percent_new_songs = 100 * len(new_songs_this_year) / total_tracks_unique if total_tracks_unique else 0
+
+                # Top 5 songs
+                top_tracks_df = wrapped_df.groupby(['master_metadata_track_name', 'master_metadata_album_artist_name'])['minutes'].sum().nlargest(5).reset_index()
+                top_tracks_html = ""
+                for i, row in top_tracks_df.iterrows():
+                    top_tracks_html += f"<li><b>{row['master_metadata_track_name']}</b> <span style='color:#B3B3B3;'>by {row['master_metadata_album_artist_name']}</span> <span style='color:#1DB954;'>({int(row['minutes'])} min)</span></li>"
+
                 card_html = f"""
                 <div style="background: linear-gradient(135deg, #1D2B64, #2c3e50); border-radius: 15px; padding: 25px; color: white; font-family: sans-serif;">
                     <h2 style="text-align: center; font-weight: bold; margin-bottom: 5px;">My Wrapped {selected_year}</h2>
                     <p style="text-align: center; font-size: 14px; color: #B3B3B3; margin-top: 0;">A Year in Review</p>
                     <hr style="border-color: #1DB954; margin: 15px 0;">
-                    <div style="display: flex; justify-content: space-around; text-align: center; margin-bottom: 25px;">
-                        <div><p style="font-size: 14px; color: #B3B3B3; margin:0;">TOTAL MINUTES</p><p style="font-size: 24px; font-weight: bold;">{int(total_minutes):,}</p></div>
-                        <div><p style="font-size: 14px; color: #B3B3B3; margin:0;">UNIQUE SONGS</p><p style="font-size: 24px; font-weight: bold;">{total_tracks_unique:,}</p></div>
+                    <div style="display: flex; flex-wrap: wrap; justify-content: space-around; text-align: center; margin-bottom: 25px;">
+                        <div style="margin:10px;">
+                            <p style="font-size: 14px; color: #B3B3B3; margin:0;">TOTAL MINUTES</p>
+                            <p style="font-size: 24px; font-weight: bold;">{int(total_minutes):,}</p>
+                        </div>
+                        <div style="margin:10px;">
+                            <p style="font-size: 14px; color: #B3B3B3; margin:0;">TOTAL HOURS</p>
+                            <p style="font-size: 24px; font-weight: bold;">{total_hours:,}</p>
+                        </div>
+                        <div style="margin:10px;">
+                            <p style="font-size: 14px; color: #B3B3B3; margin:0;">TOTAL DAYS</p>
+                            <p style="font-size: 24px; font-weight: bold;">{total_days:,}</p>
+                        </div>
+                        <div style="margin:10px;">
+                            <p style="font-size: 14px; color: #B3B3B3; margin:0;">UNIQUE SONGS</p>
+                            <p style="font-size: 24px; font-weight: bold;">{total_tracks_unique:,}</p>
+                        </div>
+                        <div style="margin:10px;">
+                            <p style="font-size: 14px; color: #B3B3B3; margin:0;">UNIQUE ALBUMS</p>
+                            <p style="font-size: 24px; font-weight: bold;">{total_albums_unique:,}</p>
+                        </div>
+                        <div style="margin:10px;">
+                            <p style="font-size: 14px; color: #B3B3B3; margin:0;">UNIQUE ARTISTS</p>
+                            <p style="font-size: 24px; font-weight: bold;">{total_artists_unique:,}</p>
+                        </div>
                     </div>
                     <div style="background-color: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px;">
                         <div style="display: grid; grid-template-columns: auto 1fr; gap: 10px 15px; align-items: center;">
                             <span style="font-size: 24px;">👑</span>
-                            <div><p style="font-size: 12px; color: #B3B3B3; margin:0;">TOP ARTIST</p><p style="font-size: 16px; font-weight: bold; margin:0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{top_artist_name}">{top_artist_name}</p></div>
+                            <div>
+                                <p style="font-size: 12px; color: #B3B3B3; margin:0;">TOP ARTIST</p>
+                                <p style="font-size: 16px; font-weight: bold; margin:0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{top_artist_name}">{top_artist_name}</p>
+                            </div>
                         </div>
                         <div style="display: grid; grid-template-columns: auto 1fr; gap: 10px 15px; align-items: center; margin-top: 10px;">
                             <span style="font-size: 24px;">🎶</span>
-                            <div><p style="font-size: 12px; color: #B3B3B3; margin:0;">TOP TRACK</p><p style="font-size: 16px; font-weight: bold; margin:0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{top_track_name}">{top_track_name}</p></div>
+                            <div>
+                                <p style="font-size: 12px; color: #B3B3B3; margin:0;">TOP 5 TRACKS</p>
+                                <ul style="font-size: 13px; margin:0 0 0 10px; padding:0; list-style-type: disc; color:#fff;">
+                                    {top_tracks_html}
+                                </ul>
+                            </div>
                         </div>
                     </div>
-                    <div style="display: flex; justify-content: space-around; text-align: center; margin-top: 25px;">
-                         <div><p style="font-size: 14px; color: #B3B3B3; margin:0;">LISTENER DNA</p><p style="font-size: 18px; font-weight: bold;">{top_dna}</p></div>
-                         <div><p style="font-size: 14px; color: #B3B3B3; margin:0;">AUDIO NOSTALGIA</p><p style="font-size: 18px; font-weight: bold;">The {top_decade}</p></div>
+                    <div style="display: flex; flex-wrap: wrap; justify-content: space-around; text-align: center; margin-top: 25px;">
+                         <div style="margin:10px;">
+                             <p style="font-size: 14px; color: #B3B3B3; margin:0;">LISTENER DNA</p>
+                             <p style="font-size: 18px; font-weight: bold;">{top_dna}</p>
+                         </div>
+                         <div style="margin:10px;">
+                             <p style="font-size: 14px; color: #B3B3B3; margin:0;">AUDIO NOSTALGIA</p>
+                             <p style="font-size: 18px; font-weight: bold;">The {top_decade}</p>
+                         </div>
+                         <div style="margin:10px;">
+                             <p style="font-size: 14px; color: #B3B3B3; margin:0;">% NEW SONGS</p>
+                             <p style="font-size: 18px; font-weight: bold;">{percent_new_songs:.1f}%</p>
+                         </div>
                     </div>
                     <p style="font-size: 10px; color: #B3B3B3; text-align: center; margin-top: 20px;">Generated with Spotify Extended Dashboard</p>
                 </div>
                 """
-                # Usar st.html para garantizar el renderizado correcto
                 st.html(card_html)
-
