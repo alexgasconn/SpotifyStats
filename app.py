@@ -80,7 +80,7 @@ if uploaded_file:
         filtered_df = filtered_df[filtered_df['master_metadata_track_name'].isin(track_filter)]
 
     # NUEVO: Lista de pestañas actualizada
-    tabs = st.tabs(["Top", "🏆 Weekly Ranking", "Temporal", "Distributions", "Heatmaps", "Streaks", "Artists & Albums", "Summary", "Game"])
+    tabs = st.tabs(["Top", "🏆 Weekly Ranking", "Temporal", "Distributions", "Heatmaps", "Streaks", "Artists & Albums", "Summary", "Game", "🌟 Your Wrapped"])
 
     with tabs[0]:
         st.subheader("🏆 Your All-Time & Filtered Top Lists")
@@ -660,3 +660,178 @@ if uploaded_file:
                     st.session_state[f"game_show_result_{label}"] = False
                     st.session_state[f"game_scored_this_round_{label}"] = False
                     st.rerun()
+
+
+    with tabs[9]: # Ajusta este índice si cambias la posición de la pestaña
+
+        st.title("🌟 Your Personalized Wrapped")
+        st.markdown("Relive your year in music. Unlike the official Wrapped, here *you* are in control. Select a year to generate a deep and interactive analysis of your listening habits.")
+
+        # --- 1. CONTROL DEL TIEMPO: EL SELECTOR DE AÑO ---
+        available_years = sorted(df['year'].unique(), reverse=True)
+        if not available_years:
+            st.warning("No data available to generate a Wrapped report.")
+            st.stop()
+            
+        selected_year = st.selectbox("Select a year to analyze:", available_years)
+
+        # Filtra el DataFrame principal para el año seleccionado. Este será nuestro DF base.
+        wrapped_df = df[df['year'] == selected_year].copy()
+
+        if wrapped_df.empty:
+            st.error(f"No listening data found for the year {selected_year}. Please select another year.")
+        else:
+            # --- 2. RESUMEN GENERAL: LOS GRANDES NÚMEROS ---
+            st.header(f"Your {selected_year} at a Glance")
+            total_minutes = wrapped_df['minutes'].sum()
+            total_tracks = wrapped_df['master_metadata_track_name'].nunique()
+            total_artists = wrapped_df['master_metadata_album_artist_name'].nunique()
+
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Total Minutes Listened", f"{int(total_minutes):,}")
+            col2.metric("Unique Tracks", f"{total_tracks:,}")
+            col3.metric("Unique Artists", f"{total_artists:,}")
+
+            st.markdown("---")
+
+            # --- 3. LOS TOPS DEL AÑO ---
+            st.header(f"Your Top Lists of {selected_year}")
+            
+            top_n = st.slider("Select how many top items to show:", 5, 20, 10)
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                # --- Top Tracks ---
+                st.subheader(f"🎵 Top {top_n} Tracks")
+                top_tracks = wrapped_df.groupby('master_metadata_track_name')['minutes'].sum().nlargest(top_n).reset_index()
+                
+                # Storytelling: ¿Cuándo descubriste tu canción #1?
+                track_1_name = top_tracks.iloc[0]['master_metadata_track_name']
+                first_listen_date = wrapped_df[wrapped_df['master_metadata_track_name'] == track_1_name]['ts'].min().strftime('%B %d')
+                st.caption(f"You discovered your #1 track, '{track_1_name}', on **{first_listen_date}**.")
+
+                fig_tracks = px.bar(top_tracks.sort_values('minutes', ascending=True),
+                                    x='minutes', y='master_metadata_track_name', orientation='h', text_auto='.0f',
+                                    title=f"Top {top_n} Tracks")
+                fig_tracks.update_traces(marker_color='#1DB954')
+                fig_tracks.update_layout(yaxis_title=None, xaxis_title="Total Minutes")
+                st.plotly_chart(fig_tracks, use_container_width=True)
+
+            with col2:
+                # --- Top Artists ---
+                st.subheader(f"👩‍🎤 Top {top_n} Artists")
+                top_artists = wrapped_df.groupby('master_metadata_album_artist_name')['minutes'].sum().nlargest(top_n).reset_index()
+                
+                # Storytelling: % de tu tiempo con tu artista #1
+                artist_1_name = top_artists.iloc[0]['master_metadata_album_artist_name']
+                artist_1_minutes = top_artists.iloc[0]['minutes']
+                artist_1_percentage = (artist_1_minutes / total_minutes) * 100
+                st.caption(f"You spent **{artist_1_percentage:.1f}%** of your total listening time with your #1 artist, '{artist_1_name}'.")
+
+                fig_artists = px.bar(top_artists.sort_values('minutes', ascending=True),
+                                     x='minutes', y='master_metadata_album_artist_name', orientation='h', text_auto='.0f',
+                                     title=f"Top {top_n} Artists")
+                fig_artists.update_traces(marker_color='#1DB954')
+                fig_artists.update_layout(yaxis_title=None, xaxis_title="Total Minutes")
+                st.plotly_chart(fig_artists, use_container_width=True)
+
+            # --- 4. ANÁLISIS DE COMPORTAMIENTO PROFUNDO ---
+            st.markdown("---")
+            st.header("Your Listening Personality")
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                # --- Mañana / Tarde / Noche ---
+                st.subheader("Daily Listening Cycle")
+                wrapped_df['hour'] = wrapped_df['ts'].dt.hour
+                bins = [-1, 4, 11, 17, 21, 23] # Night (10pm-5am), Morning (5am-12pm), Afternoon (12pm-6pm), Evening (6pm-10pm)
+                labels = ['Late Night', 'Morning', 'Afternoon', 'Evening', 'Late Night']
+                # Re-mapeo para juntar los Late Night
+                wrapped_df['time_of_day'] = pd.cut(wrapped_df['hour'], bins=bins, labels=labels, ordered=False)
+                
+                time_of_day_dist = wrapped_df['time_of_day'].value_counts(normalize=True).reset_index()
+                time_of_day_dist.columns = ['time_of_day', 'percentage']
+
+                fig_tod = px.pie(time_of_day_dist, names='time_of_day', values='percentage', hole=0.4,
+                                 title="When did you listen?", color_discrete_sequence=px.colors.sequential.Plasma_r)
+                st.plotly_chart(fig_tod, use_container_width=True)
+
+            with col2:
+                # --- Obsesión vs Exploración ---
+                st.subheader("Explorer vs. Loyalist")
+                track_counts = wrapped_df['master_metadata_track_name'].value_counts()
+                
+                # Loyalist: minutos de canciones escuchadas 3+ veces
+                loyalist_tracks = track_counts[track_counts >= 3].index
+                minutes_loyalist = wrapped_df[wrapped_df['master_metadata_track_name'].isin(loyalist_tracks)]['minutes'].sum()
+                
+                # Explorer: minutos de canciones escuchadas 1 vez
+                explorer_tracks = track_counts[track_counts == 1].index
+                minutes_explorer = wrapped_df[wrapped_df['master_metadata_track_name'].isin(explorer_tracks)]['minutes'].sum()
+
+                personality_df = pd.DataFrame([
+                    {'Category': 'Loyalist (Songs listened to 3+ times)', 'Minutes': minutes_loyalist},
+                    {'Category': 'Explorer (Songs listened to once)', 'Minutes': minutes_explorer}
+                ])
+                
+                fig_personality = px.pie(personality_df, names='Category', values='Minutes', hole=0.4,
+                                         title="What kind of listener were you?", color_discrete_sequence=px.colors.sequential.Viridis)
+                st.plotly_chart(fig_personality, use_container_width=True)
+
+
+            # --- 5. VISUALIZACIONES DE STORYTELLING ---
+            st.markdown("---")
+            st.header("The Stories Behind the Numbers")
+
+            # --- Heatmap de Lealtad Artística Mensual ---
+            st.subheader("Your Artist Loyalty Throughout the Year")
+            top_5_artists_list = top_artists.head(5)['master_metadata_album_artist_name'].tolist()
+            artist_heatmap_df = wrapped_df[wrapped_df['master_metadata_album_artist_name'].isin(top_5_artists_list)]
+            artist_heatmap_pivot = artist_heatmap_df.pivot_table(index='master_metadata_album_artist_name',
+                                                                 columns='month', values='minutes', aggfunc='sum', fill_value=0)
+            # Asegurar que todos los meses estén presentes
+            for month_num in range(1, 13):
+                if month_num not in artist_heatmap_pivot.columns:
+                    artist_heatmap_pivot[month_num] = 0
+            artist_heatmap_pivot = artist_heatmap_pivot[sorted(artist_heatmap_pivot.columns)]
+
+            fig_heatmap = px.imshow(artist_heatmap_pivot,
+                                    labels=dict(x="Month", y="Artist", color="Minutes"),
+                                    title="Monthly Listening for Your Top 5 Artists",
+                                    color_continuous_scale="Viridis", text_auto=".0f", aspect="auto")
+            st.plotly_chart(fig_heatmap, use_container_width=True)
+
+            # --- 6. LA TARJETA DE PRESENTACIÓN FINAL ---
+            st.markdown("---")
+            st.header(f"Your {selected_year} Share Card")
+            st.markdown("Here's your personalized snapshot. Screenshot and share your year in music!")
+            
+            # Usar un expander para un diseño más limpio
+            with st.expander("Click to view your personalized card", expanded=True):
+                # Crear un borde visual con markdown
+                st.markdown(
+                    """
+                    <div style="border: 2px solid #1DB954; border-radius: 10px; padding: 20px; text-align: center;">
+                    <h2 style="color: #FFFFFF;">My {year} on Spotify</h2>
+                    """.format(year=selected_year), unsafe_allow_html=True
+                )
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown(f"**Top Artist**<br><h3 style='color: #1DB954;'>{artist_1_name}</h3>", unsafe_allow_html=True)
+                    st.markdown(f"**Top Track**<br><h3 style='color: #1DB954;'>{track_1_name}</h3>", unsafe_allow_html=True)
+                with col2:
+                    st.markdown(f"**Total Time**<br><h3 style='color: #1DB954;'>{int(total_minutes):,} min</h3>", unsafe_allow_html=True)
+                    
+                    # Calcular el porcentaje de lealtad para la tarjeta
+                    loyalty_percentage = (minutes_loyalist / (minutes_loyalist + minutes_explorer)) * 100 if (minutes_loyalist + minutes_explorer) > 0 else 50
+                    st.markdown(f"**Listener Profile**<br><h3 style='color: #1DB954;'>{loyalty_percentage:.0f}% Loyalist</h3>", unsafe_allow_html=True)
+                
+                st.markdown(
+                    """
+                    <p style="font-size: 12px; color: #B3B3B3;">Generated with Spotify Extended Dashboard</p>
+                    </div>
+                    """, unsafe_allow_html=True
+                )
