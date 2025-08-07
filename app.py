@@ -679,15 +679,15 @@ if uploaded_file:
         with header_cols[1]:
             st.image("https://storage.googleapis.com/pr-newsroom-wp/1/2023/11/Spotify_Wrapped_2023_Logo_Black.png", width=150)
 
-        # Filtra el DataFrame principal para el año seleccionado.
         wrapped_df = df[df['year'] == selected_year].copy()
 
         if wrapped_df.empty:
             st.error(f"No listening data found for the year {selected_year}. Please select another year.")
         else:
-            # --- SECCIÓN 2: TUS HEADLINES (CON ESTILO SPOTIFY) ---
+            # --- SECCIÓN 2: HEADLINES Y FUN FACTS ---
             st.header(f"Your {selected_year} Headlines")
             
+            # Cálculos principales
             total_minutes = wrapped_df['minutes'].sum()
             top_artist_info = wrapped_df.groupby('master_metadata_album_artist_name')['minutes'].sum().nlargest(1).reset_index()
             top_track_info = wrapped_df.groupby(['master_metadata_track_name', 'master_metadata_album_artist_name'])['minutes'].sum().nlargest(1).reset_index()
@@ -696,70 +696,84 @@ if uploaded_file:
 
             card_cols = st.columns(3)
             with card_cols[0]:
-                st.markdown(f"""
-                <div style="background-color: #535353; border-radius: 10px; padding: 20px; height: 160px; display: flex; flex-direction: column; justify-content: center;">
-                <p style="font-size: 16px; color: #B3B3B3; margin:0;">Total Listening Time</p>
-                <p style="font-size: 36px; font-weight: bold; color: #FFFFFF;">{int(total_minutes):,}</p>
-                <p style="font-size: 16px; color: #B3B3B3; margin:0;">minutes</p>
-                </div>
-                """, unsafe_allow_html=True)
+                st.markdown(f'<div style="background: linear-gradient(135deg, #003973, #E5E5BE); border-radius: 10px; padding: 20px; height: 160px; display: flex; flex-direction: column; justify-content: center;"><p style="font-size: 16px; color: #FFFFFF; margin:0;">Total Listening Time</p><p style="font-size: 36px; font-weight: bold; color: #FFFFFF;">{int(total_minutes):,}</p><p style="font-size: 16px; color: #FFFFFF; margin:0;">minutes</p></div>', unsafe_allow_html=True)
             with card_cols[1]:
-                st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #B43B3B, #FF7878); border-radius: 10px; padding: 20px; height: 160px; display: flex; flex-direction: column; justify-content: center;">
-                <p style="font-size: 16px; color: #FFFFFF; margin:0;">Your Top Artist</p>
-                <p style="font-size: 28px; font-weight: bold; color: #FFFFFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-top:10px" title="{top_artist_name}">{top_artist_name}</p>
-                </div>
-                """, unsafe_allow_html=True)
+                st.markdown(f'<div style="background: linear-gradient(135deg, #B43B3B, #FF7878); border-radius: 10px; padding: 20px; height: 160px; display: flex; flex-direction: column; justify-content: center;"><p style="font-size: 16px; color: #FFFFFF; margin:0;">Your Top Artist</p><p style="font-size: 28px; font-weight: bold; color: #FFFFFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-top:10px" title="{top_artist_name}">{top_artist_name}</p></div>', unsafe_allow_html=True)
             with card_cols[2]:
-                st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #2A52BE, #5F9EA0); border-radius: 10px; padding: 20px; height: 160px; display: flex; flex-direction: column; justify-content: center;">
-                <p style="font-size: 16px; color: #FFFFFF; margin:0;">Your Top Track</p>
-                <p style="font-size: 28px; font-weight: bold; color: #FFFFFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-top:10px" title="{top_track_name}">{top_track_name}</p>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            st.markdown("---")
-            
-            # --- SECCIÓN 3: LA CARRERA MENSUAL ---
-            st.header("The Monthly Race to the Top")
-            @st.cache_data
-            def calculate_monthly_race(df_year):
-                df_year['month_name'] = df_year['ts'].dt.strftime('%B')
-                monthly_top5 = df_year.groupby(['month_name', 'master_metadata_album_artist_name'])['minutes'].sum().reset_index()
-                monthly_top5['rank'] = monthly_top5.groupby('month_name')['minutes'].rank(method='first', ascending=False)
-                return monthly_top5[monthly_top5['rank'] <= 5]
-            race_df = calculate_monthly_race(wrapped_df)
-            month_order = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-            race_df['month_name'] = pd.Categorical(race_df['month_name'], categories=month_order, ordered=True)
-            race_df.sort_values('month_name', inplace=True)
-            fig_race = px.bar(race_df, x="minutes", y="rank", orientation='h', color="master_metadata_album_artist_name", animation_frame="month_name", animation_group="master_metadata_album_artist_name", text="master_metadata_album_artist_name", title="Your Top 5 Artists, Month by Month")
-            fig_race.update_layout(yaxis=dict(autorange="reversed", showticklabels=False, title="Rank"), xaxis=dict(title="Minutes Listened"), legend_title_text='Artist', height=500)
-            fig_race.update_traces(textposition='outside', textfont_size=14)
-            fig_race.layout.xaxis.range = [0, race_df['minutes'].max() * 1.15]
-            st.plotly_chart(fig_race, use_container_width=True)
+                st.markdown(f'<div style="background: linear-gradient(135deg, #2A52BE, #5F9EA0); border-radius: 10px; padding: 20px; height: 160px; display: flex; flex-direction: column; justify-content: center;"><p style="font-size: 16px; color: #FFFFFF; margin:0;">Your Top Track</p><p style="font-size: 28px; font-weight: bold; color: #FFFFFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-top:10px" title="{top_track_name}">{top_track_name}</p></div>', unsafe_allow_html=True)
+
+            # Fun Facts
+            st.subheader("🧐 Did You Know?")
+            facts_cols = st.columns(3)
+            most_listened_day = wrapped_df.groupby('date')['minutes'].sum().idxmax()
+            most_listened_day_minutes = wrapped_df.groupby('date')['minutes'].sum().max()
+            facts_cols[0].metric("Your Busiest Day", most_listened_day.strftime('%b %d'), f"{int(most_listened_day_minutes)} min")
+            facts_cols[1].metric("Unique Artists", f"{wrapped_df['master_metadata_album_artist_name'].nunique():,}")
+            facts_cols[2].metric("Unique Albums", f"{wrapped_df['master_metadata_album_album_name'].nunique():,}")
 
             st.markdown("---")
 
-            # --- SECCIÓN 4: TU PERFIL DE ESCUCHA (CON LÓGICA MEJORADA) ---
+            # --- SECCIÓN 3: NUEVA SECCIÓN DEEP DIVE ---
+            st.header("🔎 Deep Dive into Your Tops")
+            st.markdown("Select one of your top items to see its evolution throughout the year.")
+
+            drill_tabs = st.tabs(["🎤 Artists", "🎶 Tracks", "📀 Albums"])
+
+            def create_drill_down_charts(df, item_name, item_value):
+                item_df = df[df[item_name] == item_value]
+                monthly_data = item_df.groupby(pd.Grouper(key='ts', freq='M')).agg(minutes=('minutes', 'sum')).reset_index()
+                
+                # Asegurar que todos los meses del año están presentes
+                all_months = pd.date_range(start=f'{selected_year}-01-01', end=f'{selected_year}-12-31', freq='M')
+                monthly_data = monthly_data.set_index('ts').reindex(all_months, fill_value=0).reset_index()
+                monthly_data['month_name'] = monthly_data['index'].dt.strftime('%b')
+                
+                monthly_data['cumulative_minutes'] = monthly_data['minutes'].cumsum()
+
+                # Gráfico de barras mensual
+                fig_bar = px.bar(monthly_data, x='month_name', y='minutes', title=f"Monthly Listening for: {item_value}", labels={'month_name': 'Month', 'minutes': 'Minutes Listened'})
+                st.plotly_chart(fig_bar, use_container_width=True)
+
+                # Gráfico de línea acumulado
+                fig_line = px.area(monthly_data, x='month_name', y='cumulative_minutes', title=f"Cumulative Listening Growth for: {item_value}", labels={'month_name': 'Month', 'cumulative_minutes': 'Total Minutes Accumulated'}, markers=True)
+                st.plotly_chart(fig_line, use_container_width=True)
+
+            with drill_tabs[0]: # Artists
+                top_artists_list = wrapped_df.groupby('master_metadata_album_artist_name')['minutes'].sum().nlargest(10).index.tolist()
+                selected_item = st.selectbox("Select an artist to analyze:", ["Select..."] + top_artists_list, key="artist_drill")
+                if selected_item != "Select...":
+                    create_drill_down_charts(wrapped_df, 'master_metadata_album_artist_name', selected_item)
+            
+            with drill_tabs[1]: # Tracks
+                top_tracks_list = wrapped_df.groupby('master_metadata_track_name')['minutes'].sum().nlargest(10).index.tolist()
+                selected_item = st.selectbox("Select a track to analyze:", ["Select..."] + top_tracks_list, key="track_drill")
+                if selected_item != "Select...":
+                    create_drill_down_charts(wrapped_df, 'master_metadata_track_name', selected_item)
+
+            with drill_tabs[2]: # Albums
+                top_albums_list = wrapped_df.groupby('master_metadata_album_album_name')['minutes'].sum().nlargest(10).index.tolist()
+                selected_item = st.selectbox("Select an album to analyze:", ["Select..."] + top_albums_list, key="album_drill")
+                if selected_item != "Select...":
+                    create_drill_down_charts(wrapped_df, 'master_metadata_album_album_name', selected_item)
+            
+            st.markdown("---")
+
+            # --- SECCIÓN 4: TU PERFIL DE ESCUCHA (CON LÓGICA CORREGIDA) ---
             st.header("Your Listening Profile")
-            st.markdown("Let's dive deep into your habits: what, when, and how you listened.")
-            
             profile_cols = st.columns(3)
-
             with profile_cols[0]:
                 st.subheader("🕰️ The Time of Day")
+                # ...código sin cambios...
                 wrapped_df['hour'] = wrapped_df['ts'].dt.hour
-                bins = [-1, 4, 11, 17, 21, 23]
-                labels = ['Late Night', 'Morning', 'Afternoon', 'Evening', 'Late Night']
+                bins = [-1, 4, 11, 17, 21, 23]; labels = ['Late Night', 'Morning', 'Afternoon', 'Evening', 'Late Night']
                 wrapped_df['time_of_day'] = pd.cut(wrapped_df['hour'], bins=bins, labels=labels, ordered=False)
                 time_of_day_dist = wrapped_df.groupby('time_of_day')['minutes'].sum().reset_index()
                 fig_tod = px.pie(time_of_day_dist, names='time_of_day', values='minutes', hole=0.4, title="Listening by Time of Day", color_discrete_sequence=px.colors.sequential.Plasma_r)
                 fig_tod.update_layout(legend_title_text=None, legend=dict(orientation="h", yanchor="bottom", y=-0.4))
                 st.plotly_chart(fig_tod, use_container_width=True)
-
             with profile_cols[1]:
                 st.subheader("🧭 Listener DNA")
-                st.markdown("How you engaged with music this year.")
+                # ...código sin cambios...
                 @st.cache_data
                 def analyze_listener_dna(full_df, year_df, current_year):
                     first_listen_df = full_df.loc[full_df.groupby('master_metadata_track_name')['ts'].idxmin()]
@@ -774,28 +788,25 @@ if uploaded_file:
                     minutes_deep_cuts = year_df[year_df['master_metadata_track_name'].isin(deep_cut_tracks)]['minutes'].sum()
                     minutes_total = year_df['minutes'].sum()
                     minutes_casual = minutes_total - minutes_explorer - minutes_loyalist - minutes_deep_cuts
-                    dna_df = pd.DataFrame([
-                        {'Category': 'Explorer (New songs)', 'Minutes': minutes_explorer},
-                        {'Category': 'Loyalist (Heavy rotation)', 'Minutes': minutes_loyalist},
-                        {'Category': 'Deep Cuts (Old favorites)', 'Minutes': minutes_deep_cuts},
-                        {'Category': 'Casual (The rest)', 'Minutes': minutes_casual}
-                    ])
+                    dna_df = pd.DataFrame([{'Category': 'Explorer (New songs)', 'Minutes': minutes_explorer}, {'Category': 'Loyalist (Heavy rotation)', 'Minutes': minutes_loyalist}, {'Category': 'Deep Cuts (Old favorites)', 'Minutes': minutes_deep_cuts}, {'Category': 'Casual (The rest)', 'Minutes': minutes_casual}])
                     return dna_df
                 dna_df = analyze_listener_dna(df, wrapped_df, selected_year)
                 fig_dna = px.pie(dna_df, names='Category', values='Minutes', hole=0.4, title="Breakdown of Your Listening", color_discrete_sequence=px.colors.sequential.Viridis, hover_data={'Minutes':':.0f'})
                 fig_dna.update_layout(legend_title_text=None, legend=dict(orientation="h", yanchor="bottom", y=-0.4))
                 st.plotly_chart(fig_dna, use_container_width=True)
-            
             with profile_cols[2]:
                 st.subheader("⏳ Time Traveler")
-                wrapped_df['release_year'] = pd.to_numeric(wrapped_df['master_metadata_album_album_name'].str.extract(r'\((\d{4})\)')[0], errors='coerce').fillna(wrapped_df['year'])
-                def get_era(release_year, listen_year):
+                # Lógica corregida
+                wrapped_df['release_year'] = pd.to_numeric(wrapped_df['master_metadata_album_album_name'].str.extract(r'\((\d{4})\)')[0], errors='coerce')
+                def get_era_fixed(row, listen_year):
+                    release_year = row['release_year']
+                    if pd.isna(release_year): return "Unknown Era"
                     age = listen_year - release_year
                     if age <= 1: return f"From {listen_year}"
                     if age <= 5: return "Recent"
                     if age <= 15: return "Modern Classic"
                     return "Throwback"
-                wrapped_df['era'] = wrapped_df.apply(lambda row: get_era(row['release_year'], selected_year), axis=1)
+                wrapped_df['era'] = wrapped_df.apply(get_era_fixed, listen_year=selected_year, axis=1)
                 era_dist = wrapped_df.groupby('era')['minutes'].sum().reset_index()
                 fig_era = px.pie(era_dist, names='era', values='minutes', hole=0.4, title="Listening by Music Era", color_discrete_sequence=px.colors.sequential.RdBu)
                 fig_era.update_layout(legend_title_text=None, legend=dict(orientation="h", yanchor="bottom", y=-0.4))
@@ -807,69 +818,35 @@ if uploaded_file:
             st.markdown("This is your year, summarized. The ultimate shareable card with the most important stats.")
 
             with st.container():
-                # --- Cálculos para la tarjeta ---
                 total_tracks_unique = wrapped_df['master_metadata_track_name'].nunique()
                 top_era = era_dist.loc[era_dist['minutes'].idxmax()]['era'] if not era_dist.empty else "Various"
                 top_time_of_day = time_of_day_dist.loc[time_of_day_dist['minutes'].idxmax()]['time_of_day'] if not time_of_day_dist.empty else "Anytime"
                 
-                # 1. Definir la plantilla HTML con placeholders
-                html_template = """
+                # Usar st.html() para la máxima fiabilidad
+                card_html = f"""
                 <div style="background: linear-gradient(135deg, #1D2B64, #2c3e50); border-radius: 15px; padding: 25px; color: white; font-family: sans-serif;">
-                    <h2 style="text-align: center; font-weight: bold; margin-bottom: 5px;">My Wrapped __{YEAR}__</h2>
+                    <h2 style="text-align: center; font-weight: bold; margin-bottom: 5px;">My Wrapped {selected_year}</h2>
                     <p style="text-align: center; font-size: 14px; color: #B3B3B3; margin-top: 0;">A Year in Review</p>
                     <hr style="border-color: #1DB954; margin: 15px 0;">
-
                     <div style="display: flex; justify-content: space-around; text-align: center; margin-bottom: 25px;">
-                        <div>
-                            <p style="font-size: 14px; color: #B3B3B3; margin:0;">TOTAL MINUTES</p>
-                            <p style="font-size: 24px; font-weight: bold;">__{TOTAL_MINUTES}__</p>
-                        </div>
-                        <div>
-                            <p style="font-size: 14px; color: #B3B3B3; margin:0;">UNIQUE SONGS</p>
-                            <p style="font-size: 24px; font-weight: bold;">__{TOTAL_TRACKS}__</p>
-                        </div>
+                        <div><p style="font-size: 14px; color: #B3B3B3; margin:0;">TOTAL MINUTES</p><p style="font-size: 24px; font-weight: bold;">{int(total_minutes):,}</p></div>
+                        <div><p style="font-size: 14px; color: #B3B3B3; margin:0;">UNIQUE SONGS</p><p style="font-size: 24px; font-weight: bold;">{total_tracks_unique:,}</p></div>
                     </div>
-
                     <div style="background-color: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px;">
                         <div style="display: grid; grid-template-columns: auto 1fr; gap: 10px 15px; align-items: center;">
                             <span style="font-size: 24px;">👑</span>
-                            <div>
-                                <p style="font-size: 12px; color: #B3B3B3; margin:0;">TOP ARTIST</p>
-                                <p style="font-size: 16px; font-weight: bold; margin:0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="__{TOP_ARTIST}__">__{TOP_ARTIST}__</p>
-                            </div>
+                            <div><p style="font-size: 12px; color: #B3B3B3; margin:0;">TOP ARTIST</p><p style="font-size: 16px; font-weight: bold; margin:0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{top_artist_name}">{top_artist_name}</p></div>
                         </div>
                         <div style="display: grid; grid-template-columns: auto 1fr; gap: 10px 15px; align-items: center; margin-top: 10px;">
                             <span style="font-size: 24px;">🎶</span>
-                            <div>
-                                <p style="font-size: 12px; color: #B3B3B3; margin:0;">TOP TRACK</p>
-                                <p style="font-size: 16px; font-weight: bold; margin:0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="__{TOP_TRACK}__">__{TOP_TRACK}__</p>
-                            </div>
+                            <div><p style="font-size: 12px; color: #B3B3B3; margin:0;">TOP TRACK</p><p style="font-size: 16px; font-weight: bold; margin:0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{top_track_name}">{top_track_name}</p></div>
                         </div>
                     </div>
-                    
                     <div style="display: flex; justify-content: space-around; text-align: center; margin-top: 25px;">
-                         <div>
-                            <p style="font-size: 14px; color: #B3B3B3; margin:0;">PRIME TIME</p>
-                            <p style="font-size: 18px; font-weight: bold;">__{PRIME_TIME}__</p>
-                        </div>
-                        <div>
-                            <p style="font-size: 14px; color: #B3B3B3; margin:0;">FAVORITE ERA</p>
-                            <p style="font-size: 18px; font-weight: bold;">__{FAVORITE_ERA}__</p>
-                        </div>
+                         <div><p style="font-size: 14px; color: #B3B3B3; margin:0;">PRIME TIME</p><p style="font-size: 18px; font-weight: bold;">{top_time_of_day}</p></div>
+                         <div><p style="font-size: 14px; color: #B3B3B3; margin:0;">FAVORITE ERA</p><p style="font-size: 18px; font-weight: bold;">{top_era}</p></div>
                     </div>
-                    
                     <p style="font-size: 10px; color: #B3B3B3; text-align: center; margin-top: 20px;">Generated with Spotify Extended Dashboard</p>
                 </div>
                 """
-                
-                # 2. Rellenar la plantilla con los datos
-                card_html = html_template.replace("__{YEAR}__", str(selected_year))
-                card_html = card_html.replace("__{TOTAL_MINUTES}__", f"{int(total_minutes):,}")
-                card_html = card_html.replace("__{TOTAL_TRACKS}__", f"{total_tracks_unique:,}")
-                card_html = card_html.replace("__{TOP_ARTIST}__", top_artist_name)
-                card_html = card_html.replace("__{TOP_TRACK}__", top_track_name)
-                card_html = card_html.replace("__{PRIME_TIME}__", top_time_of_day)
-                card_html = card_html.replace("__{FAVORITE_ERA}__", top_era)
-
-                # 3. Renderizar el HTML final
-                st.markdown(card_html, unsafe_allow_html=True)
+                st.html(card_html)
