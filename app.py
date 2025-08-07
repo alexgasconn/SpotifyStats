@@ -723,27 +723,130 @@ if uploaded_file:
             
             st.markdown("---")
 
-            # --- SECCIÓN 3: THE MONTHLY RACE (REINCORPORADO) ---
+            # --- SECCIÓN 3: THE MONTHLY RACE (REINCORPORADO Y MEJORADO) ---
             st.header("The Monthly Race to the Top")
-            st.markdown("Who dominated your listening each month? This dynamic chart shows the evolution of your Top 5 artists throughout the year. Click on a month to see the ranking!")
+            st.markdown("Who dominated your listening each month? This dynamic chart shows the evolution of your Top 5 artists throughout the year. Click on a month to see the ranking! The left chart shows monthly totals, the right chart shows cumulative totals.")
+
             @st.cache_data
             def calculate_monthly_race(df_year):
                 df_year['month_name'] = df_year['ts'].dt.strftime('%B')
                 monthly_top5 = df_year.groupby(['month_name', 'master_metadata_album_artist_name'])['minutes'].sum().reset_index()
                 monthly_top5['rank'] = monthly_top5.groupby('month_name')['minutes'].rank(method='first', ascending=False)
                 return monthly_top5[monthly_top5['rank'] <= 5]
+
+            @st.cache_data
+            def calculate_cumulative_monthly_race(df_year):
+                df_year['month_num'] = df_year['ts'].dt.month
+                df_year['month_name'] = df_year['ts'].dt.strftime('%B')
+                # Get all top artists in the year
+                top_artists = df_year.groupby('master_metadata_album_artist_name')['minutes'].sum().nlargest(5).index.tolist()
+                # Prepare cumulative data
+                cumulative = []
+                for m in range(1, 13):
+                    month_df = df_year[df_year['month_num'] <= m]
+                    cum_minutes = month_df.groupby('master_metadata_album_artist_name')['minutes'].sum().reset_index()
+                    cum_minutes['month_num'] = m
+                    cum_minutes['month_name'] = pd.to_datetime(f'{m}', format='%m').strftime('%B')
+                    cum_minutes = cum_minutes[cum_minutes['master_metadata_album_artist_name'].isin(top_artists)]
+                    cum_minutes['rank'] = cum_minutes['minutes'].rank(method='first', ascending=False)
+                    cumulative.append(cum_minutes)
+                cumulative_df = pd.concat(cumulative)
+                return cumulative_df[cumulative_df['rank'] <= 5]
+
             race_df = calculate_monthly_race(wrapped_df.copy())
+            cumulative_race_df = calculate_cumulative_monthly_race(wrapped_df.copy())
+
             month_order = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
             race_df['month_name'] = pd.Categorical(race_df['month_name'], categories=month_order, ordered=True)
             race_df.sort_values('month_name', inplace=True)
-            if not race_df.empty:
-                fig_race = px.bar(race_df, x="minutes", y="rank", orientation='h', color="master_metadata_album_artist_name", animation_frame="month_name", animation_group="master_metadata_album_artist_name", text="master_metadata_album_artist_name", title="Your Top 5 Artists, Month by Month")
-                fig_race.update_layout(yaxis=dict(autorange="reversed", showticklabels=False, title="Rank"), xaxis=dict(title="Minutes Listened"), legend_title_text='Artist', height=500)
-                fig_race.update_traces(textposition='outside', textfont_size=14)
-                fig_race.layout.xaxis.range = [0, race_df['minutes'].max() * 1.15]
-                st.plotly_chart(fig_race, use_container_width=True)
-            else:
-                st.warning("Not enough data for the monthly race.")
+            cumulative_race_df['month_name'] = pd.Categorical(cumulative_race_df['month_name'], categories=month_order, ordered=True)
+            cumulative_race_df.sort_values('month_name', inplace=True)
+
+            # Slower animation speed: set frame duration
+            animation_opts = dict(frame=dict(duration=1200, redraw=True), transition=dict(duration=500, easing='linear'))
+
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("#### Monthly Top 5 Artists")
+                if not race_df.empty:
+                    fig_race = px.bar(
+                        race_df,
+                        x="minutes",
+                        y="rank",
+                        orientation='h',
+                        color="master_metadata_album_artist_name",
+                        animation_frame="month_name",
+                        animation_group="master_metadata_album_artist_name",
+                        text="master_metadata_album_artist_name",
+                        title="Monthly Top 5 Artists"
+                    )
+                    fig_race.update_layout(
+                        yaxis=dict(autorange="reversed", showticklabels=False, title="Rank"),
+                        xaxis=dict(title="Minutes Listened"),
+                        legend_title_text='Artist',
+                        height=500,
+                        updatemenus=[{
+                            "type": "buttons",
+                            "buttons": [
+                                {
+                                    "label": "Play",
+                                    "method": "animate",
+                                    "args": [None, animation_opts]
+                                },
+                                {
+                                    "label": "Pause",
+                                    "method": "animate",
+                                    "args": [[None], dict(frame=dict(duration=0, redraw=False), mode="immediate")]
+                                }
+                            ]
+                        }]
+                    )
+                    fig_race.update_traces(textposition='outside', textfont_size=14)
+                    fig_race.layout.xaxis.range = [0, race_df['minutes'].max() * 1.15]
+                    st.plotly_chart(fig_race, use_container_width=True)
+                else:
+                    st.warning("Not enough data for the monthly race.")
+
+            with col2:
+                st.markdown("#### Cumulative Top 5 Artists")
+                if not cumulative_race_df.empty:
+                    fig_cum_race = px.bar(
+                        cumulative_race_df,
+                        x="minutes",
+                        y="rank",
+                        orientation='h',
+                        color="master_metadata_album_artist_name",
+                        animation_frame="month_name",
+                        animation_group="master_metadata_album_artist_name",
+                        text="master_metadata_album_artist_name",
+                        title="Cumulative Top 5 Artists"
+                    )
+                    fig_cum_race.update_layout(
+                        yaxis=dict(autorange="reversed", showticklabels=False, title="Rank"),
+                        xaxis=dict(title="Cumulative Minutes Listened"),
+                        legend_title_text='Artist',
+                        height=500,
+                        updatemenus=[{
+                            "type": "buttons",
+                            "buttons": [
+                                {
+                                    "label": "Play",
+                                    "method": "animate",
+                                    "args": [None, animation_opts]
+                                },
+                                {
+                                    "label": "Pause",
+                                    "method": "animate",
+                                    "args": [[None], dict(frame=dict(duration=0, redraw=False), mode="immediate")]
+                                }
+                            ]
+                        }]
+                    )
+                    fig_cum_race.update_traces(textposition='outside', textfont_size=14)
+                    fig_cum_race.layout.xaxis.range = [0, cumulative_race_df['minutes'].max() * 1.15]
+                    st.plotly_chart(fig_cum_race, use_container_width=True)
+                else:
+                    st.warning("Not enough data for the cumulative monthly race.")
 
             st.markdown("---")
             
@@ -835,16 +938,21 @@ if uploaded_file:
                 st.plotly_chart(fig_dna, use_container_width=True)
             with profile_cols[2]:
                 st.subheader("⏳ Audio Nostalgia")
-                st.markdown("Which decade defined your sound this year?")
-                wrapped_df['release_year'] = pd.to_numeric(wrapped_df['master_metadata_album_album_name'].str.extract(r'\((\d{4})\)')[0], errors='coerce')
-                def get_decade(year):
-                    if pd.isna(year): return "Unknown"
-                    if year < 1970: return "60s & Earlier"
-                    return f"{(int(year) // 10) * 10}s"
-                wrapped_df['decade'] = wrapped_df['release_year'].apply(get_decade)
-                decade_dist = wrapped_df.groupby('decade')['minutes'].sum().reset_index().sort_values('decade')
-                fig_decade = px.bar(decade_dist, x='decade', y='minutes', color='decade', title="Listening by Decade")
-                st.plotly_chart(fig_decade, use_container_width=True)
+                st.markdown("How did your listening change over the year? Here's a heatmap of your listening activity by day and month.")
+
+                # Create a pivot table for heatmap: month vs day, sum of minutes
+                wrapped_df['day_of_month'] = wrapped_df['ts'].dt.day
+                calendar_pivot = wrapped_df.pivot_table(
+                    index='month',
+                    columns='day_of_month',
+                    values='minutes',
+                    aggfunc='sum',
+                    fill_value=0
+                )
+                fig = plt.figure(figsize=(10, 4))
+                sns.heatmap(calendar_pivot, cmap="mako", linewidths=.5)
+                plt.title(f"Listening Activity Heatmap ({selected_year})")
+                st.pyplot(fig)
 
             # --- SECCIÓN 6: TARJETA "MASTERPIECE" (MEJORADA Y AMPLIADA) ---
             st.markdown("---")
@@ -861,10 +969,18 @@ if uploaded_file:
                 top_dna = dna_df.loc[dna_df['Minutes'].idxmax()]['Category'] if not dna_df.empty else "Unique"
                 top_decade = decade_dist.loc[decade_dist['minutes'].idxmax()]['decade'] if not decade_dist.empty else "Timeless"
 
-                # % of new songs (not listened in previous years)
+                # % of new songs/albums/artists (not listened in previous years)
                 first_listen_df = df.loc[df.groupby('master_metadata_track_name')['ts'].idxmin()]
                 new_songs_this_year = first_listen_df[first_listen_df['year'] == selected_year]['master_metadata_track_name'].unique()
                 percent_new_songs = 100 * len(new_songs_this_year) / total_tracks_unique if total_tracks_unique else 0
+
+                first_album_df = df.loc[df.groupby('master_metadata_album_album_name')['ts'].idxmin()]
+                new_albums_this_year = first_album_df[first_album_df['year'] == selected_year]['master_metadata_album_album_name'].unique()
+                percent_new_albums = 100 * len(new_albums_this_year) / total_albums_unique if total_albums_unique else 0
+
+                first_artist_df = df.loc[df.groupby('master_metadata_album_artist_name')['ts'].idxmin()]
+                new_artists_this_year = first_artist_df[first_artist_df['year'] == selected_year]['master_metadata_album_artist_name'].unique()
+                percent_new_artists = 100 * len(new_artists_this_year) / total_artists_unique if total_artists_unique else 0
 
                 # Top 5 songs
                 top_tracks_df = wrapped_df.groupby(['master_metadata_track_name', 'master_metadata_album_artist_name'])['minutes'].sum().nlargest(5).reset_index()
@@ -872,37 +988,52 @@ if uploaded_file:
                 for i, row in top_tracks_df.iterrows():
                     top_tracks_html += f"<li><b>{row['master_metadata_track_name']}</b> <span style='color:#B3B3B3;'>by {row['master_metadata_album_artist_name']}</span> <span style='color:#1DB954;'>({int(row['minutes'])} min)</span></li>"
 
+                # Temporal stats row
+                temporal_stats_html = f"""
+                <div style="display: flex; flex-wrap: wrap; justify-content: space-around; text-align: center; margin-bottom: 10px;">
+                    <div style="margin:10px;">
+                        <p style="font-size: 14px; color: #B3B3B3; margin:0;">TOTAL MINUTES</p>
+                        <p style="font-size: 24px; font-weight: bold;">{int(total_minutes):,}</p>
+                    </div>
+                    <div style="margin:10px;">
+                        <p style="font-size: 14px; color: #B3B3B3; margin:0;">TOTAL HOURS</p>
+                        <p style="font-size: 24px; font-weight: bold;">{total_hours:,}</p>
+                    </div>
+                    <div style="margin:10px;">
+                        <p style="font-size: 14px; color: #B3B3B3; margin:0;">TOTAL DAYS</p>
+                        <p style="font-size: 24px; font-weight: bold;">{total_days:,}</p>
+                    </div>
+                </div>
+                """
+
+                # Unique stats row
+                unique_stats_html = f"""
+                <div style="display: flex; flex-wrap: wrap; justify-content: space-around; text-align: center; margin-bottom: 10px;">
+                    <div style="margin:10px;">
+                        <p style="font-size: 14px; color: #B3B3B3; margin:0;">UNIQUE SONGS</p>
+                        <p style="font-size: 24px; font-weight: bold;">{total_tracks_unique:,}</p>
+                        <p style="font-size: 12px; color: #1DB954; margin:0;">{percent_new_songs:.1f}% new</p>
+                    </div>
+                    <div style="margin:10px;">
+                        <p style="font-size: 14px; color: #B3B3B3; margin:0;">UNIQUE ALBUMS</p>
+                        <p style="font-size: 24px; font-weight: bold;">{total_albums_unique:,}</p>
+                        <p style="font-size: 12px; color: #1DB954; margin:0;">{percent_new_albums:.1f}% new</p>
+                    </div>
+                    <div style="margin:10px;">
+                        <p style="font-size: 14px; color: #B3B3B3; margin:0;">UNIQUE ARTISTS</p>
+                        <p style="font-size: 24px; font-weight: bold;">{total_artists_unique:,}</p>
+                        <p style="font-size: 12px; color: #1DB954; margin:0;">{percent_new_artists:.1f}% new</p>
+                    </div>
+                </div>
+                """
+
                 card_html = f"""
                 <div style="background: linear-gradient(135deg, #1D2B64, #2c3e50); border-radius: 15px; padding: 25px; color: white; font-family: sans-serif;">
                     <h2 style="text-align: center; font-weight: bold; margin-bottom: 5px;">My Wrapped {selected_year}</h2>
                     <p style="text-align: center; font-size: 14px; color: #B3B3B3; margin-top: 0;">A Year in Review</p>
                     <hr style="border-color: #1DB954; margin: 15px 0;">
-                    <div style="display: flex; flex-wrap: wrap; justify-content: space-around; text-align: center; margin-bottom: 25px;">
-                        <div style="margin:10px;">
-                            <p style="font-size: 14px; color: #B3B3B3; margin:0;">TOTAL MINUTES</p>
-                            <p style="font-size: 24px; font-weight: bold;">{int(total_minutes):,}</p>
-                        </div>
-                        <div style="margin:10px;">
-                            <p style="font-size: 14px; color: #B3B3B3; margin:0;">TOTAL HOURS</p>
-                            <p style="font-size: 24px; font-weight: bold;">{total_hours:,}</p>
-                        </div>
-                        <div style="margin:10px;">
-                            <p style="font-size: 14px; color: #B3B3B3; margin:0;">TOTAL DAYS</p>
-                            <p style="font-size: 24px; font-weight: bold;">{total_days:,}</p>
-                        </div>
-                        <div style="margin:10px;">
-                            <p style="font-size: 14px; color: #B3B3B3; margin:0;">UNIQUE SONGS</p>
-                            <p style="font-size: 24px; font-weight: bold;">{total_tracks_unique:,}</p>
-                        </div>
-                        <div style="margin:10px;">
-                            <p style="font-size: 14px; color: #B3B3B3; margin:0;">UNIQUE ALBUMS</p>
-                            <p style="font-size: 24px; font-weight: bold;">{total_albums_unique:,}</p>
-                        </div>
-                        <div style="margin:10px;">
-                            <p style="font-size: 14px; color: #B3B3B3; margin:0;">UNIQUE ARTISTS</p>
-                            <p style="font-size: 24px; font-weight: bold;">{total_artists_unique:,}</p>
-                        </div>
-                    </div>
+                    {temporal_stats_html}
+                    {unique_stats_html}
                     <div style="background-color: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px;">
                         <div style="display: grid; grid-template-columns: auto 1fr; gap: 10px 15px; align-items: center;">
                             <span style="font-size: 24px;">👑</span>
@@ -929,10 +1060,6 @@ if uploaded_file:
                          <div style="margin:10px;">
                              <p style="font-size: 14px; color: #B3B3B3; margin:0;">AUDIO NOSTALGIA</p>
                              <p style="font-size: 18px; font-weight: bold;">The {top_decade}</p>
-                         </div>
-                         <div style="margin:10px;">
-                             <p style="font-size: 14px; color: #B3B3B3; margin:0;">% NEW SONGS</p>
-                             <p style="font-size: 18px; font-weight: bold;">{percent_new_songs:.1f}%</p>
                          </div>
                     </div>
                     <p style="font-size: 10px; color: #B3B3B3; text-align: center; margin-top: 20px;">Generated with Spotify Extended Dashboard</p>
