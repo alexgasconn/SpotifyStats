@@ -674,7 +674,7 @@ if uploaded_file:
         
         header_cols = st.columns([3, 1])
         with header_cols[0]:
-            st.markdown("###") # Espacio para alinear
+            st.markdown("###")
             selected_year = st.selectbox("Select a year to analyze:", available_years, label_visibility="collapsed")
         with header_cols[1]:
             st.image("https://storage.googleapis.com/pr-newsroom-wp/1/2023/11/Spotify_Wrapped_2023_Logo_Black.png", width=150)
@@ -697,7 +697,7 @@ if uploaded_file:
             card_cols = st.columns(3)
             with card_cols[0]:
                 st.markdown(f"""
-                <div style="background-color: #535353; border-radius: 10px; padding: 20px; height: 160px;">
+                <div style="background-color: #535353; border-radius: 10px; padding: 20px; height: 160px; display: flex; flex-direction: column; justify-content: center;">
                 <p style="font-size: 16px; color: #B3B3B3; margin:0;">Total Listening Time</p>
                 <p style="font-size: 36px; font-weight: bold; color: #FFFFFF;">{int(total_minutes):,}</p>
                 <p style="font-size: 16px; color: #B3B3B3; margin:0;">minutes</p>
@@ -705,14 +705,14 @@ if uploaded_file:
                 """, unsafe_allow_html=True)
             with card_cols[1]:
                 st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #B43B3B, #FF7878); border-radius: 10px; padding: 20px; height: 160px;">
+                <div style="background: linear-gradient(135deg, #B43B3B, #FF7878); border-radius: 10px; padding: 20px; height: 160px; display: flex; flex-direction: column; justify-content: center;">
                 <p style="font-size: 16px; color: #FFFFFF; margin:0;">Your Top Artist</p>
                 <p style="font-size: 28px; font-weight: bold; color: #FFFFFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-top:10px" title="{top_artist_name}">{top_artist_name}</p>
                 </div>
                 """, unsafe_allow_html=True)
             with card_cols[2]:
                 st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #2A52BE, #5F9EA0); border-radius: 10px; padding: 20px; height: 160px;">
+                <div style="background: linear-gradient(135deg, #2A52BE, #5F9EA0); border-radius: 10px; padding: 20px; height: 160px; display: flex; flex-direction: column; justify-content: center;">
                 <p style="font-size: 16px; color: #FFFFFF; margin:0;">Your Top Track</p>
                 <p style="font-size: 28px; font-weight: bold; color: #FFFFFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-top:10px" title="{top_track_name}">{top_track_name}</p>
                 </div>
@@ -801,65 +801,75 @@ if uploaded_file:
                 fig_era.update_layout(legend_title_text=None, legend=dict(orientation="h", yanchor="bottom", y=-0.4))
                 st.plotly_chart(fig_era, use_container_width=True)
 
-            # --- SECCIÓN 5: TU TARJETA DE PRESENTACIÓN FINAL (CORREGIDA) ---
+            # --- SECCIÓN 5: TU TARJETA DE PRESENTACIÓN FINAL (SOLUCIÓN DEFINITIVA) ---
             st.markdown("---")
             st.header(f"Your {selected_year} Masterpiece")
             st.markdown("This is your year, summarized. The ultimate shareable card with the most important stats.")
 
             with st.container():
+                # --- Cálculos para la tarjeta ---
                 total_tracks_unique = wrapped_df['master_metadata_track_name'].nunique()
                 top_era = era_dist.loc[era_dist['minutes'].idxmax()]['era'] if not era_dist.empty else "Various"
                 top_time_of_day = time_of_day_dist.loc[time_of_day_dist['minutes'].idxmax()]['time_of_day'] if not time_of_day_dist.empty else "Anytime"
                 
-                # LA CORRECCIÓN CLAVE ESTÁ AQUÍ: unsafe_allow_html=True
-                st.markdown(
-                    f"""
-                    <div style="background: linear-gradient(135deg, #1D2B64, #2c3e50); border-radius: 15px; padding: 25px; color: white; font-family: sans-serif;">
-                        <h2 style="text-align: center; font-weight: bold; margin-bottom: 5px;">My Wrapped {selected_year}</h2>
-                        <p style="text-align: center; font-size: 14px; color: #B3B3B3; margin-top: 0;">A Year in Review</p>
-                        <hr style="border-color: #1DB954; margin: 15px 0;">
+                # 1. Definir la plantilla HTML con placeholders
+                html_template = """
+                <div style="background: linear-gradient(135deg, #1D2B64, #2c3e50); border-radius: 15px; padding: 25px; color: white; font-family: sans-serif;">
+                    <h2 style="text-align: center; font-weight: bold; margin-bottom: 5px;">My Wrapped __{YEAR}__</h2>
+                    <p style="text-align: center; font-size: 14px; color: #B3B3B3; margin-top: 0;">A Year in Review</p>
+                    <hr style="border-color: #1DB954; margin: 15px 0;">
 
-                        <div style="display: flex; justify-content: space-around; text-align: center; margin-bottom: 25px;">
-                            <div>
-                                <p style="font-size: 14px; color: #B3B3B3; margin:0;">TOTAL MINUTES</p>
-                                <p style="font-size: 24px; font-weight: bold;">{int(total_minutes):,}</p>
-                            </div>
-                            <div>
-                                <p style="font-size: 14px; color: #B3B3B3; margin:0;">UNIQUE SONGS</p>
-                                <p style="font-size: 24px; font-weight: bold;">{total_tracks_unique:,}</p>
-                            </div>
+                    <div style="display: flex; justify-content: space-around; text-align: center; margin-bottom: 25px;">
+                        <div>
+                            <p style="font-size: 14px; color: #B3B3B3; margin:0;">TOTAL MINUTES</p>
+                            <p style="font-size: 24px; font-weight: bold;">__{TOTAL_MINUTES}__</p>
                         </div>
-
-                        <div style="background-color: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px;">
-                            <div style="display: grid; grid-template-columns: auto 1fr; gap: 10px 15px; align-items: center;">
-                                <span style="font-size: 24px;">👑</span>
-                                <div>
-                                    <p style="font-size: 12px; color: #B3B3B3; margin:0;">TOP ARTIST</p>
-                                    <p style="font-size: 16px; font-weight: bold; margin:0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{top_artist_name}">{top_artist_name}</p>
-                                </div>
-                            </div>
-                            <div style="display: grid; grid-template-columns: auto 1fr; gap: 10px 15px; align-items: center; margin-top: 10px;">
-                                <span style="font-size: 24px;">🎶</span>
-                                <div>
-                                    <p style="font-size: 12px; color: #B3B3B3; margin:0;">TOP TRACK</p>
-                                    <p style="font-size: 16px; font-weight: bold; margin:0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{top_track_name}">{top_track_name}</p>
-                                </div>
-                            </div>
+                        <div>
+                            <p style="font-size: 14px; color: #B3B3B3; margin:0;">UNIQUE SONGS</p>
+                            <p style="font-size: 24px; font-weight: bold;">__{TOTAL_TRACKS}__</p>
                         </div>
-                        
-                        <div style="display: flex; justify-content: space-around; text-align: center; margin-top: 25px;">
-                             <div>
-                                <p style="font-size: 14px; color: #B3B3B3; margin:0;">PRIME TIME</p>
-                                <p style="font-size: 18px; font-weight: bold;">{top_time_of_day}</p>
-                            </div>
-                            <div>
-                                <p style="font-size: 14px; color: #B3B3B3; margin:0;">FAVORITE ERA</p>
-                                <p style="font-size: 18px; font-weight: bold;">{top_era}</p>
-                            </div>
-                        </div>
-                        
-                        <p style="font-size: 10px; color: #B3B3B3; text-align: center; margin-top: 20px;">Generated with Spotify Extended Dashboard</p>
                     </div>
-                    """,
-                    unsafe_allow_html=True # ¡EL ARGUMENTO QUE FALTABA!
-                )
+
+                    <div style="background-color: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px;">
+                        <div style="display: grid; grid-template-columns: auto 1fr; gap: 10px 15px; align-items: center;">
+                            <span style="font-size: 24px;">👑</span>
+                            <div>
+                                <p style="font-size: 12px; color: #B3B3B3; margin:0;">TOP ARTIST</p>
+                                <p style="font-size: 16px; font-weight: bold; margin:0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="__{TOP_ARTIST}__">__{TOP_ARTIST}__</p>
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: auto 1fr; gap: 10px 15px; align-items: center; margin-top: 10px;">
+                            <span style="font-size: 24px;">🎶</span>
+                            <div>
+                                <p style="font-size: 12px; color: #B3B3B3; margin:0;">TOP TRACK</p>
+                                <p style="font-size: 16px; font-weight: bold; margin:0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="__{TOP_TRACK}__">__{TOP_TRACK}__</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; justify-content: space-around; text-align: center; margin-top: 25px;">
+                         <div>
+                            <p style="font-size: 14px; color: #B3B3B3; margin:0;">PRIME TIME</p>
+                            <p style="font-size: 18px; font-weight: bold;">__{PRIME_TIME}__</p>
+                        </div>
+                        <div>
+                            <p style="font-size: 14px; color: #B3B3B3; margin:0;">FAVORITE ERA</p>
+                            <p style="font-size: 18px; font-weight: bold;">__{FAVORITE_ERA}__</p>
+                        </div>
+                    </div>
+                    
+                    <p style="font-size: 10px; color: #B3B3B3; text-align: center; margin-top: 20px;">Generated with Spotify Extended Dashboard</p>
+                </div>
+                """
+                
+                # 2. Rellenar la plantilla con los datos
+                card_html = html_template.replace("__{YEAR}__", str(selected_year))
+                card_html = card_html.replace("__{TOTAL_MINUTES}__", f"{int(total_minutes):,}")
+                card_html = card_html.replace("__{TOTAL_TRACKS}__", f"{total_tracks_unique:,}")
+                card_html = card_html.replace("__{TOP_ARTIST}__", top_artist_name)
+                card_html = card_html.replace("__{TOP_TRACK}__", top_track_name)
+                card_html = card_html.replace("__{PRIME_TIME}__", top_time_of_day)
+                card_html = card_html.replace("__{FAVORITE_ERA}__", top_era)
+
+                # 3. Renderizar el HTML final
+                st.markdown(card_html, unsafe_allow_html=True)
