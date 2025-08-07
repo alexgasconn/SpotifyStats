@@ -967,7 +967,6 @@ if uploaded_file:
                 total_hours = round(total_minutes / 60, 1)
                 total_days = wrapped_df['date'].nunique()
                 top_dna = dna_df.loc[dna_df['Minutes'].idxmax()]['Category'] if not dna_df.empty else "Unique"
-                top_decade = decade_dist.loc[decade_dist['minutes'].idxmax()]['decade'] if not decade_dist.empty else "Timeless"
 
                 # % of new songs/albums/artists (not listened in previous years)
                 first_listen_df = df.loc[df.groupby('master_metadata_track_name')['ts'].idxmin()]
@@ -987,6 +986,18 @@ if uploaded_file:
                 top_tracks_html = ""
                 for i, row in top_tracks_df.iterrows():
                     top_tracks_html += f"<li><b>{row['master_metadata_track_name']}</b> <span style='color:#B3B3B3;'>by {row['master_metadata_album_artist_name']}</span> <span style='color:#1DB954;'>({int(row['minutes'])} min)</span></li>"
+
+                # Calculate % of skips (songs played less than 10 seconds)
+                skips_count = wrapped_df[wrapped_df['ms_played'] < 10000]['master_metadata_track_name'].count()
+                percent_skips = 100 * skips_count / len(wrapped_df) if len(wrapped_df) else 0
+
+                # Number of devices used (if device info exists)
+                device_col_candidates = [col for col in wrapped_df.columns if 'device' in col.lower()]
+                if device_col_candidates:
+                    device_col = device_col_candidates[0]
+                    num_devices = wrapped_df[device_col].nunique()
+                else:
+                    num_devices = "N/A"
 
                 # Temporal stats row
                 temporal_stats_html = f"""
@@ -1058,8 +1069,12 @@ if uploaded_file:
                              <p style="font-size: 18px; font-weight: bold;">{top_dna}</p>
                          </div>
                          <div style="margin:10px;">
-                             <p style="font-size: 14px; color: #B3B3B3; margin:0;">AUDIO NOSTALGIA</p>
-                             <p style="font-size: 18px; font-weight: bold;">The {top_decade}</p>
+                             <p style="font-size: 14px; color: #B3B3B3; margin:0;">SKIP RATE</p>
+                             <p style="font-size: 18px; font-weight: bold;">{percent_skips:.1f}%</p>
+                         </div>
+                         <div style="margin:10px;">
+                             <p style="font-size: 14px; color: #B3B3B3; margin:0;">DEVICES USED</p>
+                             <p style="font-size: 18px; font-weight: bold;">{num_devices}</p>
                          </div>
                     </div>
                     <p style="font-size: 10px; color: #B3B3B3; text-align: center; margin-top: 20px;">Generated with Spotify Extended Dashboard</p>
