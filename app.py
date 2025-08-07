@@ -83,17 +83,131 @@ if uploaded_file:
     tabs = st.tabs(["Top", "🏆 Weekly Ranking", "Temporal", "Distributions", "Heatmaps", "Streaks", "Artists & Albums", "Summary", "Game"])
 
     with tabs[0]:
-        st.subheader("🎵 Most Played Tracks")
-        top_tracks = filtered_df.groupby('master_metadata_track_name')['minutes'].sum().sort_values(ascending=False).head(20)
-        st.bar_chart(top_tracks)
+        st.subheader("🏆 Your All-Time & Filtered Top Lists")
+        st.markdown("An overview of your most listened to tracks, artists, and albums based on the selected filters. Charts show total listening time, and tables provide additional details.")
+        st.markdown("---")
 
-        st.subheader("👩‍🎤 Most Played Artists")
-        top_artists = filtered_df.groupby('master_metadata_album_artist_name')['minutes'].sum().sort_values(ascending=False).head(20)
-        st.bar_chart(top_artists)
+        # Define el número de elementos a mostrar
+        TOP_N = 15
 
-        st.subheader("📀 Most Played Albums")
-        top_albums = filtered_df.groupby('master_metadata_album_album_name')['minutes'].sum().sort_values(ascending=False).head(20)
-        st.bar_chart(top_albums)
+        # Creamos las tres columnas para el dashboard
+        col1, col2, col3 = st.columns(3, gap="large")
+
+        # --- COLUMNA 1: TOP TRACKS ---
+        with col1:
+            st.markdown("#### 🎵 Top Tracks")
+
+            # Agregamos para obtener minutos, conteo de reproducciones y el artista
+            top_tracks_df = filtered_df.groupby(['master_metadata_track_name', 'master_metadata_album_artist_name']).agg(
+                total_minutes=('minutes', 'sum'),
+                play_count=('ts', 'count')
+            ).sort_values('total_minutes', ascending=False).head(TOP_N).reset_index()
+
+            # Gráfico de barras horizontal con Plotly para mejor visualización
+            if not top_tracks_df.empty:
+                fig_tracks = px.bar(
+                    top_tracks_df.sort_values('total_minutes', ascending=True),
+                    x='total_minutes',
+                    y='master_metadata_track_name',
+                    orientation='h',
+                    text_auto='.0f',
+                    title=f"Top {TOP_N} Tracks by Listening Time"
+                )
+                fig_tracks.update_traces(textposition='outside', marker_color='#1DB954')
+                fig_tracks.update_layout(
+                    yaxis_title=None,
+                    xaxis_title="Total Minutes",
+                    margin=dict(l=0, r=0, t=40, b=20),
+                    height=450
+                )
+                st.plotly_chart(fig_tracks, use_container_width=True)
+
+                # Tabla con detalles adicionales
+                st.markdown("###### Detailed View")
+                display_tracks = top_tracks_df[['master_metadata_track_name', 'master_metadata_album_artist_name', 'play_count', 'total_minutes']]
+                display_tracks.columns = ['Track', 'Artist', 'Plays', 'Minutes']
+                display_tracks['Minutes'] = display_tracks['Minutes'].round(0).astype(int)
+                display_tracks.index = range(1, len(display_tracks) + 1)
+                st.dataframe(display_tracks, use_container_width=True)
+            else:
+                st.warning("No track data available for the selected filters.")
+
+
+        # --- COLUMNA 2: TOP ARTISTS ---
+        with col2:
+            st.markdown("#### 👩‍🎤 Top Artists")
+
+            # Agregamos para obtener minutos y número de canciones únicas
+            top_artists_df = filtered_df.groupby('master_metadata_album_artist_name').agg(
+                total_minutes=('minutes', 'sum'),
+                unique_tracks=('master_metadata_track_name', 'nunique')
+            ).sort_values('total_minutes', ascending=False).head(TOP_N).reset_index()
+
+            # Gráfico de barras horizontal con Plotly
+            if not top_artists_df.empty:
+                fig_artists = px.bar(
+                    top_artists_df.sort_values('total_minutes', ascending=True),
+                    x='total_minutes',
+                    y='master_metadata_album_artist_name',
+                    orientation='h',
+                    text_auto='.0f',
+                    title=f"Top {TOP_N} Artists by Listening Time"
+                )
+                fig_artists.update_traces(textposition='outside', marker_color='#1DB954')
+                fig_artists.update_layout(
+                    yaxis_title=None,
+                    xaxis_title="Total Minutes",
+                    margin=dict(l=0, r=0, t=40, b=20),
+                    height=450
+                )
+                st.plotly_chart(fig_artists, use_container_width=True)
+
+                # Tabla con detalles adicionales
+                st.markdown("###### Detailed View")
+                display_artists = top_artists_df.rename(columns={'master_metadata_album_artist_name': 'Artist', 'unique_tracks': 'Unique Tracks', 'total_minutes': 'Minutes'})
+                display_artists['Minutes'] = display_artists['Minutes'].round(0).astype(int)
+                display_artists.index = range(1, len(display_artists) + 1)
+                st.dataframe(display_artists, use_container_width=True)
+            else:
+                st.warning("No artist data available for the selected filters.")
+
+        # --- COLUMNA 3: TOP ALBUMS ---
+        with col3:
+            st.markdown("#### 📀 Top Albums")
+
+            # Agregamos para obtener minutos, artista y número de canciones únicas
+            top_albums_df = filtered_df.groupby(['master_metadata_album_album_name', 'master_metadata_album_artist_name']).agg(
+                total_minutes=('minutes', 'sum'),
+                unique_tracks=('master_metadata_track_name', 'nunique')
+            ).sort_values('total_minutes', ascending=False).head(TOP_N).reset_index()
+
+            # Gráfico de barras horizontal con Plotly
+            if not top_albums_df.empty:
+                fig_albums = px.bar(
+                    top_albums_df.sort_values('total_minutes', ascending=True),
+                    x='total_minutes',
+                    y='master_metadata_album_album_name',
+                    orientation='h',
+                    text_auto='.0f',
+                    title=f"Top {TOP_N} Albums by Listening Time"
+                )
+                fig_albums.update_traces(textposition='outside', marker_color='#1DB954')
+                fig_albums.update_layout(
+                    yaxis_title=None,
+                    xaxis_title="Total Minutes",
+                    margin=dict(l=0, r=0, t=40, b=20),
+                    height=450
+                )
+                st.plotly_chart(fig_albums, use_container_width=True)
+
+                # Tabla con detalles adicionales
+                st.markdown("###### Detailed View")
+                display_albums = top_albums_df.rename(columns={'master_metadata_album_album_name': 'Album', 'master_metadata_album_artist_name': 'Artist', 'unique_tracks': 'Unique Tracks', 'total_minutes': 'Minutes'})
+                display_albums['Minutes'] = display_albums['Minutes'].round(0).astype(int)
+                display_albums.index = range(1, len(display_albums) + 1)
+                st.dataframe(display_albums, use_container_width=True)
+            else:
+                st.warning("No album data available for the selected filters.")
 
     ## NUEVO: Pestaña completa de Ranking Semanal con récords y historial por canción
     # NUEVO: Pestaña completa de Ranking Semanal con analytics de "data nerd", manejo de empates y formato mejorado
