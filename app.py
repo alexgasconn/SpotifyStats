@@ -684,7 +684,7 @@ if uploaded_file:
         if wrapped_df.empty:
             st.error(f"No listening data found for the year {selected_year}. Please select another year.")
         else:
-            # --- SECCIÓN 2: HEADLINES Y FUN FACTS ---
+            # --- SECCIÓN 2: HEADLINES Y FUN FACTS AMPLIADO ---
             st.header(f"Your {selected_year} Headlines")
             
             # Cálculos principales
@@ -702,68 +702,96 @@ if uploaded_file:
             with card_cols[2]:
                 st.markdown(f'<div style="background: linear-gradient(135deg, #2A52BE, #5F9EA0); border-radius: 10px; padding: 20px; height: 160px; display: flex; flex-direction: column; justify-content: center;"><p style="font-size: 16px; color: #FFFFFF; margin:0;">Your Top Track</p><p style="font-size: 28px; font-weight: bold; color: #FFFFFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-top:10px" title="{top_track_name}">{top_track_name}</p></div>', unsafe_allow_html=True)
 
-            # Fun Facts
+            # Fun Facts Ampliado
             st.subheader("🧐 Did You Know?")
-            facts_cols = st.columns(3)
+            facts_cols = st.columns(4)
             most_listened_day = wrapped_df.groupby('date')['minutes'].sum().idxmax()
             most_listened_day_minutes = wrapped_df.groupby('date')['minutes'].sum().max()
-            facts_cols[0].metric("Your Busiest Day", most_listened_day.strftime('%b %d'), f"{int(most_listened_day_minutes)} min")
-            facts_cols[1].metric("Unique Artists", f"{wrapped_df['master_metadata_album_artist_name'].nunique():,}")
-            facts_cols[2].metric("Unique Albums", f"{wrapped_df['master_metadata_album_album_name'].nunique():,}")
+            top_hour = wrapped_df['hour'].mode()[0]
+            loyalty_artist = wrapped_df.groupby('master_metadata_album_artist_name')['month'].nunique().idxmax()
 
+            facts_cols[0].metric("Busiest Day", most_listened_day.strftime('%b %d'), f"{int(most_listened_day_minutes)} min")
+            facts_cols[1].metric("Unique Artists", f"{wrapped_df['master_metadata_album_artist_name'].nunique():,}")
+            facts_cols[2].metric("Top Listening Hour", f"{top_hour}:00 - {top_hour+1}:00")
+            facts_cols[3].metric("Loyalty Award", loyalty_artist, "Most months listened")
+            
             st.markdown("---")
 
-            # --- SECCIÓN 3: NUEVA SECCIÓN DEEP DIVE ---
+            # --- SECCIÓN 3: THE MONTHLY RACE (REINCORPORADO) ---
+            st.header("The Monthly Race to the Top")
+            st.markdown("Who dominated your listening each month? This dynamic chart shows the evolution of your Top 5 artists throughout the year. Click on a month to see the ranking!")
+            @st.cache_data
+            def calculate_monthly_race(df_year):
+                df_year['month_name'] = df_year['ts'].dt.strftime('%B')
+                monthly_top5 = df_year.groupby(['month_name', 'master_metadata_album_artist_name'])['minutes'].sum().reset_index()
+                monthly_top5['rank'] = monthly_top5.groupby('month_name')['minutes'].rank(method='first', ascending=False)
+                return monthly_top5[monthly_top5['rank'] <= 5]
+            race_df = calculate_monthly_race(wrapped_df.copy())
+            month_order = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+            race_df['month_name'] = pd.Categorical(race_df['month_name'], categories=month_order, ordered=True)
+            race_df.sort_values('month_name', inplace=True)
+            if not race_df.empty:
+                fig_race = px.bar(race_df, x="minutes", y="rank", orientation='h', color="master_metadata_album_artist_name", animation_frame="month_name", animation_group="master_metadata_album_artist_name", text="master_metadata_album_artist_name", title="Your Top 5 Artists, Month by Month")
+                fig_race.update_layout(yaxis=dict(autorange="reversed", showticklabels=False, title="Rank"), xaxis=dict(title="Minutes Listened"), legend_title_text='Artist', height=500)
+                fig_race.update_traces(textposition='outside', textfont_size=14)
+                fig_race.layout.xaxis.range = [0, race_df['minutes'].max() * 1.15]
+                st.plotly_chart(fig_race, use_container_width=True)
+            else:
+                st.warning("Not enough data for the monthly race.")
+
+            st.markdown("---")
+            
+            # --- SECCIÓN 4: DEEP DIVE (ARREGLADO) ---
             st.header("🔎 Deep Dive into Your Tops")
             st.markdown("Select one of your top items to see its evolution throughout the year.")
 
             drill_tabs = st.tabs(["🎤 Artists", "🎶 Tracks", "📀 Albums"])
 
-            def create_drill_down_charts(df, item_name, item_value):
-                item_df = df[df[item_name] == item_value]
-                monthly_data = item_df.groupby(pd.Grouper(key='ts', freq='M')).agg(minutes=('minutes', 'sum')).reset_index()
+            def create_drill_down_charts(df_year, item_name, item_value):
+                item_df = df_year[df_year[item_name] == item_value]
                 
-                # Asegurar que todos los meses del año están presentes
+                # Agrupar por mes
+                monthly_data = item_df.set_index('ts').resample('M').agg(minutes=('minutes', 'sum')).reset_index()
+                
+                # Rellenar meses faltantes para un año completo
                 all_months = pd.date_range(start=f'{selected_year}-01-01', end=f'{selected_year}-12-31', freq='M')
                 monthly_data = monthly_data.set_index('ts').reindex(all_months, fill_value=0).reset_index()
-                monthly_data['month_name'] = monthly_data['index'].dt.strftime('%b')
+                monthly_data.rename(columns={'index': 'ts'}, inplace=True)
                 
+                monthly_data['month_name'] = monthly_data['ts'].dt.strftime('%b')
                 monthly_data['cumulative_minutes'] = monthly_data['minutes'].cumsum()
-
-                # Gráfico de barras mensual
+                
                 fig_bar = px.bar(monthly_data, x='month_name', y='minutes', title=f"Monthly Listening for: {item_value}", labels={'month_name': 'Month', 'minutes': 'Minutes Listened'})
                 st.plotly_chart(fig_bar, use_container_width=True)
 
-                # Gráfico de línea acumulado
                 fig_line = px.area(monthly_data, x='month_name', y='cumulative_minutes', title=f"Cumulative Listening Growth for: {item_value}", labels={'month_name': 'Month', 'cumulative_minutes': 'Total Minutes Accumulated'}, markers=True)
                 st.plotly_chart(fig_line, use_container_width=True)
 
-            with drill_tabs[0]: # Artists
-                top_artists_list = wrapped_df.groupby('master_metadata_album_artist_name')['minutes'].sum().nlargest(10).index.tolist()
-                selected_item = st.selectbox("Select an artist to analyze:", ["Select..."] + top_artists_list, key="artist_drill")
+            with drill_tabs[0]:
+                top_items_list = wrapped_df.groupby('master_metadata_album_artist_name')['minutes'].sum().nlargest(10).index.tolist()
+                selected_item = st.selectbox("Select an artist:", ["Select..."] + top_items_list, key="artist_drill")
                 if selected_item != "Select...":
                     create_drill_down_charts(wrapped_df, 'master_metadata_album_artist_name', selected_item)
             
-            with drill_tabs[1]: # Tracks
-                top_tracks_list = wrapped_df.groupby('master_metadata_track_name')['minutes'].sum().nlargest(10).index.tolist()
-                selected_item = st.selectbox("Select a track to analyze:", ["Select..."] + top_tracks_list, key="track_drill")
+            with drill_tabs[1]:
+                top_items_list = wrapped_df.groupby('master_metadata_track_name')['minutes'].sum().nlargest(10).index.tolist()
+                selected_item = st.selectbox("Select a track:", ["Select..."] + top_items_list, key="track_drill")
                 if selected_item != "Select...":
                     create_drill_down_charts(wrapped_df, 'master_metadata_track_name', selected_item)
 
-            with drill_tabs[2]: # Albums
-                top_albums_list = wrapped_df.groupby('master_metadata_album_album_name')['minutes'].sum().nlargest(10).index.tolist()
-                selected_item = st.selectbox("Select an album to analyze:", ["Select..."] + top_albums_list, key="album_drill")
+            with drill_tabs[2]:
+                top_items_list = wrapped_df.groupby('master_metadata_album_album_name')['minutes'].sum().nlargest(10).index.tolist()
+                selected_item = st.selectbox("Select an album:", ["Select..."] + top_items_list, key="album_drill")
                 if selected_item != "Select...":
                     create_drill_down_charts(wrapped_df, 'master_metadata_album_album_name', selected_item)
             
             st.markdown("---")
 
-            # --- SECCIÓN 4: TU PERFIL DE ESCUCHA (CON LÓGICA CORREGIDA) ---
+            # --- SECCIÓN 5: TU PERFIL DE ESCUCHA (NUEVO "TIME TRAVELER") ---
             st.header("Your Listening Profile")
             profile_cols = st.columns(3)
             with profile_cols[0]:
                 st.subheader("🕰️ The Time of Day")
-                # ...código sin cambios...
                 wrapped_df['hour'] = wrapped_df['ts'].dt.hour
                 bins = [-1, 4, 11, 17, 21, 23]; labels = ['Late Night', 'Morning', 'Afternoon', 'Evening', 'Late Night']
                 wrapped_df['time_of_day'] = pd.cut(wrapped_df['hour'], bins=bins, labels=labels, ordered=False)
@@ -773,56 +801,33 @@ if uploaded_file:
                 st.plotly_chart(fig_tod, use_container_width=True)
             with profile_cols[1]:
                 st.subheader("🧭 Listener DNA")
-                # ...código sin cambios...
-                @st.cache_data
-                def analyze_listener_dna(full_df, year_df, current_year):
-                    first_listen_df = full_df.loc[full_df.groupby('master_metadata_track_name')['ts'].idxmin()]
-                    new_discoveries_this_year = first_listen_df[first_listen_df['year'] == current_year]['master_metadata_track_name'].unique()
-                    plays_in_year = year_df['master_metadata_track_name'].value_counts()
-                    explorer_tracks = plays_in_year[plays_in_year.isin([1, 2]) & plays_in_year.index.isin(new_discoveries_this_year)].index
-                    minutes_explorer = year_df[year_df['master_metadata_track_name'].isin(explorer_tracks)]['minutes'].sum()
-                    loyalist_tracks = plays_in_year[plays_in_year >= 5].index
-                    minutes_loyalist = year_df[year_df['master_metadata_track_name'].isin(loyalist_tracks)]['minutes'].sum()
-                    old_discoveries = first_listen_df[first_listen_df['year'] < current_year]['master_metadata_track_name'].unique()
-                    deep_cut_tracks = plays_in_year[(plays_in_year < 5) & (plays_in_year.index.isin(old_discoveries))].index
-                    minutes_deep_cuts = year_df[year_df['master_metadata_track_name'].isin(deep_cut_tracks)]['minutes'].sum()
-                    minutes_total = year_df['minutes'].sum()
-                    minutes_casual = minutes_total - minutes_explorer - minutes_loyalist - minutes_deep_cuts
-                    dna_df = pd.DataFrame([{'Category': 'Explorer (New songs)', 'Minutes': minutes_explorer}, {'Category': 'Loyalist (Heavy rotation)', 'Minutes': minutes_loyalist}, {'Category': 'Deep Cuts (Old favorites)', 'Minutes': minutes_deep_cuts}, {'Category': 'Casual (The rest)', 'Minutes': minutes_casual}])
-                    return dna_df
-                dna_df = analyze_listener_dna(df, wrapped_df, selected_year)
+                dna_df = analyze_listener_dna(df, wrapped_df, selected_year) # Usamos la función ya cacheada
                 fig_dna = px.pie(dna_df, names='Category', values='Minutes', hole=0.4, title="Breakdown of Your Listening", color_discrete_sequence=px.colors.sequential.Viridis, hover_data={'Minutes':':.0f'})
                 fig_dna.update_layout(legend_title_text=None, legend=dict(orientation="h", yanchor="bottom", y=-0.4))
                 st.plotly_chart(fig_dna, use_container_width=True)
             with profile_cols[2]:
-                st.subheader("⏳ Time Traveler")
-                # Lógica corregida
+                st.subheader("⏳ Audio Nostalgia")
+                st.markdown("Which decade defined your sound this year?")
                 wrapped_df['release_year'] = pd.to_numeric(wrapped_df['master_metadata_album_album_name'].str.extract(r'\((\d{4})\)')[0], errors='coerce')
-                def get_era_fixed(row, listen_year):
-                    release_year = row['release_year']
-                    if pd.isna(release_year): return "Unknown Era"
-                    age = listen_year - release_year
-                    if age <= 1: return f"From {listen_year}"
-                    if age <= 5: return "Recent"
-                    if age <= 15: return "Modern Classic"
-                    return "Throwback"
-                wrapped_df['era'] = wrapped_df.apply(get_era_fixed, listen_year=selected_year, axis=1)
-                era_dist = wrapped_df.groupby('era')['minutes'].sum().reset_index()
-                fig_era = px.pie(era_dist, names='era', values='minutes', hole=0.4, title="Listening by Music Era", color_discrete_sequence=px.colors.sequential.RdBu)
-                fig_era.update_layout(legend_title_text=None, legend=dict(orientation="h", yanchor="bottom", y=-0.4))
-                st.plotly_chart(fig_era, use_container_width=True)
+                def get_decade(year):
+                    if pd.isna(year): return "Unknown"
+                    if year < 1970: return "60s & Earlier"
+                    return f"{(int(year) // 10) * 10}s"
+                wrapped_df['decade'] = wrapped_df['release_year'].apply(get_decade)
+                decade_dist = wrapped_df.groupby('decade')['minutes'].sum().reset_index().sort_values('decade')
+                fig_decade = px.bar(decade_dist, x='decade', y='minutes', color='decade', title="Listening by Decade")
+                st.plotly_chart(fig_decade, use_container_width=True)
 
-            # --- SECCIÓN 5: TU TARJETA DE PRESENTACIÓN FINAL (SOLUCIÓN DEFINITIVA) ---
+            # --- SECCIÓN 6: TARJETA "MASTERPIECE" (MEJORADA) ---
             st.markdown("---")
             st.header(f"Your {selected_year} Masterpiece")
-            st.markdown("This is your year, summarized. The ultimate shareable card with the most important stats.")
+            st.markdown("This is your year, summarized. The ultimate shareable card.")
 
             with st.container():
                 total_tracks_unique = wrapped_df['master_metadata_track_name'].nunique()
-                top_era = era_dist.loc[era_dist['minutes'].idxmax()]['era'] if not era_dist.empty else "Various"
-                top_time_of_day = time_of_day_dist.loc[time_of_day_dist['minutes'].idxmax()]['time_of_day'] if not time_of_day_dist.empty else "Anytime"
-                
-                # Usar st.html() para la máxima fiabilidad
+                top_dna = dna_df.loc[dna_df['Minutes'].idxmax()]['Category'] if not dna_df.empty else "Unique"
+                top_decade = decade_dist.loc[decade_dist['minutes'].idxmax()]['decade'] if not decade_dist.empty else "Timeless"
+
                 card_html = f"""
                 <div style="background: linear-gradient(135deg, #1D2B64, #2c3e50); border-radius: 15px; padding: 25px; color: white; font-family: sans-serif;">
                     <h2 style="text-align: center; font-weight: bold; margin-bottom: 5px;">My Wrapped {selected_year}</h2>
@@ -843,10 +848,12 @@ if uploaded_file:
                         </div>
                     </div>
                     <div style="display: flex; justify-content: space-around; text-align: center; margin-top: 25px;">
-                         <div><p style="font-size: 14px; color: #B3B3B3; margin:0;">PRIME TIME</p><p style="font-size: 18px; font-weight: bold;">{top_time_of_day}</p></div>
-                         <div><p style="font-size: 14px; color: #B3B3B3; margin:0;">FAVORITE ERA</p><p style="font-size: 18px; font-weight: bold;">{top_era}</p></div>
+                         <div><p style="font-size: 14px; color: #B3B3B3; margin:0;">LISTENER DNA</p><p style="font-size: 18px; font-weight: bold;">{top_dna}</p></div>
+                         <div><p style="font-size: 14px; color: #B3B3B3; margin:0;">AUDIO NOSTALGIA</p><p style="font-size: 18px; font-weight: bold;">The {top_decade}</p></div>
                     </div>
                     <p style="font-size: 10px; color: #B3B3B3; text-align: center; margin-top: 20px;">Generated with Spotify Extended Dashboard</p>
                 </div>
                 """
                 st.html(card_html)
+48.9s
+
