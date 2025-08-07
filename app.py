@@ -672,13 +672,12 @@ if uploaded_file:
             st.warning("No data available to generate a Wrapped report.")
             st.stop()
         
-        # Layout para el selector
         header_cols = st.columns([3, 1])
         with header_cols[0]:
             st.markdown("###") # Espacio para alinear
             selected_year = st.selectbox("Select a year to analyze:", available_years, label_visibility="collapsed")
         with header_cols[1]:
-            st.image("https://storage.googleapis.com/pr-newsroom-wp/1/2023/11/Spotify_Wrapped_2023_Logo_Black.png", width=150) # Logo para un look más pro
+            st.image("https://storage.googleapis.com/pr-newsroom-wp/1/2023/11/Spotify_Wrapped_2023_Logo_Black.png", width=150)
 
         # Filtra el DataFrame principal para el año seleccionado.
         wrapped_df = df[df['year'] == selected_year].copy()
@@ -689,50 +688,27 @@ if uploaded_file:
             # --- SECCIÓN 2: TUS GRANDES TITULARES ---
             st.header(f"Your {selected_year} Headlines")
             total_minutes = wrapped_df['minutes'].sum()
-            total_days = (wrapped_df['ts'].max() - wrapped_df['ts'].min()).days
-            avg_minutes_per_day = total_minutes / total_days if total_days > 0 else 0
+            total_tracks_unique = wrapped_df['master_metadata_track_name'].nunique()
             
-            # --- Cálculos para los titulares ---
             top_artist_info = wrapped_df.groupby('master_metadata_album_artist_name')['minutes'].sum().nlargest(1).reset_index()
             top_track_info = wrapped_df.groupby(['master_metadata_track_name', 'master_metadata_album_artist_name'])['minutes'].sum().nlargest(1).reset_index()
-            top_genre = wrapped_df.groupby('master_metadata_album_artist_name').first().reset_index() # Asumimos que podemos inferir un género del artista, simplificación común
-            # Para una mejor asignación de género, se necesitaría una API, pero esto funciona como proxy.
-            # Aquí usaremos una aproximación muy simple. En una app real, esto sería más complejo.
-            # Para este ejemplo, vamos a inventar un "género" basado en el artista.
-            # NOTA: Este es un placeholder. Para géneros reales, necesitarías datos externos.
-            # Por ahora, vamos a usar el artista #2 como "género del año" para simular variedad.
-            genre_proxy_artist = wrapped_df.groupby('master_metadata_album_artist_name')['minutes'].sum().nlargest(2).index[1] if len(wrapped_df.groupby('master_metadata_album_artist_name')) > 1 else "Various"
-
-
+            
+            # --- Cálculos para la tarjeta y análisis posterior ---
+            top_artist_name = top_artist_info['master_metadata_album_artist_name'].iloc[0]
+            top_artist_minutes = top_artist_info['minutes'].iloc[0]
+            top_track_name = top_track_info['master_metadata_track_name'].iloc[0]
+            
             card_cols = st.columns(3)
             with card_cols[0]:
-                st.markdown(f"""
-                <div style="background-color: #282828; border-radius: 10px; padding: 15px; height: 180px;">
-                <p style="font-size: 14px; color: #B3B3B3; margin:0;">Total Listening Time</p>
-                <p style="font-size: 32px; font-weight: bold; color: #1DB954;">{int(total_minutes):,} min</p>
-                <p style="font-size: 14px; color: #FFFFFF;">That's about {int(avg_minutes_per_day)} minutes a day.</p>
-                </div>
-                """, unsafe_allow_html=True)
+                st.metric("Total Listening Time", f"{int(total_minutes):,} min")
             with card_cols[1]:
-                st.markdown(f"""
-                <div style="background-color: #282828; border-radius: 10px; padding: 15px; height: 180px;">
-                <p style="font-size: 14px; color: #B3B3B3; margin:0;">Your Top Artist</p>
-                <p style="font-size: 32px; font-weight: bold; color: #1DB954; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{top_artist_info['master_metadata_album_artist_name'].iloc[0]}</p>
-                <p style="font-size: 14px; color: #FFFFFF;">With {int(top_artist_info['minutes'].iloc[0]):,} minutes of listening.</p>
-                </div>
-                """, unsafe_allow_html=True)
+                st.metric("Your Top Artist", top_artist_name, help=f"{int(top_artist_minutes):,} minutes listened")
             with card_cols[2]:
-                st.markdown(f"""
-                <div style="background-color: #282828; border-radius: 10px; padding: 15px; height: 180px;">
-                <p style="font-size: 14px; color: #B3B3B3; margin:0;">Your Top Track</p>
-                <p style="font-size: 32px; font-weight: bold; color: #1DB954; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{top_track_info['master_metadata_track_name'].iloc[0]}</p>
-                <p style="font-size: 14px; color: #FFFFFF;">by {top_track_info['master_metadata_album_artist_name'].iloc[0]}</p>
-                </div>
-                """, unsafe_allow_html=True)
-
+                st.metric("Your Top Track", top_track_name, help=f"by {top_track_info['master_metadata_album_artist_name'].iloc[0]}")
+            
             st.markdown("---")
             
-            # --- SECCIÓN 3: LA CARRERA MENSUAL (REEMPLAZO DEL HEATMAP) ---
+            # --- SECCIÓN 3: LA CARRERA MENSUAL (MANTENEMOS ESTA VISUALIZACIÓN) ---
             st.header("The Monthly Race to the Top")
             st.markdown("Who dominated your listening each month? This dynamic chart shows the evolution of your Top 5 artists throughout the year. Click on a month to see the ranking!")
 
@@ -746,122 +722,163 @@ if uploaded_file:
 
             race_df = calculate_monthly_race(wrapped_df)
             
-            # Ordenar los meses cronológicamente
             month_order = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
             race_df['month_name'] = pd.Categorical(race_df['month_name'], categories=month_order, ordered=True)
             race_df.sort_values('month_name', inplace=True)
 
             fig_race = px.bar(race_df,
-                              x="minutes",
-                              y="rank",
-                              orientation='h',
-                              color="master_metadata_album_artist_name",
-                              animation_frame="month_name",
-                              animation_group="master_metadata_album_artist_name",
-                              text="master_metadata_album_artist_name",
-                              title="Your Top 5 Artists, Month by Month"
-            )
-            fig_race.update_layout(
-                yaxis=dict(autorange="reversed", showticklabels=False, title="Rank"),
-                xaxis=dict(title="Minutes Listened"),
-                legend_title_text='Artist',
-                height=500
-            )
+                              x="minutes", y="rank", orientation='h', color="master_metadata_album_artist_name",
+                              animation_frame="month_name", animation_group="master_metadata_album_artist_name",
+                              text="master_metadata_album_artist_name", title="Your Top 5 Artists, Month by Month")
+            fig_race.update_layout(yaxis=dict(autorange="reversed", showticklabels=False, title="Rank"),
+                                   xaxis=dict(title="Minutes Listened"), legend_title_text='Artist', height=500)
             fig_race.update_traces(textposition='outside', textfont_size=14)
-            # Asegurar que el rango del eje X sea consistente
-            fig_race.layout.xaxis.range = [0, race_df['minutes'].max() * 1.1]
-            # Mejorar el texto del slider
-            fig_race.layout.sliders[0].pad.t = 10
-            fig_race.layout.sliders[0].currentvalue.xanchor = 'center'
+            fig_race.layout.xaxis.range = [0, race_df['minutes'].max() * 1.15]
             st.plotly_chart(fig_race, use_container_width=True)
 
             st.markdown("---")
 
-            # --- SECCIÓN 4: TU PERFIL DE ESCUCHA ---
+            # --- SECCIÓN 4: TU PERFIL DE ESCUCHA (REDISEÑADO CON TUS PETICIONES) ---
             st.header("Your Listening Profile")
-            st.markdown("Beyond the numbers, what defines your taste? Let's break down your habits.")
+            st.markdown("Let's dive deep into your habits: what, when, and how you listened.")
             
-            profile_cols = st.columns(2)
+            profile_cols = st.columns(3)
+
             with profile_cols[0]:
-                st.subheader("🕰️ Time Traveler")
-                st.markdown("How much of your time was spent with new music vs. classics?")
-                wrapped_df['release_year'] = pd.to_numeric(wrapped_df['master_metadata_album_album_name'].str.extract(r'\((\d{4})\)')[0], errors='coerce')
-                # Si no hay año de lanzamiento, usamos el año de la escucha
-                wrapped_df['release_year'].fillna(wrapped_df['year'], inplace=True)
+                st.subheader("🕰️ The Time of Day")
+                st.markdown("When did the music play?")
+                wrapped_df['hour'] = wrapped_df['ts'].dt.hour
+                bins = [-1, 4, 11, 17, 21, 23]
+                labels = ['Late Night (10pm-5am)', 'Morning (5am-12pm)', 'Afternoon (12pm-6pm)', 'Evening (6pm-10pm)', 'Late Night (10pm-5am)']
+                wrapped_df['time_of_day'] = pd.cut(wrapped_df['hour'], bins=bins, labels=labels, ordered=False)
+                
+                time_of_day_dist = wrapped_df['time_of_day'].value_counts(normalize=True).reset_index()
+                time_of_day_dist.columns = ['time_of_day', 'percentage']
+
+                fig_tod = px.pie(time_of_day_dist, names='time_of_day', values='percentage', hole=0.4,
+                                 title="Listening by Time of Day", color_discrete_sequence=px.colors.sequential.Plasma_r)
+                fig_tod.update_layout(legend_title_text=None, legend=dict(orientation="h", yanchor="bottom", y=-0.4))
+                st.plotly_chart(fig_tod, use_container_width=True)
+
+            with profile_cols[1]:
+                st.subheader("🧭 Explorer vs. Loyalist")
+                st.markdown("Did you seek new tunes or stick to favorites?")
+                track_counts = wrapped_df['master_metadata_track_name'].value_counts()
+                
+                loyalist_tracks = track_counts[track_counts >= 3].index
+                minutes_loyalist = wrapped_df[wrapped_df['master_metadata_track_name'].isin(loyalist_tracks)]['minutes'].sum()
+                
+                explorer_tracks = track_counts[track_counts == 1].index
+                minutes_explorer = wrapped_df[wrapped_df['master_metadata_track_name'].isin(explorer_tracks)]['minutes'].sum()
+
+                # El resto es "Casual"
+                minutes_total = wrapped_df['minutes'].sum()
+                minutes_casual = minutes_total - minutes_loyalist - minutes_explorer
+
+                personality_df = pd.DataFrame([
+                    {'Category': 'Loyalist (≥3 plays)', 'Minutes': minutes_loyalist},
+                    {'Category': 'Explorer (1 play)', 'Minutes': minutes_explorer},
+                    {'Category': 'Casual (2 plays)', 'Minutes': minutes_casual}
+                ])
+                
+                fig_personality = px.pie(personality_df, names='Category', values='Minutes', hole=0.4,
+                                         title="Listener Type Breakdown", color_discrete_sequence=px.colors.sequential.Viridis)
+                fig_personality.update_layout(legend_title_text=None, legend=dict(orientation="h", yanchor="bottom", y=-0.4))
+                st.plotly_chart(fig_personality, use_container_width=True)
+            
+            with profile_cols[2]:
+                st.subheader("⏳ Time Traveler")
+                st.markdown("New releases or golden oldies?")
+                # La lógica de extracción de año puede ser simple, la mejoramos un poco.
+                release_years_extracted = wrapped_df['master_metadata_album_album_name'].str.extract(r'\((\d{4})\)')
+                wrapped_df['release_year'] = pd.to_numeric(release_years_extracted[0], errors='coerce').fillna(wrapped_df['year'])
 
                 def get_era(release_year, listen_year):
                     age = listen_year - release_year
                     if age <= 1: return f"From {listen_year}"
-                    if age <= 5: return "Recent (2-5 years)"
-                    if age <= 15: return "Modern Classic (6-15 years)"
-                    return "Throwback (15+ years)"
+                    if age <= 5: return "Recent"
+                    if age <= 15: return "Modern Classic"
+                    return "Throwback"
                 
                 wrapped_df['era'] = wrapped_df.apply(lambda row: get_era(row['release_year'], selected_year), axis=1)
                 era_dist = wrapped_df.groupby('era')['minutes'].sum().reset_index()
 
                 fig_era = px.pie(era_dist, names='era', values='minutes', hole=0.4, title="Listening by Music Era",
                                  color_discrete_sequence=px.colors.sequential.RdBu)
+                fig_era.update_layout(legend_title_text=None, legend=dict(orientation="h", yanchor="bottom", y=-0.4))
                 st.plotly_chart(fig_era, use_container_width=True)
 
-            with profile_cols[1]:
-                st.subheader("💎 Niche vs. Mainstream")
-                st.markdown("How mainstream are your top artists? We compare their global popularity with your listening time.")
-                
-                # Simulación de popularidad (ya que no tenemos acceso a la API de Spotify)
-                # Asignaremos una popularidad inversa al ranking de escucha del usuario.
-                artist_popularity_sim = wrapped_df.groupby('master_metadata_album_artist_name')['minutes'].sum().rank(ascending=True).reset_index()
-                artist_popularity_sim.columns = ['Artist', 'PopularityScore']
-                artist_minutes = wrapped_df.groupby('master_metadata_album_artist_name')['minutes'].sum().reset_index()
-                artist_analysis = pd.merge(artist_minutes, artist_popularity_sim, left_on='master_metadata_album_artist_name', right_on='Artist')
-
-                fig_scatter = px.scatter(artist_analysis.nlargest(50, 'minutes'),
-                                         x='PopularityScore', y='minutes',
-                                         size='minutes', color='master_metadata_album_artist_name',
-                                         hover_name='master_metadata_album_artist_name',
-                                         title="Your Artists: Mainstream vs. Personal Favorites",
-                                         labels={'minutes': 'Your Listening Time (min)', 'PopularityScore': 'Simulated Global Popularity'})
-                fig_scatter.update_layout(showlegend=False)
-                st.plotly_chart(fig_scatter, use_container_width=True)
-                st.caption("Note: 'Simulated Global Popularity' is based on your own data for demonstration purposes.")
-
-
-            # --- SECCIÓN 5: TU TARJETA DE PRESENTACIÓN MEJORADA ---
+            # --- SECCIÓN 5: TU TARJETA DE PRESENTACIÓN FINAL (REDISEÑADA) ---
             st.markdown("---")
             st.header(f"Your {selected_year} Masterpiece")
             st.markdown("This is your year, summarized. The ultimate shareable card with the most important stats.")
 
             with st.container():
+                # --- Cálculos para la tarjeta ---
+                top_era = era_dist.loc[era_dist['minutes'].idxmax()]['era'] if not era_dist.empty else "Various"
+                top_time_of_day = time_of_day_dist.loc[time_of_day_dist['percentage'].idxmax()]['time_of_day'] if not time_of_day_dist.empty else "Anytime"
+                
+                # Usamos un layout de columnas dentro de la tarjeta para controlar el desbordamiento
                 st.markdown(
                     f"""
-                    <div style="background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); border-radius: 15px; padding: 30px; color: white;">
-                        <h2 style="text-align: center; font-weight: bold;">{st.session_state.get('user_name', 'My')} Wrapped {selected_year}</h2>
-                        <hr style="border-color: #1DB954;">
-                        
-                        <div style="display: flex; justify-content: space-around; text-align: center; margin: 20px 0;">
+                    <div style="background: linear-gradient(135deg, #1D2B64, #2c3e50); border-radius: 15px; padding: 25px; color: white; font-family: sans-serif;">
+                        <h2 style="text-align: center; font-weight: bold; margin-bottom: 5px;">My Wrapped {selected_year}</h2>
+                        <p style="text-align: center; font-size: 14px; color: #B3B3B3; margin-top: 0;">A Year in Review</p>
+                        <hr style="border-color: #1DB954; margin: 15px 0;">
+
+                        <!-- Fila 1: Stats principales -->
+                        <div style="display: flex; justify-content: space-around; text-align: center; margin-bottom: 25px;">
                             <div>
-                                <p style="font-size: 16px; color: #B3B3B3; margin:0;">MINUTES</p>
-                                <p style="font-size: 28px; font-weight: bold; color: #FFFFFF;">{int(total_minutes):,}</p>
+                                <p style="font-size: 14px; color: #B3B3B3; margin:0;">TOTAL MINUTES</p>
+                                <p style="font-size: 24px; font-weight: bold;">{int(total_minutes):,}</p>
                             </div>
                             <div>
-                                <p style="font-size: 16px; color: #B3B3B3; margin:0;">SONGS</p>
-                                <p style="font-size: 28px; font-weight: bold; color: #FFFFFF;">{wrapped_df['master_metadata_track_name'].nunique():,}</p>
+                                <p style="font-size: 14px; color: #B3B3B3; margin:0;">UNIQUE SONGS</p>
+                                <p style="font-size: 24px; font-weight: bold;">{total_tracks_unique:,}</p>
                             </div>
                         </div>
 
-                        <div style="background-color: rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 15px; margin-top: 20px;">
-                            <h4 style="margin: 0 0 10px 0; text-align:center;">THE HOLY TRINITY</h4>
-                            <p style="margin: 5px 0;">👑 <strong>Top Artist:</strong> {top_artist_info['master_metadata_album_artist_name'].iloc[0]}</p>
-                            <p style="margin: 5px 0;">🎶 <strong>Top Track:</strong> {top_track_info['master_metadata_track_name'].iloc[0]}</p>
-                            <p style="margin: 5px 0;">🎭 <strong>Top "Genre":</strong> {genre_proxy_artist}</p>
+                        <!-- Fila 2: Tus Tops -->
+                        <div style="display: grid; grid-template-columns: auto 1fr; gap: 10px 15px; align-items: center; background-color: rgba(0,0,0,0.2); padding: 15px; border-radius: 10px;">
+                            <span style="font-size: 24px;">👑</span>
+                            <div>
+                                <p style="font-size: 12px; color: #B3B3B3; margin:0;">TOP ARTIST</p>
+                                <p style="font-size: 16px; font-weight: bold; margin:0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{top_artist_name}</p>
+                            </div>
+                            
+                            <span style="font-size: 24px;">🎶</span>
+                            <div>
+                                <p style="font-size: 12px; color: #B3B3B3; margin:0;">TOP TRACK</p>
+                                <p style="font-size: 16px; font-weight: bold; margin:0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{top_track_name}</p>
+                            </div>
                         </div>
                         
-                        <div style="text-align: center; margin-top: 25px;">
-                            <p style="font-size: 16px; color: #B3B3B3; margin:0;">My Listening Vibe</p>
-                            <p style="font-size: 22px; font-weight: bold; color: #FFFFFF;">{era_dist.nlargest(1, 'minutes')['era'].iloc[0]}</p>
+                        <!-- Fila 3: Tu Vibe -->
+                        <div style="display: flex; justify-content: space-around; text-align: center; margin-top: 25px;">
+                             <div>
+                                <p style="font-size: 14px; color: #B3B3B3; margin:0;">PRIME TIME</p>
+                                <p style="font-size: 18px; font-weight: bold;">{top_time_of_day}</p>
+                            </div>
+                            <div>
+                                <p style="font-size: 14px; color: #B3B3B3; margin:0;">FAVORITE ERA</p>
+                                <p style="font-size: 18px; font-weight: bold;">{top_era}</p>
+                            </div>
                         </div>
                         
-                        <p style="font-size: 12px; color: #B3B3B3; text-align: center; margin-top: 20px;">Generated with Spotify Extended Dashboard</p>
+                        <p style="font-size: 10px; color: #B3B3B3; text-align: center; margin-top: 20px;">Generated with Spotify Extended Dashboard</p>
                     </div>
                     """,
                     unsafe_allow_html=True
                 )
+Resumen de los Cambios en esta Versión Final:
+Reintroducción de Métricas Clave:
+"Time of Day" y "Explorer vs. Loyalist" están de vuelta, presentados en un layout de 3 columnas junto con "Time Traveler" para un análisis de perfil completo y equilibrado.
+He mejorado la leyenda de los gráficos circulares para que no se superpongan y se vean más limpios.
+Eliminación de "Niche vs. Mainstream":
+Como solicitaste, se ha eliminado para no mostrar datos simulados que puedan llevar a confusión. El layout de 3 columnas ahora se siente más robusto y veraz.
+Tarjeta de Presentación Totalmente Rediseñada:
+Problema de Desbordamiento Solucionado: He utilizado display: grid para la sección de "Tops". Esto alinea perfectamente los iconos con el texto y usa white-space: nowrap; overflow: hidden; text-overflow: ellipsis; para truncar elegantemente los nombres largos de canciones/artistas, evitando que el diseño se rompa.
+Más Clara y Simple: El diseño es ahora más jerárquico. Los stats grandes arriba, los "Tops" en el centro en una caja destacada, y el "Vibe" (tus hábitos) abajo.
+Visualmente Atractiva: Mantiene un fondo degradado profesional, pero con una estructura interna mucho más organizada y fácil de leer.
+Más Dinámica: La tarjeta ahora extrae el "Prime Time" (mañana, tarde, noche) y la "Favorite Era" (throwback, reciente, etc.) de los análisis, haciendo que cada tarjeta sea verdaderamente única para el usuario y el año seleccionado.
+Esta versión debería cumplir con todos tus requisitos, ofreciendo una experiencia rica, profesional y, lo más importante, ¡correctamente visualizada
