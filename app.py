@@ -870,15 +870,3 @@ if uploaded_file:
                     """,
                     unsafe_allow_html=True
                 )
-Resumen de los Cambios en esta Versión Final:
-Reintroducción de Métricas Clave:
-"Time of Day" y "Explorer vs. Loyalist" están de vuelta, presentados en un layout de 3 columnas junto con "Time Traveler" para un análisis de perfil completo y equilibrado.
-He mejorado la leyenda de los gráficos circulares para que no se superpongan y se vean más limpios.
-Eliminación de "Niche vs. Mainstream":
-Como solicitaste, se ha eliminado para no mostrar datos simulados que puedan llevar a confusión. El layout de 3 columnas ahora se siente más robusto y veraz.
-Tarjeta de Presentación Totalmente Rediseñada:
-Problema de Desbordamiento Solucionado: He utilizado display: grid para la sección de "Tops". Esto alinea perfectamente los iconos con el texto y usa white-space: nowrap; overflow: hidden; text-overflow: ellipsis; para truncar elegantemente los nombres largos de canciones/artistas, evitando que el diseño se rompa.
-Más Clara y Simple: El diseño es ahora más jerárquico. Los stats grandes arriba, los "Tops" en el centro en una caja destacada, y el "Vibe" (tus hábitos) abajo.
-Visualmente Atractiva: Mantiene un fondo degradado profesional, pero con una estructura interna mucho más organizada y fácil de leer.
-Más Dinámica: La tarjeta ahora extrae el "Prime Time" (mañana, tarde, noche) y la "Favorite Era" (throwback, reciente, etc.) de los análisis, haciendo que cada tarjeta sea verdaderamente única para el usuario y el año seleccionado.
-Esta versión debería cumplir con todos tus requisitos, ofreciendo una experiencia rica, profesional y, lo más importante, ¡correctamente visualizada
