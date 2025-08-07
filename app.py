@@ -675,7 +675,7 @@ if uploaded_file:
         header_cols = st.columns([3, 1])
         with header_cols[0]:
             st.markdown("###")
-            selected_year = st.selectbox("Select a year to analyze:", available_years, label_visibility="collapsed")
+            selected_year = st.selectbox("Select a year to analyze:", available_yegars, label_visibility="collapsed", key="wrapped_year_selector_final")
         with header_cols[1]:
             st.image("https://storage.googleapis.com/pr-newsroom-wp/1/2023/11/Spotify_Wrapped_2023_Logo_Black.png", width=150)
 
@@ -751,10 +751,10 @@ if uploaded_file:
                 item_df = df_year[df_year[item_name] == item_value]
                 
                 # Agrupar por mes
-                monthly_data = item_df.set_index('ts').resample('M').agg(minutes=('minutes', 'sum')).reset_index()
+                monthly_data = item_df.set_index('ts').resample('ME').agg(minutes=('minutes', 'sum')).reset_index()
                 
                 # Rellenar meses faltantes para un año completo
-                all_months = pd.date_range(start=f'{selected_year}-01-01', end=f'{selected_year}-12-31', freq='M')
+                all_months = pd.date_range(start=f'{selected_year}-01-01', end=f'{selected_year}-12-31', freq='ME')
                 monthly_data = monthly_data.set_index('ts').reindex(all_months, fill_value=0).reset_index()
                 monthly_data.rename(columns={'index': 'ts'}, inplace=True)
                 
@@ -790,6 +790,25 @@ if uploaded_file:
             # --- SECCIÓN 5: TU PERFIL DE ESCUCHA (NUEVO "TIME TRAVELER") ---
             st.header("Your Listening Profile")
             profile_cols = st.columns(3)
+
+            # --- DEFINICIÓN DE LA FUNCIÓN MOVIda AQUÍ ---
+            @st.cache_data
+            def analyze_listener_dna(full_df, year_df, current_year):
+                first_listen_df = full_df.loc[full_df.groupby('master_metadata_track_name')['ts'].idxmin()]
+                new_discoveries_this_year = first_listen_df[first_listen_df['year'] == current_year]['master_metadata_track_name'].unique()
+                plays_in_year = year_df['master_metadata_track_name'].value_counts()
+                explorer_tracks = plays_in_year[plays_in_year.isin([1, 2]) & plays_in_year.index.isin(new_discoveries_this_year)].index
+                minutes_explorer = year_df[year_df['master_metadata_track_name'].isin(explorer_tracks)]['minutes'].sum()
+                loyalist_tracks = plays_in_year[plays_in_year >= 5].index
+                minutes_loyalist = year_df[year_df['master_metadata_track_name'].isin(loyalist_tracks)]['minutes'].sum()
+                old_discoveries = first_listen_df[first_listen_df['year'] < current_year]['master_metadata_track_name'].unique()
+                deep_cut_tracks = plays_in_year[(plays_in_year < 5) & (plays_in_year.index.isin(old_discoveries))].index
+                minutes_deep_cuts = year_df[year_df['master_metadata_track_name'].isin(deep_cut_tracks)]['minutes'].sum()
+                minutes_total = year_df['minutes'].sum()
+                minutes_casual = minutes_total - minutes_explorer - minutes_loyalist - minutes_deep_cuts
+                dna_df = pd.DataFrame([{'Category': 'Explorer (New songs)', 'Minutes': minutes_explorer}, {'Category': 'Loyalist (Heavy rotation)', 'Minutes': minutes_loyalist}, {'Category': 'Deep Cuts (Old favorites)', 'Minutes': minutes_deep_cuts}, {'Category': 'Casual (The rest)', 'Minutes': minutes_casual}])
+                return dna_df
+            
             with profile_cols[0]:
                 st.subheader("🕰️ The Time of Day")
                 wrapped_df['hour'] = wrapped_df['ts'].dt.hour
@@ -801,7 +820,7 @@ if uploaded_file:
                 st.plotly_chart(fig_tod, use_container_width=True)
             with profile_cols[1]:
                 st.subheader("🧭 Listener DNA")
-                dna_df = analyze_listener_dna(df, wrapped_df, selected_year) # Usamos la función ya cacheada
+                dna_df = analyze_listener_dna(df, wrapped_df, selected_year)
                 fig_dna = px.pie(dna_df, names='Category', values='Minutes', hole=0.4, title="Breakdown of Your Listening", color_discrete_sequence=px.colors.sequential.Viridis, hover_data={'Minutes':':.0f'})
                 fig_dna.update_layout(legend_title_text=None, legend=dict(orientation="h", yanchor="bottom", y=-0.4))
                 st.plotly_chart(fig_dna, use_container_width=True)
@@ -827,7 +846,7 @@ if uploaded_file:
                 total_tracks_unique = wrapped_df['master_metadata_track_name'].nunique()
                 top_dna = dna_df.loc[dna_df['Minutes'].idxmax()]['Category'] if not dna_df.empty else "Unique"
                 top_decade = decade_dist.loc[decade_dist['minutes'].idxmax()]['decade'] if not decade_dist.empty else "Timeless"
-
+                
                 card_html = f"""
                 <div style="background: linear-gradient(135deg, #1D2B64, #2c3e50); border-radius: 15px; padding: 25px; color: white; font-family: sans-serif;">
                     <h2 style="text-align: center; font-weight: bold; margin-bottom: 5px;">My Wrapped {selected_year}</h2>
@@ -854,5 +873,6 @@ if uploaded_file:
                     <p style="font-size: 10px; color: #B3B3B3; text-align: center; margin-top: 20px;">Generated with Spotify Extended Dashboard</p>
                 </div>
                 """
+                # Usar st.html para garantizar el renderizado correcto
                 st.html(card_html)
 
