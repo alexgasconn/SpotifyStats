@@ -675,7 +675,7 @@ if uploaded_file:
         header_cols = st.columns([3, 1])
         with header_cols[0]:
             st.markdown("###")
-            selected_year = st.selectbox("Select a year to analyze:", available_yegars, label_visibility="collapsed", key="wrapped_year_selector_final")
+            selected_year = st.selectbox("Select a year to analyze:", available_years, label_visibility="collapsed", key="wrapped_year_selector_final")
         with header_cols[1]:
             st.image("https://storage.googleapis.com/pr-newsroom-wp/1/2023/11/Spotify_Wrapped_2023_Logo_Black.png", width=150)
 
