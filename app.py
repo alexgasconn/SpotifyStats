@@ -1085,174 +1085,174 @@ if uploaded_file:
 
 
     with tabs[10]: # El índice 10 corresponde a la nueva pestaña "🏁 Ranking Race"
-    st.header("🏁 The Ultimate Ranking Race")
-    st.markdown("""
-    ¡Visualiza la batalla por el top de tus listas de reproducción! Esta herramienta crea una carrera de rankings animada a lo largo del tiempo.
-    Personaliza cada aspecto de la carrera y mira cómo evolucionan tus gustos.
+        st.header("🏁 The Ultimate Ranking Race")
+        st.markdown("""
+        ¡Visualiza la batalla por el top de tus listas de reproducción! Esta herramienta crea una carrera de rankings animada a lo largo del tiempo.
+        Personaliza cada aspecto de la carrera y mira cómo evolucionan tus gustos.
 
-    - **Gráfico de Ranking por Período:** Muestra el ranking solo para esa semana/mes/año específico.
-    - **Gráfico de Ranking Acumulado:** Muestra el total acumulado hasta ese período.
-    """)
+        - **Gráfico de Ranking por Período:** Muestra el ranking solo para esa semana/mes/año específico.
+        - **Gráfico de Ranking Acumulado:** Muestra el total acumulado hasta ese período.
+        """)
 
-    # --- CONTROLES DE PERSONALIZACIÓN ---
-    st.markdown("#### ⚙️ Controles de la Carrera")
-    controls_cols = st.columns([1, 1, 1, 2])
-    with controls_cols[0]:
-        item_type = st.selectbox(
-            "Analizar por:",
-            options=["Artists", "Tracks", "Albums"],
-            key="race_item_type"
-        )
-    with controls_cols[1]:
-        time_period = st.selectbox(
-            "Agrupar por:",
-            options=["Weekly", "Monthly", "Yearly"],
-            key="race_time_period"
-        )
-    with controls_cols[2]:
-        metric_type = st.radio(
-            "Medir por:",
-            options=["Minutes", "Plays"],
-            horizontal=True,
-            key="race_metric"
-        )
-    with controls_cols[3]:
-        top_n = st.slider(
-            "Mostrar Top N:",
-            min_value=3,
-            max_value=25,
-            value=10,
-            step=1,
-            key="race_top_n"
-        )
-
-    # --- LÓGICA DE PROCESAMIENTO DE DATOS ---
-    @st.cache_data(show_spinner="Calculando la carrera de rankings...")
-    def calculate_race_data(_df, item_col, time_period, metric_type, top_n):
-        df_copy = _df.copy()
-
-        # 1. Definir la columna de período y la métrica
-        if time_period == 'Weekly':
-            df_copy['period_id'] = df_copy['ts'].dt.isocalendar().year.astype(str) + '-W' + df_copy['ts'].dt.isocalendar().week.astype(str).str.zfill(2)
-        elif time_period == 'Monthly':
-            df_copy['period_id'] = df_copy['ts'].dt.strftime('%Y-%m')
-        else: # Yearly
-            df_copy['period_id'] = df_copy['ts'].dt.year.astype(str)
-
-        agg_func = 'sum' if metric_type == 'Minutes' else 'count'
-        metric_col = 'minutes' if metric_type == 'Minutes' else 'ts'
-
-        # 2. Calcular el ranking periódico
-        periodic_data = df_copy.groupby(['period_id', item_col])[metric_col].agg(agg_func).reset_index(name='value')
-        periodic_data['rank'] = periodic_data.groupby('period_id')['value'].rank(method='first', ascending=False)
-        periodic_data = periodic_data[periodic_data['rank'] <= top_n].sort_values(['period_id', 'rank'])
-
-        # 3. Calcular el ranking acumulado
-        # Para mantener la consistencia, basamos el acumulado en los N items más escuchados del período total
-        overall_top_items = df_copy.groupby(item_col)[metric_col].agg(agg_func).nlargest(top_n).index
-
-        all_periods = sorted(df_copy['period_id'].unique())
-        cumulative_data_list = []
-
-        for period in all_periods:
-            current_data = df_copy[df_copy['period_id'] <= period]
-            cum_summary = current_data[current_data[item_col].isin(overall_top_items)].groupby(item_col)[metric_col].agg(agg_func).reset_index(name='value')
-            cum_summary['period_id'] = period
-            cum_summary['rank'] = cum_summary['value'].rank(method='first', ascending=False)
-            cumulative_data_list.append(cum_summary)
-
-        cumulative_data = pd.concat(cumulative_data_list)
-        cumulative_data = cumulative_data[cumulative_data['rank'] <= top_n].sort_values(['period_id', 'rank'])
-
-        return periodic_data, cumulative_data
-
-    # --- MAPEO DE OPCIONES A COLUMNAS ---
-    item_col_map = {
-        "Artists": "master_metadata_album_artist_name",
-        "Tracks": "master_metadata_track_name",
-        "Albums": "master_metadata_album_album_name"
-    }
-    selected_item_col = item_col_map[item_type]
-
-    # Ejecutar el cálculo
-    race_data_periodic, race_data_cumulative = calculate_race_data(
-        filtered_df, selected_item_col, time_period, metric_type, top_n
-    )
-
-    # --- LÓGICA DE VISUALIZACIÓN ---
-    if race_data_periodic.empty or race_data_cumulative.empty:
-        st.warning("No hay suficientes datos para generar la carrera con los filtros seleccionados. Intenta con un rango de fechas más amplio o diferentes opciones.")
-    else:
-        # Opciones comunes para los gráficos
-        animation_opts = dict(frame=dict(duration=800, redraw=True), transition=dict(duration=400, easing='cubic-in-out'))
-        color_sequence = px.colors.sequential.Greens_r
-
-        # Función para crear y estilizar los gráficos
-        def create_race_chart(df, value_col, item_col, title, xaxis_title):
-            max_value = df[value_col].max()
-            fig = px.bar(
-                df,
-                x=value_col,
-                y='rank',
-                orientation='h',
-                color=item_col,
-                text=item_col,
-                animation_frame='period_id',
-                animation_group=item_col,
-                color_discrete_sequence=color_sequence,
-                template='plotly_dark' # Estilo Spotify
+        # --- CONTROLES DE PERSONALIZACIÓN ---
+        st.markdown("#### ⚙️ Controles de la Carrera")
+        controls_cols = st.columns([1, 1, 1, 2])
+        with controls_cols[0]:
+            item_type = st.selectbox(
+                "Analizar por:",
+                options=["Artists", "Tracks", "Albums"],
+                key="race_item_type"
             )
-            fig.update_layout(
-                title=dict(text=title, font=dict(size=20), x=0.5),
-                yaxis=dict(autorange="reversed", showticklabels=False, title=None),
-                xaxis=dict(title=xaxis_title, range=[0, max_value * 1.30]), # Rango extendido para etiquetas
-                legend_title_text=None,
-                legend=dict(orientation="h", yanchor="bottom", y=-0.2, traceorder="normal"),
-                height=500 + top_n * 10, # Altura dinámica
-                margin=dict(l=10, r=10, t=50, b=100),
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                font=dict(color="white"),
-                updatemenus=[{
-                    "type": "buttons",
-                    "x": 0.1, "y": -0.3,
-                    "buttons": [
-                        {"label": "▶ Play", "method": "animate", "args": [None, animation_opts]},
-                        {"label": "❚❚ Pause", "method": "animate", "args": [[None], dict(frame=dict(duration=0, redraw=False), mode="immediate")]}
-                    ]
-                }]
+        with controls_cols[1]:
+            time_period = st.selectbox(
+                "Agrupar por:",
+                options=["Weekly", "Monthly", "Yearly"],
+                key="race_time_period"
             )
-            # Asegurar que el texto siempre esté afuera, a la derecha, y alineado a la izquierda.
-            fig.update_traces(
-                textposition='outside',
-                textfont=dict(size=12, color='white'),
-                insidetextanchor='start',
-                texttemplate='%{text}' # Muestra el texto tal cual
+        with controls_cols[2]:
+            metric_type = st.radio(
+                "Medir por:",
+                options=["Minutes", "Plays"],
+                horizontal=True,
+                key="race_metric"
             )
-            return fig
+        with controls_cols[3]:
+            top_n = st.slider(
+                "Mostrar Top N:",
+                min_value=3,
+                max_value=25,
+                value=10,
+                step=1,
+                key="race_top_n"
+            )
 
-        st.markdown("---")
+        # --- LÓGICA DE PROCESAMIENTO DE DATOS ---
+        @st.cache_data(show_spinner="Calculando la carrera de rankings...")
+        def calculate_race_data(_df, item_col, time_period, metric_type, top_n):
+            df_copy = _df.copy()
 
-        # GRÁFICO 1: RANKING POR PERÍODO
-        st.subheader(f"🏆 {time_period} Ranking Race")
-        fig_periodic = create_race_chart(
-            df=race_data_periodic,
-            value_col='value',
-            item_col=selected_item_col,
-            title=f"Top {top_n} {item_type} by {metric_type} ({time_period})",
-            xaxis_title=f"{metric_type} in Period"
+            # 1. Definir la columna de período y la métrica
+            if time_period == 'Weekly':
+                df_copy['period_id'] = df_copy['ts'].dt.isocalendar().year.astype(str) + '-W' + df_copy['ts'].dt.isocalendar().week.astype(str).str.zfill(2)
+            elif time_period == 'Monthly':
+                df_copy['period_id'] = df_copy['ts'].dt.strftime('%Y-%m')
+            else: # Yearly
+                df_copy['period_id'] = df_copy['ts'].dt.year.astype(str)
+
+            agg_func = 'sum' if metric_type == 'Minutes' else 'count'
+            metric_col = 'minutes' if metric_type == 'Minutes' else 'ts'
+
+            # 2. Calcular el ranking periódico
+            periodic_data = df_copy.groupby(['period_id', item_col])[metric_col].agg(agg_func).reset_index(name='value')
+            periodic_data['rank'] = periodic_data.groupby('period_id')['value'].rank(method='first', ascending=False)
+            periodic_data = periodic_data[periodic_data['rank'] <= top_n].sort_values(['period_id', 'rank'])
+
+            # 3. Calcular el ranking acumulado
+            # Para mantener la consistencia, basamos el acumulado en los N items más escuchados del período total
+            overall_top_items = df_copy.groupby(item_col)[metric_col].agg(agg_func).nlargest(top_n).index
+
+            all_periods = sorted(df_copy['period_id'].unique())
+            cumulative_data_list = []
+
+            for period in all_periods:
+                current_data = df_copy[df_copy['period_id'] <= period]
+                cum_summary = current_data[current_data[item_col].isin(overall_top_items)].groupby(item_col)[metric_col].agg(agg_func).reset_index(name='value')
+                cum_summary['period_id'] = period
+                cum_summary['rank'] = cum_summary['value'].rank(method='first', ascending=False)
+                cumulative_data_list.append(cum_summary)
+
+            cumulative_data = pd.concat(cumulative_data_list)
+            cumulative_data = cumulative_data[cumulative_data['rank'] <= top_n].sort_values(['period_id', 'rank'])
+
+            return periodic_data, cumulative_data
+
+        # --- MAPEO DE OPCIONES A COLUMNAS ---
+        item_col_map = {
+            "Artists": "master_metadata_album_artist_name",
+            "Tracks": "master_metadata_track_name",
+            "Albums": "master_metadata_album_album_name"
+        }
+        selected_item_col = item_col_map[item_type]
+
+        # Ejecutar el cálculo
+        race_data_periodic, race_data_cumulative = calculate_race_data(
+            filtered_df, selected_item_col, time_period, metric_type, top_n
         )
-        st.plotly_chart(fig_periodic, use_container_width=True)
 
-        st.divider()
+        # --- LÓGICA DE VISUALIZACIÓN ---
+        if race_data_periodic.empty or race_data_cumulative.empty:
+            st.warning("No hay suficientes datos para generar la carrera con los filtros seleccionados. Intenta con un rango de fechas más amplio o diferentes opciones.")
+        else:
+            # Opciones comunes para los gráficos
+            animation_opts = dict(frame=dict(duration=800, redraw=True), transition=dict(duration=400, easing='cubic-in-out'))
+            color_sequence = px.colors.sequential.Greens_r
 
-        # GRÁFICO 2: RANKING ACUMULADO
-        st.subheader(f"📈 Cumulative Ranking Race")
-        fig_cumulative = create_race_chart(
-            df=race_data_cumulative,
-            value_col='value',
-            item_col=selected_item_col,
-            title=f"Top {top_n} {item_type} by Cumulative {metric_type}",
-            xaxis_title=f"Total Cumulative {metric_type}"
-        )
-        st.plotly_chart(fig_cumulative, use_container_width=True)
+            # Función para crear y estilizar los gráficos
+            def create_race_chart(df, value_col, item_col, title, xaxis_title):
+                max_value = df[value_col].max()
+                fig = px.bar(
+                    df,
+                    x=value_col,
+                    y='rank',
+                    orientation='h',
+                    color=item_col,
+                    text=item_col,
+                    animation_frame='period_id',
+                    animation_group=item_col,
+                    color_discrete_sequence=color_sequence,
+                    template='plotly_dark' # Estilo Spotify
+                )
+                fig.update_layout(
+                    title=dict(text=title, font=dict(size=20), x=0.5),
+                    yaxis=dict(autorange="reversed", showticklabels=False, title=None),
+                    xaxis=dict(title=xaxis_title, range=[0, max_value * 1.30]), # Rango extendido para etiquetas
+                    legend_title_text=None,
+                    legend=dict(orientation="h", yanchor="bottom", y=-0.2, traceorder="normal"),
+                    height=500 + top_n * 10, # Altura dinámica
+                    margin=dict(l=10, r=10, t=50, b=100),
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color="white"),
+                    updatemenus=[{
+                        "type": "buttons",
+                        "x": 0.1, "y": -0.3,
+                        "buttons": [
+                            {"label": "▶ Play", "method": "animate", "args": [None, animation_opts]},
+                            {"label": "❚❚ Pause", "method": "animate", "args": [[None], dict(frame=dict(duration=0, redraw=False), mode="immediate")]}
+                        ]
+                    }]
+                )
+                # Asegurar que el texto siempre esté afuera, a la derecha, y alineado a la izquierda.
+                fig.update_traces(
+                    textposition='outside',
+                    textfont=dict(size=12, color='white'),
+                    insidetextanchor='start',
+                    texttemplate='%{text}' # Muestra el texto tal cual
+                )
+                return fig
+
+            st.markdown("---")
+
+            # GRÁFICO 1: RANKING POR PERÍODO
+            st.subheader(f"🏆 {time_period} Ranking Race")
+            fig_periodic = create_race_chart(
+                df=race_data_periodic,
+                value_col='value',
+                item_col=selected_item_col,
+                title=f"Top {top_n} {item_type} by {metric_type} ({time_period})",
+                xaxis_title=f"{metric_type} in Period"
+            )
+            st.plotly_chart(fig_periodic, use_container_width=True)
+
+            st.divider()
+
+            # GRÁFICO 2: RANKING ACUMULADO
+            st.subheader(f"📈 Cumulative Ranking Race")
+            fig_cumulative = create_race_chart(
+                df=race_data_cumulative,
+                value_col='value',
+                item_col=selected_item_col,
+                title=f"Top {top_n} {item_type} by Cumulative {metric_type}",
+                xaxis_title=f"Total Cumulative {metric_type}"
+            )
+            st.plotly_chart(fig_cumulative, use_container_width=True)
