@@ -33,14 +33,13 @@ function processEntry(entry) {
         hour: ts.getHours(),
         weekday: (ts.getDay() + 6) % 7,
         reasonEnd: entry.reason_end,
-        // --- NUEVOS CAMPOS ---
         platform: entry.platform,
         country: entry.conn_country,
         reasonStart: entry.reason_start
     };
 }
 
-// --- FUNCIONES DE CÁLCULO ---
+// --- FUNCIONES DE CÁLCULO DE MÉTRICAS ---
 
 export function calculateGlobalKPIs(data) {
     if (data.length === 0) return {};
@@ -89,7 +88,6 @@ export function calculateTimeline(data) {
     return Object.entries(dailyMinutes).map(([date, minutes]) => ({ x: date, y: Math.round(minutes) })).sort((a, b) => new Date(a.x) - new Date(b.x));
 }
 
-// --- ¡NUEVA FUNCIÓN GENÉRICA PARA GRÁFICOS DE DISTRIBUCIÓN! ---
 export function calculateDistribution(data, key) {
     const counts = data.reduce((acc, item) => {
         const value = item[key] || 'Unknown';
@@ -99,46 +97,55 @@ export function calculateDistribution(data, key) {
     return Object.entries(counts).sort((a, b) => b[1] - a[1]);
 }
 
-// --- ¡NUEVA FUNCIÓN COMPLEJA PARA EL WRAPPED! ---
+// --- ¡FUNCIÓN QUE FALTABA! ---
+// Esta función es necesaria para los gráficos de la pestaña "Trends"
+export function calculateTemporalDistribution(data, groupBy) {
+    const groups = {
+        hour: Array(24).fill(0),
+        weekday: Array(7).fill(0),
+        month: Array(12).fill(0),
+        year: {}
+    };
+
+    data.forEach(d => {
+        groups.hour[d.hour]++;
+        groups.weekday[d.weekday]++;
+        groups.month[d.month]++;
+        groups.year[d.year] = (groups.year[d.year] || 0) + d.durationMin;
+    });
+    
+    if (groupBy === 'year') {
+        return Object.entries(groups.year)
+            .sort((a, b) => a[0] - b[0])
+            .map(([year, minutes]) => ({ year, minutes: Math.round(minutes) }));
+    }
+    return groups[groupBy];
+}
+// --- FIN DE LA FUNCIÓN QUE FALTABA ---
+
 export function calculateWrappedStats(year, fullData) {
     const yearData = fullData.filter(d => d.year === year);
     if (yearData.length === 0) return null;
-
     const previousData = fullData.filter(d => d.year < year);
-
-    // Uniques
     const uniqueTracks = new Set(yearData.map(d => d.trackName));
     const uniqueArtists = new Set(yearData.map(d => d.artistName));
     const uniqueAlbums = new Set(yearData.map(d => `${d.albumName} - ${d.artistName}`));
-
-    // Uniques in previous years
     const prevTracks = new Set(previousData.map(d => d.trackName));
     const prevArtists = new Set(previousData.map(d => d.artistName));
     const prevAlbums = new Set(previousData.map(d => `${d.albumName} - ${d.artistName}`));
-
-    // New discoveries calculation
     const isFirstYear = prevArtists.size === 0;
     const newTracks = isFirstYear ? uniqueTracks.size : [...uniqueTracks].filter(t => !prevTracks.has(t)).length;
     const newArtists = isFirstYear ? uniqueArtists.size : [...uniqueArtists].filter(a => !prevArtists.has(a)).length;
     const newAlbums = isFirstYear ? uniqueAlbums.size : [...uniqueAlbums].filter(al => !prevAlbums.has(al)).length;
-
-    // Monthly breakdown
     const monthlyMinutes = Array(12).fill(0);
-    yearData.forEach(d => {
-        monthlyMinutes[d.month] += d.durationMin;
-    });
-
+    yearData.forEach(d => { monthlyMinutes[d.month] += d.durationMin; });
     return {
         totalMinutes: Math.round(yearData.reduce((sum, d) => sum + d.durationMin, 0)),
         topSong: calculateTopItems(yearData, 'trackName', 'count', 5),
         topArtist: calculateTopItems(yearData, 'artistName', 'count', 5),
         topAlbum: calculateTopItems(yearData, 'albumName', 'minutes', 5),
         monthlyMinutes: monthlyMinutes.map(m => Math.round(m)),
-        uniques: {
-            tracks: uniqueTracks.size,
-            artists: uniqueArtists.size,
-            albums: uniqueAlbums.size,
-        },
+        uniques: { tracks: uniqueTracks.size, artists: uniqueArtists.size, albums: uniqueAlbums.size, },
         discoveries: {
             tracks: (newTracks / uniqueTracks.size * 100).toFixed(0),
             artists: (newArtists / uniqueArtists.size * 100).toFixed(0),
