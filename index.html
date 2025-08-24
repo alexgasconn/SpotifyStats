@@ -1,71 +1,131 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Spotify Extended Streaming Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Stats - Advanced Analyzer!</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Librerías Externas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.1.1/wordcloud2.min.js"></script>
 </head>
 <body>
-  <h1>Spotify Extended Streaming History Dashboard</h1>
+    <div class="container">
+        <!-- PANTALLA INICIAL DE SUBIDA DE ARCHIVO -->
+        <div id="upload-section">
+            <div class="upload-box">
+                <h1>Spotify Stats Analyzer!</h1>
+                <p>Export your "Extended streaming history" from your Spotify account settings, and upload the .zip file here to analyze your listening habits.</p>
+                <input type="file" id="zip-input" accept=".zip" class="hidden">
+                <button id="upload-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+                    Upload Spotify ZIP
+                </button>
+            </div>
+        </div>
 
-  <input type="file" id="zipFileInput" accept=".zip" />
-  <div id="loading">Waiting for ZIP file...</div>
+        <!-- DASHBOARD PRINCIPAL (Oculto por defecto) -->
+        <div id="dashboard-section" class="hidden">
+            <header>
+                <h1>Your Listening Analysis</h1>
+                <!-- Pestañas de Navegación -->
+                <nav class="tab-nav">
+                    <button class="tab-link active" data-tab="overview-tab">📊 Overview</button>
+                    <button class="tab-link" data-tab="trends-tab">📈 Trends</button>
+                    <button class="tab-link" data-tab="wrapped-tab">🎉 Your Wrapped</button>
+                    <button class="tab-link" data-tab="explorer-tab">🔍 Data Explorer</button>
+                </nav>
+            </header>
+            
+            <main>
+                <!-- PESTAÑA 1: OVERVIEW -->
+                <div id="overview-tab" class="tab-content active">
+                    <div id="kpi-grid" class="summary-grid"></div>
+                    <div class="charts-grid">
+                        <div class="chart-container full-width">
+                            <h3>Listening Timeline (Minutes per Day)</h3>
+                            <canvas id="timeline-chart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <h3>Top 5 Tracks</h3>
+                            <div id="top-tracks-table" class="top-items-table"></div>
+                        </div>
+                        <div class="chart-container">
+                            <h3>Top 5 Artists</h3>
+                            <div id="top-artists-table" class="top-items-table"></div>
+                        </div>
+                    </div>
+                </div>
 
-  <div id="dashboard" style="display:none">
-    <section id="top-stats">
-      <h2>Top Statistics</h2>
-      <canvas id="topTracksChart"></canvas>
-      <canvas id="topArtistsChart"></canvas>
-      <canvas id="topAlbumsChart"></canvas>
-    </section>
+                <!-- PESTAÑA 2: TRENDS -->
+                <div id="trends-tab" class="tab-content">
+                    <div class="charts-grid">
+                        <div class="chart-container">
+                            <h3>Listening Clock (Hour of Day)</h3>
+                            <canvas id="listening-clock-chart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <h3>Listening by Day of Week</h3>
+                            <canvas id="day-of-week-chart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <h3>Listening by Month</h3>
+                            <canvas id="monthly-listening-chart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <h3>Listening by Year</h3>
+                            <canvas id="yearly-listening-chart"></canvas>
+                        </div>
+                        <div class="chart-container full-width">
+                            <h3>Top 20 Albums</h3>
+                            <div id="top-albums-table" class="table-container"></div>
+                        </div>
+                    </div>
+                </div>
 
-    <section id="temporal-charts">
-      <h2>Temporal Analysis</h2>
-      <canvas id="monthlyChart"></canvas>
-      <canvas id="weeklyChart"></canvas>
-    </section>
+                <!-- PESTAÑA 3: YOUR WRAPPED -->
+                <div id="wrapped-tab" class="tab-content">
+                    <div class="wrapped-header">
+                        <h2>Your Listening Wrapped</h2>
+                        <div class="filter-controls">
+                            <label for="wrapped-year-filter">Select Year:</label>
+                            <select id="wrapped-year-filter"></select>
+                        </div>
+                    </div>
+                    <div id="wrapped-content" class="wrapped-grid">
+                        <!-- El contenido se generará dinámicamente aquí -->
+                    </div>
+                </div>
 
-    <section id="distribution-charts">
-      <h2>Distributions</h2>
-      <canvas id="hourDist"></canvas>
-      <canvas id="weekdayDist"></canvas>
-      <canvas id="monthDist"></canvas>
-      <canvas id="yearDist"></canvas>
-      <canvas id="durationDist"></canvas>
-    </section>
+                <!-- PESTAÑA 4: DATA EXPLORER -->
+                <div id="explorer-tab" class="tab-content">
+                    <div class="charts-grid">
+                         <div class="chart-container">
+                            <h3>Track Name Word Cloud</h3>
+                            <div id="word-cloud-container" class="word-cloud-container">
+                                <canvas id="word-cloud-canvas"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-container full-width">
+                            <h3>Full Streaming History</h3>
+                            <div class="table-container">
+                                <table id="data-table" class="df-table"></table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
 
-    <section id="heatmaps">
-      <h2>Heatmaps</h2>
-      <canvas id="hourlyHeatmap"></canvas>
-      <canvas id="monthlyHeatmap"></canvas>
-      <canvas id="dailyHeatmap"></canvas>
-    </section>
-
-    <section id="streaks">
-      <h2>Listening Streaks</h2>
-      <div id="streakStats"></div>
-    </section>
-
-    <section id="summary">
-      <h2>Summary</h2>
-      <div id="globalStats"></div>
-    </section>
-
-    <section id="game">
-      <h2>🎲 Game: Which is the most played?</h2>
-      <div id="gameQuestion"></div>
-      <button id="option1"></button>
-      <button id="option2"></button>
-      <p id="gameFeedback"></p>
-      <button id="nextRound" style="display:none">Next</button>
-      <p id="score"></p>
-    </section>
-  </div>
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/papaparse/5.4.1/papaparse.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.3.0"></script>
-  <script src="script.js"></script>
+        <!-- Pantalla de Carga -->
+        <div id="loading-overlay" class="hidden">
+            <div class="spinner"></div>
+            <p id="loading-message">Processing your data...</p>
+        </div>
+    </div>
+    
+    <script type="module" src="js/main.js"></script>
 </body>
 </html>
