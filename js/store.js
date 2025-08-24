@@ -154,6 +154,7 @@ export function calculateWrappedStats(year, fullData) {
     const newArtists = isFirstYear ? uniqueArtists.size : [...uniqueArtists].filter(a => !prevArtists.has(a)).length;
     const newAlbums = isFirstYear ? uniqueAlbums.size : [...uniqueAlbums].filter(al => !prevAlbums.has(al)).length;
     const monthlyMinutes = Array(12).fill(0);
+    const skippedTracks = yearData.filter(d => d.reasonEnd !== 'trackdone').length;
     yearData.forEach(d => { monthlyMinutes[d.month] += d.durationMin; });
     return {
         totalMinutes: Math.round(yearData.reduce((sum, d) => sum + d.durationMin, 0)),
@@ -166,6 +167,7 @@ export function calculateWrappedStats(year, fullData) {
             tracks: (newTracks / uniqueTracks.size * 100).toFixed(0),
             artists: (newArtists / uniqueArtists.size * 100).toFixed(0),
             albums: (newAlbums / uniqueAlbums.size * 100).toFixed(0),
-        }
+        },
+        skipRate: (skippedTracks / yearData.length * 100).toFixed(1)
     };
 }

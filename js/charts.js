@@ -8,10 +8,10 @@ function createOrUpdateChart(canvasId, config) {
 
 const chartColors = ['#1DB954', '#17A2B8', '#FFC107', '#FD7E14', '#6F42C1', '#E83E8C'];
 
-// --- ¡NUEVA FUNCIÓN GENÉRICA! ---
 export function renderDistributionChart(canvasId, data, title, type = 'doughnut') {
-    const labels = data.map(d => d[0]);
-    const values = data.map(d => d[1]);
+    // CORRECCIÓN: Leemos las propiedades 'value' y 'percent' del objeto de datos
+    const labels = data.map(d => d.value);
+    const values = data.map(d => parseFloat(d.percent)); // Usamos parseFloat para convertir el string a número
 
     const config = {
         type: type,
@@ -28,7 +28,22 @@ export function renderDistributionChart(canvasId, data, title, type = 'doughnut'
             responsive: true, maintainAspectRatio: false,
             plugins: {
                 legend: { position: type === 'doughnut' ? 'right' : 'none' , labels: { color: '#b3b3b3' } },
-                title: { display: false, text: title, color: '#FFFFFF', font: { size: 16 } }
+                title: { display: false, text: title, color: '#FFFFFF', font: { size: 16 } },
+                // MEJORA: Añadimos un tooltip para que muestre el %
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed !== null) {
+                                label += context.parsed.toFixed(2) + '%';
+                            }
+                            return label;
+                        }
+                    }
+                }
             },
             scales: type === 'bar' ? {
                 y: { ticks: { color: '#b3b3b3' }, grid: { color: '#282828' } },

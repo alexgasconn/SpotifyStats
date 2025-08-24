@@ -129,10 +129,11 @@ export function renderWrappedContent() {
         <div class="wrapped-card"> <div class="title">Unique Tracks</div> <div class="value">${stats.uniques.tracks}</div> <div class="subtitle">${stats.discoveries.tracks}% new</div> </div>
         <div class="wrapped-card"> <div class="title">Unique Artists</div> <div class="value">${stats.uniques.artists}</div> <div class="subtitle">${stats.discoveries.artists}% new</div> </div>
         <div class="wrapped-card"> <div class="title">Unique Albums</div> <div class="value">${stats.uniques.albums}</div> <div class="subtitle">${stats.discoveries.albums}% new</div> </div>
+        <div class="wrapped-card"> <div class="title">Skip Rate</div> <div class="value">${stats.skipRate}%</div> <div class="subtitle">of tracks skipped</div> </div>
         <div class="wrapped-card"> <div class="title">Top 5 Songs</div> <ul class="list">${stats.topSong.map((s, i) => `<li><span class="rank">${i+1}</span> ${s.name}</li>`).join('')}</ul> </div>
         <div class="wrapped-card"> <div class="title">Top 5 Artists</div> <ul class="list">${stats.topArtist.map((a, i) => `<li><span class="rank">${i+1}</span> ${a.name}</li>`).join('')}</ul> </div>
         <div class="wrapped-card"> <div class="title">Top 5 Albums</div> <ul class="list">${stats.topAlbum.map((al, i) => `<li><span class="rank">${i+1}</span> ${al.name}</li>`).join('')}</ul> </div>
-        <div class="wrapped-card"> <div class="title">Skip Rate</div> <div class="value">${stats.skipRate}%</div> <div class="subtitle">of tracks skipped</div> </div>
+        
     `;
 
     setTimeout(() => {
