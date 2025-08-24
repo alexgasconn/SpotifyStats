@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,15 +8,18 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.1.1/wordcloud2.min.js"></script>
 </head>
+
 <body>
     <div class="container">
         <div id="upload-section">
             <div class="upload-box">
                 <h1>Spotify Stats Analyzer</h1>
-                <p>Export your "Extended streaming history" from your Spotify account settings, and upload the .zip file here to analyze your listening habits.</p>
+                <p>Export your "Extended streaming history" from your Spotify account settings, and upload the .zip file
+                    here to analyze your listening habits.</p>
                 <input type="file" id="zip-input" accept=".zip" class="hidden">
                 <button id="upload-button"><span>⬆️</span> Upload Spotify ZIP</button>
             </div>
@@ -41,7 +45,7 @@
                     <button class="tab-link" data-tab="explorer-tab">🔍 Data Explorer</button>
                 </nav>
             </header>
-            
+
             <main>
                 <!-- PESTAÑA 1: OVERVIEW -->
                 <div id="overview-tab" class="tab-content active">
@@ -50,6 +54,12 @@
                     <div class="charts-grid">
                         <div class="chart-container full-width">
                             <h3>Listening Timeline (Minutes per Day)</h3>
+                            <div class="time-agg-controls">
+                                <button class="time-agg-btn" data-unit="day">Daily</button>
+                                <button class="time-agg-btn active" data-unit="week">Weekly</button>
+                                <button class="time-agg-btn" data-unit="month">Monthly</button>
+                                <button class="time-agg-btn" data-unit="year">Yearly</button>
+                            </div>
                             <div class="chart-wrapper"><canvas id="timeline-chart"></canvas></div>
                         </div>
                         <div class="chart-container">
@@ -78,7 +88,7 @@
                             <h3>Listening by Country</h3>
                             <div class="chart-wrapper"><canvas id="country-chart"></canvas></div>
                         </div>
-                         <div class="chart-container">
+                        <div class="chart-container">
                             <h3>How You Start a Song</h3>
                             <div class="chart-wrapper"><canvas id="reason-start-chart"></canvas></div>
                         </div>
@@ -117,7 +127,7 @@
                 <!-- PESTAÑA 5: DATA EXPLORER -->
                 <div id="explorer-tab" class="tab-content">
                     <div class="charts-grid">
-                         <div class="chart-container">
+                        <div class="chart-container">
                             <h3>Track Name Word Cloud</h3>
                             <div id="word-cloud-container" class="word-cloud-container">
                                 <canvas id="word-cloud-canvas"></canvas>
@@ -139,7 +149,8 @@
             <p id="loading-message">Processing your data...</p>
         </div>
     </div>
-    
+
     <script type="module" src="js/main.js"></script>
 </body>
+
 </html>

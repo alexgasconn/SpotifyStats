@@ -77,7 +77,7 @@ export function renderWrappedMonthlyChart(monthlyData) {
 
 // --- GRÁFICOS ---
 
-export function renderTimelineChart(timelineData) {
+export function renderTimelineChart(timelineData, unit = 'week') {
     createOrUpdateChart('timeline-chart', {
         type: 'bar',
         data: {
@@ -92,7 +92,8 @@ export function renderTimelineChart(timelineData) {
             scales: {
                 x: {
                     type: 'time',
-                    time: { unit: 'month' },
+                    // CORRECCIÓN: La unidad ahora es dinámica
+                    time: { unit: unit },
                     ticks: { color: '#b3b3b3' },
                     grid: { color: '#282828' }
                 },

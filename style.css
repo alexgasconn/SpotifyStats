@@ -100,3 +100,31 @@ body { background-color: var(--spotify-black); color: var(--spotify-text-primary
 .spinner { border: 4px solid #404040; border-top: 4px solid var(--spotify-green); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
 #loading-message { margin-top: 1.5rem; font-weight: 700; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+
+/* Timeline Aggregation Controls */
+.time-agg-controls {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+.time-agg-btn {
+    background: var(--spotify-gray-light);
+    border: none;
+    color: var(--spotify-text-secondary);
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    border-radius: 50px;
+    transition: color 0.2s, background-color 0.2s;
+}
+.time-agg-btn:hover {
+    color: var(--spotify-text-primary);
+    background-color: #404040;
+}
+.time-agg-btn.active {
+    color: var(--spotify-black);
+    background-color: var(--spotify-green);
+}

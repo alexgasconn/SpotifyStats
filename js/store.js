@@ -80,12 +80,40 @@ export function calculateTopItems(data, key, metric = 'minutes', topN = 5) {
         .map(item => ({ ...item, minutes: Math.round(item.minutes) }));
 }
 
-export function calculateTimeline(data) {
-    const dailyMinutes = data.reduce((acc, d) => {
-        acc[d.date] = (acc[d.date] || 0) + d.durationMin;
+function getStartOfWeek(d) {
+    const date = new Date(d);
+    const day = date.getDay();
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+    return new Date(date.setDate(diff)).toISOString().split('T')[0];
+}
+
+export function calculateAggregatedTimeline(data, unit = 'week') {
+    if (!data || data.length === 0) return [];
+
+    const aggregationMap = data.reduce((acc, d) => {
+        let key;
+        switch (unit) {
+            case 'year':
+                key = `${d.year}-01-01`;
+                break;
+            case 'month':
+                key = d.ts.toISOString().substring(0, 7) + '-01';
+                break;
+            case 'week':
+                key = getStartOfWeek(d.ts);
+                break;
+            case 'day':
+            default:
+                key = d.date;
+                break;
+        }
+        acc[key] = (acc[key] || 0) + d.durationMin;
         return acc;
     }, {});
-    return Object.entries(dailyMinutes).map(([date, minutes]) => ({ x: date, y: Math.round(minutes) })).sort((a, b) => new Date(a.x) - new Date(b.x));
+
+    return Object.entries(aggregationMap)
+        .map(([date, minutes]) => ({ x: date, y: Math.round(minutes) }))
+        .sort((a, b) => new Date(a.x) - new Date(b.x));
 }
 
 export function calculateDistribution(data, key) {

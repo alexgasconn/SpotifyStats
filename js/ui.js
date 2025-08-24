@@ -3,6 +3,9 @@
 import * as store from './store.js';
 import * as charts from './charts.js';
 
+// --- ESTADO GLOBAL DE LA UI ---
+let currentTimelineUnit = 'week'; // El valor por defecto es 'week'
+
 // --- REFERENCIAS GLOBALES ---
 const kpiGrid = document.getElementById('kpi-grid');
 const advancedKpiGrid = document.getElementById('advanced-kpi-grid'); 
@@ -18,21 +21,23 @@ export function renderUI() {
     showLoading('Calculating stats and rendering UI...');
     const data = window.spotifyData.filtered;
 
-    // --- Overview Tab ---
+    // --- Pestaña Overview ---
     renderGlobalKPIs(data);
     renderTopItemsList(topTracksTable, store.calculateTopItems(data, 'trackName'));
     renderTopItemsList(topArtistsTable, store.calculateTopItems(data, 'artistName'));
     renderTopItemsList(topAlbumsTable, store.calculateTopItems(data, 'albumName'));
-    charts.renderTimelineChart(store.calculateTimeline(data));
     
-    // --- Trends Tab ---
+    // Llama a las nuevas funciones para el gráfico de línea de tiempo dinámico
+    updateTimelineChart(); 
+    setupTimelineControls(); 
+    
+    // --- Pestaña Trends ---
     renderTrendCharts(data);
 
-    // --- Wrapped Tab ---
-    // La lógica de renderizado del Wrapped ahora está contenida en su propia función.
+    // --- Pestaña Wrapped ---
     renderWrappedContent();
     
-    // --- Explorer Tab ---
+    // --- Pestaña Explorer ---
     renderWordCloud(data);
     renderDataTable(data);
 
@@ -69,7 +74,6 @@ function renderTrendCharts(data) {
     charts.renderDayOfWeekChart(store.calculateTemporalDistribution(data, 'weekday'));
     charts.renderMonthlyListeningChart(store.calculateTemporalDistribution(data, 'month'));
     charts.renderYearlyListeningChart(store.calculateTemporalDistribution(data, 'year'));
-    // renderFullTopItemsTable(topAlbumsTable, store.calculateTopItems(data, 'albumName', 'minutes', 20));
 }
 
 function renderTopItemsList(element, items) {
@@ -84,12 +88,6 @@ function renderTopItemsList(element, items) {
         </div>
     `).join('');
 }
-
-// function renderFullTopItemsTable(element, items) {
-//     const headers = `<thead><tr><th>Rank</th><th>Album</th><th>Minutes</th></tr></thead>`;
-//     const rows = items.map((item, index) => `<tr><td>${index + 1}</td><td>${item.name}</td><td>${item.minutes.toLocaleString()}</td></tr>`).join('');
-//     element.innerHTML = `<table class="df-table">${headers}<tbody>${rows}</tbody></table>`;
-// }
 
 function renderDataTable(data) {
     const headers = `<thead><tr><th>Time</th><th>Track</th><th>Artist</th><th>Reason End</th></tr></thead>`;
@@ -110,7 +108,6 @@ export function populateWrappedFilter() {
     wrappedYearFilter.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
 }
 
-// Se exporta la función para poder llamarla desde main.js
 export function renderWrappedContent() {
     const year = parseInt(wrappedYearFilter.value);
     const stats = store.calculateWrappedStats(year, window.spotifyData.full);
@@ -133,13 +130,46 @@ export function renderWrappedContent() {
         <div class="wrapped-card"> <div class="title">Top 5 Songs</div> <ul class="list">${stats.topSong.map((s, i) => `<li><span class="rank">${i+1}</span> ${s.name}</li>`).join('')}</ul> </div>
         <div class="wrapped-card"> <div class="title">Top 5 Artists</div> <ul class="list">${stats.topArtist.map((a, i) => `<li><span class="rank">${i+1}</span> ${a.name}</li>`).join('')}</ul> </div>
         <div class="wrapped-card"> <div class="title">Top 5 Albums</div> <ul class="list">${stats.topAlbum.map((al, i) => `<li><span class="rank">${i+1}</span> ${al.name}</li>`).join('')}</ul> </div>
-        
     `;
 
     setTimeout(() => {
         charts.renderWrappedMonthlyChart(stats.monthlyMinutes);
     }, 0);
 }
+
+// --- NUEVAS FUNCIONES PARA EL GRÁFICO DE LÍNEA DE TIEMPO ---
+
+function updateTimelineChart() {
+    const data = window.spotifyData.filtered;
+    // Llama a la nueva función de agregación en store.js
+    const timelineData = store.calculateAggregatedTimeline(data, currentTimelineUnit);
+    // Renderiza el gráfico pasando la unidad para que el eje X se formatee correctamente
+    charts.renderTimelineChart(timelineData, currentTimelineUnit);
+}
+
+function setupTimelineControls() {
+    const buttons = document.querySelectorAll('.time-agg-btn');
+    
+    // Un truco para evitar añadir listeners duplicados si esta función se llama varias veces
+    buttons.forEach(button => {
+        button.replaceWith(button.cloneNode(true));
+    });
+
+    // Vuelve a seleccionar los botones clonados para añadir los nuevos listeners
+    document.querySelectorAll('.time-agg-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            // Actualiza el estado global con la nueva unidad
+            currentTimelineUnit = button.dataset.unit;
+            // Actualiza la clase 'active' en los botones
+            document.querySelectorAll('.time-agg-btn').forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            // Vuelve a dibujar el gráfico con los datos agregados
+            updateTimelineChart();
+        });
+    });
+}
+
+// --- FUNCIONES DE CARGA ---
 
 export function showLoading(message) {
     document.getElementById('loading-message').textContent = message;
