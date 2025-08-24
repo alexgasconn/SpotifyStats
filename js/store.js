@@ -5,35 +5,23 @@ const MIN_MS_PLAYED = 30000;
 export async function processSpotifyZip(zipFile) {
     const jszip = new JSZip();
     const zip = await jszip.loadAsync(zipFile);
-    
     const historyFiles = [];
     zip.forEach((relativePath, zipEntry) => {
         if (relativePath.includes('Streaming_History_Audio_') && relativePath.endsWith('.json')) {
             historyFiles.push(zipEntry);
         }
     });
-
-    if (historyFiles.length === 0) {
-        throw new Error('No "Streaming_History_Audio_....json" files found. Please ensure you exported "Extended streaming history".');
-    }
-
-    const allEntries = await Promise.all(
-        historyFiles.map(file => file.async('string').then(JSON.parse))
-    );
-    
+    if (historyFiles.length === 0) throw new Error('No "Streaming_History_Audio_....json" files found.');
+    const allEntries = await Promise.all(historyFiles.map(file => file.async('string').then(JSON.parse)));
     const processedData = allEntries.flat().map(processEntry).filter(Boolean);
-    
     return processedData.sort((a, b) => a.ts - b.ts);
 }
 
 function processEntry(entry) {
-    // Los campos aquí son del formato "Extended Streaming History"
     if (entry.ms_played < MIN_MS_PLAYED) return null;
-
     const ts = new Date(entry.ts);
-
     return {
-        ts: ts,
+        ts,
         date: ts.toISOString().split('T')[0],
         trackName: entry.master_metadata_track_name,
         artistName: entry.master_metadata_album_artist_name,
@@ -43,32 +31,28 @@ function processEntry(entry) {
         year: ts.getFullYear(),
         month: ts.getMonth(), // 0-11
         hour: ts.getHours(),
-        weekday: (ts.getDay() + 6) % 7, // 0=Lunes
-        // --- ¡NUEVO CAMPO AÑADIDO! ---
-        // Guardamos si la canción fue terminada o no.
-        reasonEnd: entry.reason_end 
+        weekday: (ts.getDay() + 6) % 7,
+        reasonEnd: entry.reason_end,
+        // --- NUEVOS CAMPOS ---
+        platform: entry.platform,
+        country: entry.conn_country,
+        reasonStart: entry.reason_start
     };
 }
 
-// --- FUNCIONES DE CÁLCULO DE MÉTRICAS ---
+// --- FUNCIONES DE CÁLCULO ---
 
 export function calculateGlobalKPIs(data) {
     if (data.length === 0) return {};
     const totalMinutes = data.reduce((sum, d) => sum + d.durationMin, 0);
     const uniqueTracks = new Set(data.map(d => d.trackName)).size;
     const uniqueArtists = new Set(data.map(d => d.artistName)).size;
-    
     const dailyMinutes = data.reduce((acc, d) => {
         acc[d.date] = (acc[d.date] || 0) + d.durationMin;
         return acc;
     }, {});
     const activeDays = Object.keys(dailyMinutes).length;
-    
-    // --- ¡NUEVOS CÁLCULOS! ---
     const skippedTracks = data.filter(d => d.reasonEnd !== 'trackdone').length;
-    const skipRate = (skippedTracks / data.length * 100).toFixed(1);
-    const diversity = (uniqueArtists / data.length * 1000).toFixed(2); // Multiplicado por 1000 para un número más legible
-
     return {
         totalMinutes: Math.round(totalMinutes),
         totalDays: Math.round(totalMinutes / 1440),
@@ -76,28 +60,20 @@ export function calculateGlobalKPIs(data) {
         uniqueArtists,
         minutesPerDay: Math.round(totalMinutes / activeDays) || 0,
         activeDays,
-        // --- ¡NUEVAS MÉTRICAS DEVUELTAS! ---
-        skipRate,
-        diversity
+        skipRate: (skippedTracks / data.length * 100).toFixed(1),
+        diversity: (uniqueArtists / data.length * 1000).toFixed(2)
     };
 }
 
-// El resto de funciones (calculateTopItems, calculateTemporalDistribution, etc.) están bien y no necesitan cambios.
-// Las copio aquí para que tengas el archivo completo.
-
 export function calculateTopItems(data, key, metric = 'minutes', topN = 5) {
     const grouped = data.reduce((acc, d) => {
-        const itemKey = (key === 'albumName') ? `${d[key]} - ${d.artistName}` : d[key];
+        const itemKey = (key === 'albumName') ? `${d.albumName} - ${d.artistName}` : d[key];
         if (!itemKey) return acc;
-
-        if (!acc[itemKey]) {
-            acc[itemKey] = { count: 0, minutes: 0, artist: d.artistName };
-        }
+        if (!acc[itemKey]) acc[itemKey] = { count: 0, minutes: 0, artist: d.artistName };
         acc[itemKey].count++;
         acc[itemKey].minutes += d.durationMin;
         return acc;
     }, {});
-
     return Object.entries(grouped)
         .map(([name, values]) => ({ name, ...values }))
         .sort((a, b) => b[metric] - a[metric])
@@ -105,37 +81,68 @@ export function calculateTopItems(data, key, metric = 'minutes', topN = 5) {
         .map(item => ({ ...item, minutes: Math.round(item.minutes) }));
 }
 
-export function calculateTemporalDistribution(data, groupBy) {
-    const groups = {
-        hour: Array(24).fill(0),
-        weekday: Array(7).fill(0),
-        month: Array(12).fill(0),
-        year: {}
-    };
-
-    data.forEach(d => {
-        groups.hour[d.hour]++;
-        groups.weekday[d.weekday]++;
-        groups.month[d.month]++;
-        groups.year[d.year] = (groups.year[d.year] || 0) + d.durationMin;
-    });
-    
-    if (groupBy === 'year') {
-        return Object.entries(groups.year)
-            .sort((a, b) => a[0] - b[0])
-            .map(([year, minutes]) => ({ year, minutes: Math.round(minutes) }));
-    }
-    return groups[groupBy];
-}
-
 export function calculateTimeline(data) {
     const dailyMinutes = data.reduce((acc, d) => {
         acc[d.date] = (acc[d.date] || 0) + d.durationMin;
         return acc;
     }, {});
+    return Object.entries(dailyMinutes).map(([date, minutes]) => ({ x: date, y: Math.round(minutes) })).sort((a, b) => new Date(a.x) - new Date(b.x));
+}
 
-    return Object.entries(dailyMinutes).map(([date, minutes]) => ({
-        x: date,
-        y: Math.round(minutes)
-    })).sort((a, b) => new Date(a.x) - new Date(b.x));
+// --- ¡NUEVA FUNCIÓN GENÉRICA PARA GRÁFICOS DE DISTRIBUCIÓN! ---
+export function calculateDistribution(data, key) {
+    const counts = data.reduce((acc, item) => {
+        const value = item[key] || 'Unknown';
+        acc[value] = (acc[value] || 0) + 1;
+        return acc;
+    }, {});
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+}
+
+// --- ¡NUEVA FUNCIÓN COMPLEJA PARA EL WRAPPED! ---
+export function calculateWrappedStats(year, fullData) {
+    const yearData = fullData.filter(d => d.year === year);
+    if (yearData.length === 0) return null;
+
+    const previousData = fullData.filter(d => d.year < year);
+
+    // Uniques
+    const uniqueTracks = new Set(yearData.map(d => d.trackName));
+    const uniqueArtists = new Set(yearData.map(d => d.artistName));
+    const uniqueAlbums = new Set(yearData.map(d => `${d.albumName} - ${d.artistName}`));
+
+    // Uniques in previous years
+    const prevTracks = new Set(previousData.map(d => d.trackName));
+    const prevArtists = new Set(previousData.map(d => d.artistName));
+    const prevAlbums = new Set(previousData.map(d => `${d.albumName} - ${d.artistName}`));
+
+    // New discoveries calculation
+    const isFirstYear = prevArtists.size === 0;
+    const newTracks = isFirstYear ? uniqueTracks.size : [...uniqueTracks].filter(t => !prevTracks.has(t)).length;
+    const newArtists = isFirstYear ? uniqueArtists.size : [...uniqueArtists].filter(a => !prevArtists.has(a)).length;
+    const newAlbums = isFirstYear ? uniqueAlbums.size : [...uniqueAlbums].filter(al => !prevAlbums.has(al)).length;
+
+    // Monthly breakdown
+    const monthlyMinutes = Array(12).fill(0);
+    yearData.forEach(d => {
+        monthlyMinutes[d.month] += d.durationMin;
+    });
+
+    return {
+        totalMinutes: Math.round(yearData.reduce((sum, d) => sum + d.durationMin, 0)),
+        topSong: calculateTopItems(yearData, 'trackName', 'count', 5),
+        topArtist: calculateTopItems(yearData, 'artistName', 'count', 5),
+        topAlbum: calculateTopItems(yearData, 'albumName', 'minutes', 5),
+        monthlyMinutes: monthlyMinutes.map(m => Math.round(m)),
+        uniques: {
+            tracks: uniqueTracks.size,
+            artists: uniqueArtists.size,
+            albums: uniqueAlbums.size,
+        },
+        discoveries: {
+            tracks: (newTracks / uniqueTracks.size * 100).toFixed(0),
+            artists: (newArtists / uniqueArtists.size * 100).toFixed(0),
+            albums: (newAlbums / uniqueAlbums.size * 100).toFixed(0),
+        }
+    };
 }

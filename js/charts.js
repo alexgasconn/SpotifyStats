@@ -1,13 +1,63 @@
 let chartInstances = {};
 
 function createOrUpdateChart(canvasId, config) {
-    if (chartInstances[canvasId]) {
-        chartInstances[canvasId].destroy();
-    }
+    if (chartInstances[canvasId]) { chartInstances[canvasId].destroy(); }
     const ctx = document.getElementById(canvasId);
-    if (ctx) {
-       chartInstances[canvasId] = new Chart(ctx.getContext('2d'), config);
-    }
+    if (ctx) { chartInstances[canvasId] = new Chart(ctx, config); }
+}
+
+const chartColors = ['#1DB954', '#17A2B8', '#FFC107', '#FD7E14', '#6F42C1', '#E83E8C'];
+
+// --- ¡NUEVA FUNCIÓN GENÉRICA! ---
+export function renderDistributionChart(canvasId, data, title, type = 'doughnut') {
+    const labels = data.map(d => d[0]);
+    const values = data.map(d => d[1]);
+
+    const config = {
+        type: type,
+        data: {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: chartColors,
+                borderColor: '#121212',
+                borderWidth: type === 'doughnut' ? 2 : 0,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { position: type === 'doughnut' ? 'right' : 'none' , labels: { color: '#b3b3b3' } },
+                title: { display: false, text: title, color: '#FFFFFF', font: { size: 16 } }
+            },
+            scales: type === 'bar' ? {
+                y: { ticks: { color: '#b3b3b3' }, grid: { color: '#282828' } },
+                x: { ticks: { color: '#b3b3b3' }, grid: { display: false } }
+            } : {}
+        }
+    };
+    createOrUpdateChart(canvasId, config);
+}
+
+
+// --- ¡NUEVA FUNCIÓN PARA EL GRÁFICO DEL WRAPPED! ---
+export function renderWrappedMonthlyChart(monthlyData) {
+    const config = {
+        type: 'bar',
+        data: {
+            labels: ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'],
+            datasets: [{ data: monthlyData, backgroundColor: '#1DB954' }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { display: false, grid: { display: false } },
+                x: { ticks: { color: '#b3b3b3' }, grid: { display: false } }
+            }
+        }
+    };
+    createOrUpdateChart('wrapped-monthly-chart', config);
 }
 
 // --- GRÁFICOS ---

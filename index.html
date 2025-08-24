@@ -67,6 +67,18 @@
                 <div id="trends-tab" class="tab-content">
                     <div class="charts-grid">
                         <div class="chart-container">
+                            <h3>Listening by Platform</h3>
+                            <div class="chart-wrapper"><canvas id="platform-chart"></canvas></div>
+                        </div>
+                        <div class="chart-container">
+                            <h3>Listening by Country</h3>
+                            <div class="chart-wrapper"><canvas id="country-chart"></canvas></div>
+                        </div>
+                         <div class="chart-container">
+                            <h3>How You Start a Song</h3>
+                            <div class="chart-wrapper"><canvas id="reason-start-chart"></canvas></div>
+                        </div>
+                        <div class="chart-container">
                             <h3>Listening Clock (Hour of Day)</h3>
                             <div class="chart-wrapper"><canvas id="listening-clock-chart"></canvas></div>
                         </div>
@@ -77,10 +89,6 @@
                         <div class="chart-container">
                             <h3>Listening by Month</h3>
                             <div class="chart-wrapper"><canvas id="monthly-listening-chart"></canvas></div>
-                        </div>
-                        <div class="chart-container">
-                            <h3>Listening by Year</h3>
-                            <div class="chart-wrapper"><canvas id="yearly-listening-chart"></canvas></div>
                         </div>
                         <div class="chart-container full-width">
                             <h3>Top 20 Albums</h3>
@@ -103,9 +111,7 @@
 
                 <!-- PESTAÑA 4: THE GAME -->
                 <div id="game-tab" class="tab-content">
-                    <div id="game-container" class="game-container">
-                        <!-- Contenido del juego se generará aquí -->
-                    </div>
+                    <div id="game-container" class="game-container"></div>
                 </div>
 
                 <!-- PESTAÑA 5: DATA EXPLORER -->

@@ -23,6 +23,7 @@ export function renderUI() {
     renderGlobalKPIs(data); // Esta función ahora renderiza AMBAS filas de KPIs
     renderTopItemsList(topTracksTable, store.calculateTopItems(data, 'trackName')); // Cambiado a nueva función
     renderTopItemsList(topArtistsTable, store.calculateTopItems(data, 'artistName')); // Cambiado a nueva función
+    renderTopItemsList(topAlbumsTable, store.calculateTopItems(data, 'albumName')); // Cambiado a nueva función
     charts.renderTimelineChart(store.calculateTimeline(data));
     
     // --- Trends Tab ---
@@ -45,7 +46,7 @@ export function renderUI() {
 
 // --- FUNCIONES DE RENDERIZADO POR SECCIÓN ---
 
-function renderGlobalKPIs(data) {
+function renderGlobalKPIs(data) {   
     const kpis = store.calculateGlobalKPIs(data);
     kpiGrid.innerHTML = `
         <div class="kpi-card"><h4>Total Listening Time</h4><p>${kpis.totalDays.toLocaleString()}</p><span class="small-text">days</span></div>
@@ -59,6 +60,21 @@ function renderGlobalKPIs(data) {
         <div class="kpi-card"><h4>Skip Rate</h4><p>${kpis.skipRate}%</p><span class="small-text">of tracks skipped</span></div>
         <div class="kpi-card"><h4>Musical Diversity</h4><p>${kpis.diversity}</p><span class="small-text">artist discovery score</span></div>
     `;
+}
+
+function renderTrendCharts(data) {
+    const platformData = store.calculateDistribution(data, 'platform');
+    const countryData = store.calculateDistribution(data, 'country').slice(0, 10); // Top 10
+    const reasonStartData = store.calculateDistribution(data, 'reasonStart');
+
+    charts.renderDistributionChart('platform-chart', platformData, 'Platform Usage');
+    charts.renderDistributionChart('country-chart', countryData, 'Top 10 Countries', 'bar');
+    charts.renderDistributionChart('reason-start-chart', reasonStartData, 'Playback Start Reason');
+    
+    // Gráficos de tendencias que ya tenías
+    charts.renderListeningClockChart(store.calculateTemporalDistribution(data, 'hour'));
+    charts.renderDayOfWeekChart(store.calculateTemporalDistribution(data, 'weekday'));
+    charts.renderMonthlyListeningChart(store.calculateTemporalDistribution(data, 'month'));
 }
 
 // Esta función ha sido renombrada de 'renderTopItemsTable' a 'renderTopItemsList' para mayor claridad
