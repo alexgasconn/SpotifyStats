@@ -1,3 +1,5 @@
+// js/store.js
+
 const MIN_MS_PLAYED = 30000; // 30 segundos
 
 export async function processSpotifyZip(zipFile) {
@@ -5,21 +7,13 @@ export async function processSpotifyZip(zipFile) {
     const zip = await jszip.loadAsync(zipFile);
     
     const historyFiles = [];
-    
-    // --- CÓDIGO CORREGIDO AQUÍ ---
-    // Buscamos los archivos correctos dentro del ZIP, sin importar la carpeta raíz.
     zip.forEach((relativePath, zipEntry) => {
-        // La nueva condición busca archivos que contengan "Streaming_History_Audio_" 
-        // y sean JSON. Esto es más robusto y compatible con tu exportación.
         if (relativePath.includes('Streaming_History_Audio_') && relativePath.endsWith('.json')) {
-            console.log(`Found history file: ${relativePath}`); // Ayuda para depurar
             historyFiles.push(zipEntry);
         }
     });
-    // --- FIN DE LA CORRECCIÓN ---
 
     if (historyFiles.length === 0) {
-        // El mensaje de error ahora es más específico
         throw new Error('No "Streaming_History_Audio_....json" files found. Please ensure you exported "Extended streaming history".');
     }
 
@@ -27,10 +21,9 @@ export async function processSpotifyZip(zipFile) {
         historyFiles.map(file => file.async('string').then(JSON.parse))
     );
     
-    // El resto de la función para procesar los datos es correcta.
     const processedData = allEntries.flat().map(processEntry).filter(Boolean);
     
-    return processedData.sort((a, b) => new Date(a.ts) - new Date(b.ts)); // Corregido para usar el objeto Date
+    return processedData.sort((a, b) => new Date(a.ts) - new Date(b.ts));
 }
 
 function processEntry(entry) {
@@ -69,7 +62,7 @@ export function calculateGlobalKPIs(data) {
         acc[d.date] = (acc[d.date] || 0) + d.durationMin;
         return acc;
     }, {});
-    const mostActiveDay = Object.entries(dailyMinutes).sort((a,b) => b[1] - a[1])[0];
+    const mostActiveDay = Object.entries(dailyMinutes).sort((a,b) => b[1] - a[1])[0] || ['N/A', 0];
 
     return {
         totalMinutes: Math.round(totalMinutes),
@@ -98,7 +91,10 @@ export function calculateTopItems(data, key, metric = 'minutes', topN = 5) {
 
     return Object.entries(grouped)
         .map(([name, values]) => ({ name, ...values }))
-        .sort((a, b) => b[metric] - a[minutes])
+        // --- CORRECCIÓN AQUÍ ---
+        // Se cambió a[minutes] por a[metric] para que la ordenación sea dinámica y correcta.
+        .sort((a, b) => b[metric] - a[metric])
+        // --- FIN DE LA CORRECCIÓN ---
         .slice(0, topN)
         .map(item => ({ ...item, minutes: Math.round(item.minutes) }));
 }
