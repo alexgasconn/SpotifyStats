@@ -5,23 +5,32 @@ export async function processSpotifyZip(zipFile) {
     const zip = await jszip.loadAsync(zipFile);
     
     const historyFiles = [];
+    
+    // --- CÓDIGO CORREGIDO AQUÍ ---
+    // Buscamos los archivos correctos dentro del ZIP, sin importar la carpeta raíz.
     zip.forEach((relativePath, zipEntry) => {
-        if (relativePath.startsWith('MyData/') && relativePath.includes('endsong_') && relativePath.endsWith('.json')) {
+        // La nueva condición busca archivos que contengan "Streaming_History_Audio_" 
+        // y sean JSON. Esto es más robusto y compatible con tu exportación.
+        if (relativePath.includes('Streaming_History_Audio_') && relativePath.endsWith('.json')) {
+            console.log(`Found history file: ${relativePath}`); // Ayuda para depurar
             historyFiles.push(zipEntry);
         }
     });
+    // --- FIN DE LA CORRECCIÓN ---
 
     if (historyFiles.length === 0) {
-        throw new Error('No "endsong_...json" files found. Please export "Extended streaming history" from Spotify.');
+        // El mensaje de error ahora es más específico
+        throw new Error('No "Streaming_History_Audio_....json" files found. Please ensure you exported "Extended streaming history".');
     }
 
     const allEntries = await Promise.all(
         historyFiles.map(file => file.async('string').then(JSON.parse))
     );
     
+    // El resto de la función para procesar los datos es correcta.
     const processedData = allEntries.flat().map(processEntry).filter(Boolean);
     
-    return processedData.sort((a, b) => a.ts - b.ts);
+    return processedData.sort((a, b) => new Date(a.ts) - new Date(b.ts)); // Corregido para usar el objeto Date
 }
 
 function processEntry(entry) {
