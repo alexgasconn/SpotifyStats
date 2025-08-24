@@ -1,6 +1,6 @@
 // js/store.js
 
-const MIN_MS_PLAYED = 30000; // 30 segundos
+const MIN_MS_PLAYED = 30000;
 
 export async function processSpotifyZip(zipFile) {
     const jszip = new JSZip();
@@ -23,10 +23,11 @@ export async function processSpotifyZip(zipFile) {
     
     const processedData = allEntries.flat().map(processEntry).filter(Boolean);
     
-    return processedData.sort((a, b) => new Date(a.ts) - new Date(b.ts));
+    return processedData.sort((a, b) => a.ts - b.ts);
 }
 
 function processEntry(entry) {
+    // Los campos aquí son del formato "Extended Streaming History"
     if (entry.ms_played < MIN_MS_PLAYED) return null;
 
     const ts = new Date(entry.ts);
@@ -41,9 +42,11 @@ function processEntry(entry) {
         durationMin: entry.ms_played / 60000,
         year: ts.getFullYear(),
         month: ts.getMonth(), // 0-11
-        day: ts.getDate(),
         hour: ts.getHours(),
-        weekday: (ts.getDay() + 6) % 7, // 0=Lunes, 6=Domingo
+        weekday: (ts.getDay() + 6) % 7, // 0=Lunes
+        // --- ¡NUEVO CAMPO AÑADIDO! ---
+        // Guardamos si la canción fue terminada o no.
+        reasonEnd: entry.reason_end 
     };
 }
 
@@ -54,27 +57,33 @@ export function calculateGlobalKPIs(data) {
     const totalMinutes = data.reduce((sum, d) => sum + d.durationMin, 0);
     const uniqueTracks = new Set(data.map(d => d.trackName)).size;
     const uniqueArtists = new Set(data.map(d => d.artistName)).size;
-    const uniqueAlbums = new Set(data.map(d => `${d.albumName} - ${d.artistName}`)).size;
-    const firstListen = data[0].ts;
-    const lastListen = data[data.length - 1].ts;
     
     const dailyMinutes = data.reduce((acc, d) => {
         acc[d.date] = (acc[d.date] || 0) + d.durationMin;
         return acc;
     }, {});
-    const mostActiveDay = Object.entries(dailyMinutes).sort((a,b) => b[1] - a[1])[0] || ['N/A', 0];
+    const activeDays = Object.keys(dailyMinutes).length;
+    
+    // --- ¡NUEVOS CÁLCULOS! ---
+    const skippedTracks = data.filter(d => d.reasonEnd !== 'trackdone').length;
+    const skipRate = (skippedTracks / data.length * 100).toFixed(1);
+    const diversity = (uniqueArtists / data.length * 1000).toFixed(2); // Multiplicado por 1000 para un número más legible
 
     return {
         totalMinutes: Math.round(totalMinutes),
         totalDays: Math.round(totalMinutes / 1440),
         uniqueTracks,
         uniqueArtists,
-        uniqueAlbums,
-        firstListen,
-        lastListen,
-        mostActiveDay: { date: mostActiveDay[0], minutes: Math.round(mostActiveDay[1]) }
+        minutesPerDay: Math.round(totalMinutes / activeDays) || 0,
+        activeDays,
+        // --- ¡NUEVAS MÉTRICAS DEVUELTAS! ---
+        skipRate,
+        diversity
     };
 }
+
+// El resto de funciones (calculateTopItems, calculateTemporalDistribution, etc.) están bien y no necesitan cambios.
+// Las copio aquí para que tengas el archivo completo.
 
 export function calculateTopItems(data, key, metric = 'minutes', topN = 5) {
     const grouped = data.reduce((acc, d) => {
@@ -91,10 +100,7 @@ export function calculateTopItems(data, key, metric = 'minutes', topN = 5) {
 
     return Object.entries(grouped)
         .map(([name, values]) => ({ name, ...values }))
-        // --- CORRECCIÓN AQUÍ ---
-        // Se cambió a[minutes] por a[metric] para que la ordenación sea dinámica y correcta.
         .sort((a, b) => b[metric] - a[metric])
-        // --- FIN DE LA CORRECCIÓN ---
         .slice(0, topN)
         .map(item => ({ ...item, minutes: Math.round(item.minutes) }));
 }

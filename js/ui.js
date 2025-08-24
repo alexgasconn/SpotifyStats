@@ -1,8 +1,12 @@
+// js/ui.js
+
 import * as store from './store.js';
 import * as charts from './charts.js';
 
 // --- REFERENCIAS GLOBALES ---
 const kpiGrid = document.getElementById('kpi-grid');
+// --- ¡NUEVA REFERENCIA! ---
+const advancedKpiGrid = document.getElementById('advanced-kpi-grid'); 
 const topTracksTable = document.getElementById('top-tracks-table');
 const topArtistsTable = document.getElementById('top-artists-table');
 const topAlbumsTable = document.getElementById('top-albums-table');
@@ -11,18 +15,14 @@ const wordCloudCanvas = document.getElementById('word-cloud-canvas');
 const wrappedYearFilter = document.getElementById('wrapped-year-filter');
 const wrappedContent = document.getElementById('wrapped-content');
 
-/**
- * Función principal que renderiza toda la UI.
- * Se llama al inicio y cuando cambian los filtros.
- */
 export function renderUI() {
     showLoading('Calculating stats and rendering UI...');
     const data = window.spotifyData.filtered;
 
     // --- Overview Tab ---
-    renderGlobalKPIs(data);
-    renderTopItemsTable(topTracksTable, store.calculateTopItems(data, 'trackName'));
-    renderTopItemsTable(topArtistsTable, store.calculateTopItems(data, 'artistName'));
+    renderGlobalKPIs(data); // Esta función ahora renderiza AMBAS filas de KPIs
+    renderTopItemsList(topTracksTable, store.calculateTopItems(data, 'trackName')); // Cambiado a nueva función
+    renderTopItemsList(topArtistsTable, store.calculateTopItems(data, 'artistName')); // Cambiado a nueva función
     charts.renderTimelineChart(store.calculateTimeline(data));
     
     // --- Trends Tab ---
@@ -33,7 +33,6 @@ export function renderUI() {
     renderFullTopItemsTable(topAlbumsTable, store.calculateTopItems(data, 'albumName', 'minutes', 20));
 
     // --- Wrapped Tab ---
-    populateWrappedFilter();
     renderWrappedContent();
     wrappedYearFilter.addEventListener('change', renderWrappedContent);
 
@@ -52,11 +51,18 @@ function renderGlobalKPIs(data) {
         <div class="kpi-card"><h4>Total Listening Time</h4><p>${kpis.totalDays.toLocaleString()}</p><span class="small-text">days</span></div>
         <div class="kpi-card"><h4>Unique Tracks</h4><p>${kpis.uniqueTracks.toLocaleString()}</p></div>
         <div class="kpi-card"><h4>Unique Artists</h4><p>${kpis.uniqueArtists.toLocaleString()}</p></div>
-        <div class="kpi-card"><h4>Most Active Day</h4><p>${kpis.mostActiveDay.minutes.toLocaleString()}</p><span class="small-text">minutes on ${kpis.mostActiveDay.date}</span></div>
+        <div class="kpi-card"><h4>Minutes per Day</h4><p>${kpis.minutesPerDay.toLocaleString()}</p><span class="small-text">on average</span></div>
+    `;
+    // --- ¡NUEVA FUNCIÓN PARA RENDERIZAR LOS KPIs AVANZADOS! ---
+    advancedKpiGrid.innerHTML = `
+        <div class="kpi-card"><h4>Active Days</h4><p>${kpis.activeDays.toLocaleString()}</p><span class="small-text">days you listened</span></div>
+        <div class="kpi-card"><h4>Skip Rate</h4><p>${kpis.skipRate}%</p><span class="small-text">of tracks skipped</span></div>
+        <div class="kpi-card"><h4>Musical Diversity</h4><p>${kpis.diversity}</p><span class="small-text">artist discovery score</span></div>
     `;
 }
 
-function renderTopItemsTable(element, items) {
+// Esta función ha sido renombrada de 'renderTopItemsTable' a 'renderTopItemsList' para mayor claridad
+function renderTopItemsList(element, items) {
     element.innerHTML = items.map((item, index) => `
         <div class="top-item">
             <span class="rank">${index + 1}</span>
@@ -68,7 +74,6 @@ function renderTopItemsTable(element, items) {
         </div>
     `).join('');
 }
-
 
 function renderFullTopItemsTable(element, items) {
     const headers = `<thead><tr><th>Rank</th><th>Album</th><th>Minutes</th></tr></thead>`;
@@ -83,18 +88,21 @@ function renderFullTopItemsTable(element, items) {
 }
 
 function renderDataTable(data) {
-    const headers = `<thead><tr><th>Time</th><th>Track</th><th>Artist</th><th>Album</th><th>Duration (min)</th></tr></thead>`;
+    // --- ¡TABLA ACTUALIZADA CON LA COLUMNA "REASON END"! ---
+    const headers = `<thead><tr><th>Time</th><th>Track</th><th>Artist</th><th>Reason End</th></tr></thead>`;
     const rows = data.slice(-500).reverse().map(d => `
         <tr>
             <td>${d.ts.toLocaleString()}</td>
             <td>${d.trackName || ''}</td>
             <td>${d.artistName || ''}</td>
-            <td>${d.albumName || ''}</td>
-            <td>${d.durationMin.toFixed(2)}</td>
+            <td>${d.reasonEnd}</td>
         </tr>
     `).join('');
     dataTable.innerHTML = `<table class="df-table">${headers}<tbody>${rows}</tbody></table>`;
 }
+
+// El resto de funciones (renderWordCloud, Wrapped, helpers) están bien y no necesitan cambios.
+// Las copio aquí para que tengas el archivo completo.
 
 function renderWordCloud(data) {
     const trackNames = data.map(d => d.trackName).filter(Boolean);
@@ -117,9 +125,7 @@ function renderWordCloud(data) {
     }
 }
 
-// --- Lógica de la Pestaña "Wrapped" ---
-
-function populateWrappedFilter() {
+export function populateWrappedFilter() {
     const years = [...new Set(window.spotifyData.full.map(d => d.year))].sort((a,b) => b-a);
     wrappedYearFilter.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
 }
@@ -136,41 +142,32 @@ function renderWrappedContent() {
     const topTrack = store.calculateTopItems(yearData, 'trackName', 'count', 1)[0];
     const topArtist = store.calculateTopItems(yearData, 'artistName', 'count', 1)[0];
     const top5Artists = store.calculateTopItems(yearData, 'artistName', 'count', 5);
-
-    // Cálculo de artistas nuevos
     const artistsThisYear = new Set(yearData.map(d => d.artistName));
     const artistsBefore = new Set(window.spotifyData.full.filter(d => d.year < year).map(d => d.artistName));
     const newArtists = [...artistsThisYear].filter(artist => !artistsBefore.has(artist)).length;
+    const hourlyDist = store.calculateTemporalDistribution(yearData, 'hour');
+    const favHour = hourlyDist.indexOf(Math.max(...hourlyDist));
+
+    const yearStartDate = new Date(year, 0, 1);
+    const yearEndDate = new Date(year, 11, 31);
+    let miniHeatmapHtml = '';
+    for (let d = yearStartDate; d <= yearEndDate; d.setDate(d.getDate() + 1)) {
+        const dateStr = d.toISOString().split('T')[0];
+        const hasListen = yearData.some(listen => listen.date === dateStr);
+        miniHeatmapHtml += `<div class="day-cell ${hasListen ? 'active' : ''}" title="${dateStr}"></div>`;
+    }
 
     wrappedContent.innerHTML = `
-        <div class="wrapped-card">
-            <div class="title">Minutes Listened</div>
-            <div class="value">${kpis.totalMinutes.toLocaleString()}</div>
-        </div>
-        <div class="wrapped-card">
-            <div class="title">Top Track</div>
-            <div class="value">${topTrack.count}</div>
-            <div class="subtitle">${topTrack.name}</div>
-        </div>
-        <div class="wrapped-card">
-            <div class="title">Top Artist</div>
-            <div class="value">${topArtist.count}</div>
-            <div class="subtitle">${topArtist.name}</div>
-        </div>
-        <div class="wrapped-card">
-            <div class="title">New Artists Discovered</div>
-            <div class="value">${newArtists}</div>
-        </div>
-        <div class="wrapped-card full-width">
-            <div class="title">Your Top 5 Artists</div>
-            <ul class="list">
-                ${top5Artists.map((a, i) => `<li><span class="rank">${i+1}</span> ${a.name}</li>`).join('')}
-            </ul>
-        </div>
+        <div class="wrapped-card"> <div class="title">Minutes Listened</div> <div class="value">${kpis.totalMinutes.toLocaleString()}</div> </div>
+        <div class="wrapped-card"> <div class="title">Top Track</div> <div class="value">${topTrack.count} plays</div> <div class="subtitle">${topTrack.name}</div> </div>
+        <div class="wrapped-card"> <div class="title">Top Artist</div> <div class="value">${topArtist.count} plays</div> <div class="subtitle">${topArtist.name}</div> </div>
+        <div class="wrapped-card"> <div class="title">Favorite Hour</div> <div class="value">${favHour}:00</div> <div class="subtitle">Peak listening time</div> </div>
+        <div class="wrapped-card"> <div class="title">New Artists</div> <div class="value">${newArtists}</div> <div class="subtitle">Discovered this year</div> </div>
+        <div class="wrapped-card"> <div class="title">Top 5 Artists</div> <ul class="list">${top5Artists.map((a, i) => `<li><span class="rank">${i+1}</span> ${a.name}</li>`).join('')}</ul> </div>
+        <div class="wrapped-card full-width"> <div class="title">${year} Listening Consistency</div> <div class="mini-heatmap">${miniHeatmapHtml}</div> </div>
     `;
 }
 
-// --- UI Helpers ---
 export function showLoading(message) {
     document.getElementById('loading-message').textContent = message;
     document.getElementById('loading-overlay').classList.remove('hidden');

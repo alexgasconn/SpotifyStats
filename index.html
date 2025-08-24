@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spotify Stats - Advanced Analyzer!</title>
+    <title>Spotify Stats - Advanced Analyzer</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Librerías Externas -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
@@ -13,28 +12,32 @@
 </head>
 <body>
     <div class="container">
-        <!-- PANTALLA INICIAL DE SUBIDA DE ARCHIVO -->
         <div id="upload-section">
             <div class="upload-box">
-                <h1>Spotify Stats Analyzer!</h1>
+                <h1>Spotify Stats Analyzer</h1>
                 <p>Export your "Extended streaming history" from your Spotify account settings, and upload the .zip file here to analyze your listening habits.</p>
                 <input type="file" id="zip-input" accept=".zip" class="hidden">
-                <button id="upload-button">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
-                    Upload Spotify ZIP
-                </button>
+                <button id="upload-button"><span>⬆️</span> Upload Spotify ZIP</button>
             </div>
         </div>
 
-        <!-- DASHBOARD PRINCIPAL (Oculto por defecto) -->
         <div id="dashboard-section" class="hidden">
             <header>
                 <h1>Your Listening Analysis</h1>
-                <!-- Pestañas de Navegación -->
+                <div class="global-controls">
+                    <div class="filter-controls">
+                        <label for="date-from">From:</label>
+                        <input type="date" id="date-from">
+                        <label for="date-to">To:</label>
+                        <input type="date" id="date-to">
+                        <button id="apply-filter-btn">Apply</button>
+                    </div>
+                </div>
                 <nav class="tab-nav">
                     <button class="tab-link active" data-tab="overview-tab">📊 Overview</button>
                     <button class="tab-link" data-tab="trends-tab">📈 Trends</button>
                     <button class="tab-link" data-tab="wrapped-tab">🎉 Your Wrapped</button>
+                    <button class="tab-link" data-tab="game-tab">🎮 The Game</button>
                     <button class="tab-link" data-tab="explorer-tab">🔍 Data Explorer</button>
                 </nav>
             </header>
@@ -43,10 +46,11 @@
                 <!-- PESTAÑA 1: OVERVIEW -->
                 <div id="overview-tab" class="tab-content active">
                     <div id="kpi-grid" class="summary-grid"></div>
+                    <div id="advanced-kpi-grid" class="summary-grid"></div>
                     <div class="charts-grid">
                         <div class="chart-container full-width">
                             <h3>Listening Timeline (Minutes per Day)</h3>
-                            <canvas id="timeline-chart"></canvas>
+                            <div class="chart-wrapper"><canvas id="timeline-chart"></canvas></div>
                         </div>
                         <div class="chart-container">
                             <h3>Top 5 Tracks</h3>
@@ -64,19 +68,19 @@
                     <div class="charts-grid">
                         <div class="chart-container">
                             <h3>Listening Clock (Hour of Day)</h3>
-                            <canvas id="listening-clock-chart"></canvas>
+                            <div class="chart-wrapper"><canvas id="listening-clock-chart"></canvas></div>
                         </div>
                         <div class="chart-container">
                             <h3>Listening by Day of Week</h3>
-                            <canvas id="day-of-week-chart"></canvas>
+                            <div class="chart-wrapper"><canvas id="day-of-week-chart"></canvas></div>
                         </div>
                         <div class="chart-container">
                             <h3>Listening by Month</h3>
-                            <canvas id="monthly-listening-chart"></canvas>
+                            <div class="chart-wrapper"><canvas id="monthly-listening-chart"></canvas></div>
                         </div>
                         <div class="chart-container">
                             <h3>Listening by Year</h3>
-                            <canvas id="yearly-listening-chart"></canvas>
+                            <div class="chart-wrapper"><canvas id="yearly-listening-chart"></canvas></div>
                         </div>
                         <div class="chart-container full-width">
                             <h3>Top 20 Albums</h3>
@@ -94,12 +98,17 @@
                             <select id="wrapped-year-filter"></select>
                         </div>
                     </div>
-                    <div id="wrapped-content" class="wrapped-grid">
-                        <!-- El contenido se generará dinámicamente aquí -->
+                    <div id="wrapped-content" class="wrapped-grid"></div>
+                </div>
+
+                <!-- PESTAÑA 4: THE GAME -->
+                <div id="game-tab" class="tab-content">
+                    <div id="game-container" class="game-container">
+                        <!-- Contenido del juego se generará aquí -->
                     </div>
                 </div>
 
-                <!-- PESTAÑA 4: DATA EXPLORER -->
+                <!-- PESTAÑA 5: DATA EXPLORER -->
                 <div id="explorer-tab" class="tab-content">
                     <div class="charts-grid">
                          <div class="chart-container">
@@ -119,7 +128,6 @@
             </main>
         </div>
 
-        <!-- Pantalla de Carga -->
         <div id="loading-overlay" class="hidden">
             <div class="spinner"></div>
             <p id="loading-message">Processing your data...</p>
