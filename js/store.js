@@ -97,6 +97,22 @@ export function calculateDistribution(data, key) {
     return Object.entries(counts).sort((a, b) => b[1] - a[1]);
 }
 
+export function calculateDistributionPercent(data, key) {
+    const total = data.length;
+    if (total === 0) return [];
+    const counts = data.reduce((acc, item) => {
+        const value = item[key] || 'Unknown';
+        acc[value] = (acc[value] || 0) + 1;
+        return acc;
+    }, {});
+    return Object.entries(counts)
+        .map(([value, count]) => ({
+            value,
+            percent: ((count / total) * 100).toFixed(2)
+        }))
+        .sort((a, b) => b.percent - a.percent);
+}
+
 // --- ¡FUNCIÓN QUE FALTABA! ---
 // Esta función es necesaria para los gráficos de la pestaña "Trends"
 export function calculateTemporalDistribution(data, groupBy) {

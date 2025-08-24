@@ -20,9 +20,9 @@ export function renderUI() {
 
     // --- Overview Tab ---
     renderGlobalKPIs(data);
-    // --- ¡CORRECCIÓN! Usamos la función renombrada 'renderTopItemsList' ---
     renderTopItemsList(topTracksTable, store.calculateTopItems(data, 'trackName'));
     renderTopItemsList(topArtistsTable, store.calculateTopItems(data, 'artistName'));
+    renderTopItemsList(topAlbumsTable, store.calculateTopItems(data, 'albumName'));
     charts.renderTimelineChart(store.calculateTimeline(data));
     
     // --- Trends Tab ---
@@ -57,9 +57,9 @@ function renderGlobalKPIs(data) {
 }
 
 function renderTrendCharts(data) {
-    const platformData = store.calculateDistribution(data, 'platform');
-    const countryData = store.calculateDistribution(data, 'country').slice(0, 10);
-    const reasonStartData = store.calculateDistribution(data, 'reasonStart');
+    const platformData = store.calculateDistributionPercent(data, 'platform');
+    const countryData = store.calculateDistributionPercent(data, 'country').slice(0, 10);
+    const reasonStartData = store.calculateDistributionPercent(data, 'reasonStart');
 
     charts.renderDistributionChart('platform-chart', platformData, 'Platform Usage');
     charts.renderDistributionChart('country-chart', countryData, 'Top 10 Countries', 'bar');
@@ -69,7 +69,7 @@ function renderTrendCharts(data) {
     charts.renderDayOfWeekChart(store.calculateTemporalDistribution(data, 'weekday'));
     charts.renderMonthlyListeningChart(store.calculateTemporalDistribution(data, 'month'));
     charts.renderYearlyListeningChart(store.calculateTemporalDistribution(data, 'year'));
-    renderFullTopItemsTable(topAlbumsTable, store.calculateTopItems(data, 'albumName', 'minutes', 20));
+    // renderFullTopItemsTable(topAlbumsTable, store.calculateTopItems(data, 'albumName', 'minutes', 20));
 }
 
 function renderTopItemsList(element, items) {
@@ -85,11 +85,11 @@ function renderTopItemsList(element, items) {
     `).join('');
 }
 
-function renderFullTopItemsTable(element, items) {
-    const headers = `<thead><tr><th>Rank</th><th>Album</th><th>Minutes</th></tr></thead>`;
-    const rows = items.map((item, index) => `<tr><td>${index + 1}</td><td>${item.name}</td><td>${item.minutes.toLocaleString()}</td></tr>`).join('');
-    element.innerHTML = `<table class="df-table">${headers}<tbody>${rows}</tbody></table>`;
-}
+// function renderFullTopItemsTable(element, items) {
+//     const headers = `<thead><tr><th>Rank</th><th>Album</th><th>Minutes</th></tr></thead>`;
+//     const rows = items.map((item, index) => `<tr><td>${index + 1}</td><td>${item.name}</td><td>${item.minutes.toLocaleString()}</td></tr>`).join('');
+//     element.innerHTML = `<table class="df-table">${headers}<tbody>${rows}</tbody></table>`;
+// }
 
 function renderDataTable(data) {
     const headers = `<thead><tr><th>Time</th><th>Track</th><th>Artist</th><th>Reason End</th></tr></thead>`;
@@ -114,7 +114,7 @@ export function populateWrappedFilter() {
 export function renderWrappedContent() {
     const year = parseInt(wrappedYearFilter.value);
     const stats = store.calculateWrappedStats(year, window.spotifyData.full);
-    
+
     if (!stats) {
         wrappedContent.innerHTML = "<p>No data for this year.</p>";
         return;
@@ -132,10 +132,9 @@ export function renderWrappedContent() {
         <div class="wrapped-card"> <div class="title">Top 5 Songs</div> <ul class="list">${stats.topSong.map((s, i) => `<li><span class="rank">${i+1}</span> ${s.name}</li>`).join('')}</ul> </div>
         <div class="wrapped-card"> <div class="title">Top 5 Artists</div> <ul class="list">${stats.topArtist.map((a, i) => `<li><span class="rank">${i+1}</span> ${a.name}</li>`).join('')}</ul> </div>
         <div class="wrapped-card"> <div class="title">Top 5 Albums</div> <ul class="list">${stats.topAlbum.map((al, i) => `<li><span class="rank">${i+1}</span> ${al.name}</li>`).join('')}</ul> </div>
+        <div class="wrapped-card"> <div class="title">Skip Rate</div> <div class="value">${stats.skipRate}%</div> <div class="subtitle">of tracks skipped</div> </div>
     `;
 
-    // --- ¡SOLUCIÓN AL BUG DEL GRÁFICO INVISIBLE! ---
-    // Envolvemos la llamada al gráfico en un setTimeout para asegurar que el canvas existe.
     setTimeout(() => {
         charts.renderWrappedMonthlyChart(stats.monthlyMinutes);
     }, 0);
