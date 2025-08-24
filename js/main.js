@@ -1,5 +1,7 @@
+// js/main.js
+
 import { processSpotifyZip } from './store.js';
-import { showLoading, hideLoading, renderUI, populateWrappedFilter } from './ui.js';
+import { showLoading, hideLoading, renderUI, populateWrappedFilter, renderWrappedContent } from './ui.js';
 import { setupGame } from './game.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -11,7 +13,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const applyFilterBtn = document.getElementById('apply-filter-btn');
     const dateFromInput = document.getElementById('date-from');
     const dateToInput = document.getElementById('date-to');
-    
+    const wrappedYearFilter = document.getElementById('wrapped-year-filter');
+
     // Estado global de la aplicación
     window.spotifyData = {
         full: [],
@@ -40,6 +43,9 @@ document.addEventListener('DOMContentLoaded', () => {
             setupTabNavigation();
             setupGame();
             populateWrappedFilter();
+            
+            // --- ¡CORRECCIÓN! El listener del Wrapped se añade UNA SOLA VEZ aquí ---
+            wrappedYearFilter.addEventListener('change', renderWrappedContent);
 
         } catch (error) {
             console.error('Failed to process Spotify data:', error);
@@ -60,7 +66,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return true;
         });
         
-        // Vuelve a renderizar toda la UI con los datos filtrados
         renderUI();
     });
 
@@ -71,10 +76,8 @@ document.addEventListener('DOMContentLoaded', () => {
         tabLinks.forEach(link => {
             link.addEventListener('click', () => {
                 const tabId = link.getAttribute('data-tab');
-
                 tabLinks.forEach(item => item.classList.remove('active'));
                 tabContents.forEach(item => item.classList.remove('active'));
-
                 link.classList.add('active');
                 document.getElementById(tabId).classList.add('active');
             });
