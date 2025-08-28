@@ -15,6 +15,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const dateToInput = document.getElementById('date-to');
     const wrappedYearFilter = document.getElementById('wrapped-year-filter');
 
+    // NUEVAS REFERENCIAS A LOS FILTROS
+    const artistFilter = document.getElementById('artist-filter');
+    const albumFilter = document.getElementById('album-filter');
+    const trackFilter = document.getElementById('track-filter');
+
     // Estado global de la aplicación
     window.spotifyData = {
         full: [],
@@ -39,6 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Configurar la UI por primera vez
             setupDateFilters(data);
+            populateOtherFilters(data); // NUEVA LLAMADA PARA LOS NUEVOS FILTROS
             renderUI();
             setupTabNavigation();
             setupGame();
@@ -56,18 +62,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     applyFilterBtn.addEventListener('click', () => {
-        const from = dateFromInput.value;
-        const to = dateToInput.value;
-
-        window.spotifyData.filtered = window.spotifyData.full.filter(d => {
-            const date = d.date;
-            if (from && date < from) return false;
-            if (to && date > to) return false;
-            return true;
-        });
-        
-        renderUI();
+        applyAllFilters(); // USAMOS UNA FUNCIÓN PARA APLICAR TODOS LOS FILTROS
     });
+
+    // MANEJADORES DE CAMBIO PARA LOS NUEVOS FILTROS (APLICAR FILTRO INMEDIATAMENTE)
+    artistFilter.addEventListener('change', applyAllFilters);
+    albumFilter.addEventListener('change', applyAllFilters);
+    trackFilter.addEventListener('change', applyAllFilters);
+
 
     function setupTabNavigation() {
         const tabLinks = document.querySelectorAll('.tab-link');
@@ -86,10 +88,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setupDateFilters(data) {
         if (data.length > 0) {
-            dateFromInput.min = data[0].date;
-            dateFromInput.max = data[data.length - 1].date;
-            dateToInput.min = data[0].date;
-            dateToInput.max = data[data.length - 1].date;
+            // Asumiendo que `data` ya está ordenado por fecha
+            const firstDate = data[0].date;
+            const lastDate = data[data.length - 1].date;
+
+            dateFromInput.min = firstDate;
+            dateFromInput.max = lastDate;
+            dateFromInput.value = firstDate; // Establecer valor inicial
+            
+            dateToInput.min = firstDate;
+            dateToInput.max = lastDate;
+            dateToInput.value = lastDate; // Establecer valor inicial
         }
+    }
+
+    // NUEVA FUNCIÓN PARA POPULAR LOS FILTROS DE ARTISTA, ÁLBUM Y CANCIÓN
+    function populateOtherFilters(data) {
+        const uniqueArtists = [...new Set(data.map(d => d.artistName).filter(Boolean))].sort();
+        const uniqueAlbums = [...new Set(data.map(d => d.albumName).filter(Boolean))].sort();
+        const uniqueTracks = [...new Set(data.map(d => d.trackName).filter(Boolean))].sort();
+
+        artistFilter.innerHTML = '<option value="">All Artists</option>' + uniqueArtists.map(artist => `<option value="${artist}">${artist}</option>`).join('');
+        albumFilter.innerHTML = '<option value="">All Albums</option>' + uniqueAlbums.map(album => `<option value="${album}">${album}</option>`).join('');
+        trackFilter.innerHTML = '<option value="">All Tracks</option>' + uniqueTracks.map(track => `<option value="${track}">${track}</option>`).join('');
+    }
+
+    // NUEVA FUNCIÓN PARA APLICAR TODOS LOS FILTROS
+    function applyAllFilters() {
+        showLoading('Applying filters...');
+        const from = dateFromInput.value;
+        const to = dateToInput.value;
+        const selectedArtist = artistFilter.value;
+        const selectedAlbum = albumFilter.value;
+        const selectedTrack = trackFilter.value;
+
+        window.spotifyData.filtered = window.spotifyData.full.filter(d => {
+            const date = d.date;
+            if (from && date < from) return false;
+            if (to && date > to) return false;
+            if (selectedArtist && d.artistName !== selectedArtist) return false;
+            if (selectedAlbum && d.albumName !== selectedAlbum) return false;
+            if (selectedTrack && d.trackName !== selectedTrack) return false;
+            return true;
+        });
+        
+        renderUI();
+        hideLoading();
     }
 });
