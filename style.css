@@ -596,13 +596,12 @@ body {
     height: 300px !important;
 }
 
-/* Solo para los charts de top podcasts */
 .podcast-top-chart {
-    flex: 0.9;           /* Ocupa proporcionalmente espacio */
-    max-height: 500px;
-    height: 400px;        /* Altura base */
-    overflow-y: hidden;   /* Evita scroll innecesario */
-    padding: 10px 0 30px 0;
+    flex: 0.9;
+    max-height: 500px;      /* altura máxima */
+    min-height: 400px;      /* altura mínima */
+    height: auto;           /* deja que el canvas se adapte */
+    padding: 10px 0 40px 0; /* espacio extra abajo para el eje X */
 }
 
 
