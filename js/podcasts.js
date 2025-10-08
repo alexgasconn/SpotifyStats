@@ -215,19 +215,20 @@ export function renderTopEpisodesChart(topEpisodes) {
     });
 }
 
-export function renderPodcastTimeByDay(podcastData, aggregation = 'week') {
+// --- RENDER DE TIMELINE ---
+export function renderPodcastTimeByDay(podcastData) {
     const canvas = document.getElementById('podcastTimelineChart');
     if (!canvas) return console.error('[Podcasts] Canvas element "podcastTimelineChart" not found');
 
     const ctx = canvas.getContext('2d');
     if (podcastTimelineChart) podcastTimelineChart.destroy();
 
-    if (podcastData.length === 0) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!podcastData.length) {
+        ctx.clearRect(0,0,canvas.width,canvas.height);
         ctx.font = '16px Arial';
         ctx.fillStyle = '#fff';
         ctx.textAlign = 'center';
-        ctx.fillText('No timeline data available', canvas.width / 2, canvas.height / 2);
+        ctx.fillText('No timeline data available', canvas.width/2, canvas.height/2);
         return;
     }
 
@@ -235,83 +236,71 @@ export function renderPodcastTimeByDay(podcastData, aggregation = 'week') {
     podcastData.forEach(d => {
         if (!d.date) return;
         let key;
-
-        switch (aggregation) {
-            case 'year':
-                key = d.year != null ? String(d.year) : null;
-                break;
-            case 'month':
-                if (d.year != null && d.month != null) {
-                    key = `${d.year}-${String(d.month + 1).padStart(2, '0')}`;
-                }
-                break;
-            case 'week':
-                key = getStartOfWeek(new Date(d.date));
-                break;
+        switch(currentPodcastTimelineUnit) {
+            case 'year': key = d.year != null ? String(d.year) : null; break;
+            case 'month': key = d.year != null && d.month != null ? `${d.year}-${String(d.month+1).padStart(2,'0')}` : null; break;
+            case 'week': key = getStartOfWeek(new Date(d.date)); break;
             case 'day':
-            default:
-                key = d.date;
-                break;
+            default: key = d.date; break;
         }
-
         if (!key) return;
         if (!timeMap[key]) timeMap[key] = 0;
         timeMap[key] += d.durationMin;
     });
 
     const sortedData = Object.entries(timeMap)
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([date, minutes]) => ({ date, minutes: Math.round(minutes) }));
+        .sort((a,b)=>a[0].localeCompare(b[0]))
+        .map(([date,minutes])=>({date, minutes: Math.round(minutes)}));
 
-    const labels = sortedData.map(d => formatDateLabel(d.date, aggregation));
-    const data = sortedData.map(d => d.minutes);
+    const labels = sortedData.map(d => formatDateLabel(d.date, currentPodcastTimelineUnit));
+    const data = sortedData.map(d=>d.minutes);
 
     podcastTimelineChart = new Chart(ctx, {
         type: 'line',
-        data: {
-            labels,
-            datasets: [{
-                label: 'Minutes',
-                data,
-                borderColor: 'rgba(30, 215, 96, 1)',
-                backgroundColor: 'rgba(30, 215, 96, 0.1)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false, labels: { color: '#fff' } },
-                title: {
-                    display: true,
-                    text: `Podcast Listening Over Time (${aggregation})`,
-                    font: { size: 16, weight: 'bold' },
-                    color: '#fff'
-                },
-                tooltip: {
-                    titleColor: '#fff',
-                    bodyColor: '#fff',
-                    callbacks: {
-                        label: function(context) {
-                            const val = context.parsed.y ?? 0;
-                            const hours = Math.floor(val / 60);
-                            const mins = Math.round(val % 60);
-                            return `${hours}h ${mins}m`;
-                        }
-                    }
+        data: { labels, datasets:[{ label:'Minutes', data, borderColor:'rgba(30,215,96,1)', backgroundColor:'rgba(30,215,96,0.1)', borderWidth:2, fill:true, tension:0.4 }] },
+        options:{
+            responsive:true,
+            maintainAspectRatio:false,
+            plugins:{
+                legend:{ display:false, labels:{color:'#fff'} },
+                title:{ display:true, text:`Podcast Listening Over Time (${currentPodcastTimelineUnit})`, font:{size:16,weight:'bold'}, color:'#fff' },
+                tooltip:{
+                    titleColor:'#fff',
+                    bodyColor:'#fff',
+                    callbacks:{ label: ctx=> { const val = ctx.parsed.y ?? 0; const h=Math.floor(val/60); const m=Math.round(val%60); return `${h}h ${m}m`; } }
                 }
             },
-            scales: {
-                y: { ...whiteTextOptions, title: { ...whiteTextOptions.title, text: 'Minutes' } },
-                x: { ...whiteTextOptions, ticks: { ...whiteTextOptions.ticks, maxRotation: 45, minRotation: 45 } }
-            }
+            scales:{ y:{...whiteTextOptions, title:{...whiteTextOptions.title, text:'Minutes'}}, x:{...whiteTextOptions, ticks:{...whiteTextOptions.ticks, maxRotation:45, minRotation:45}} }
         }
     });
 }
 
+// --- BOTONES DE TIMELINE ---
+export function setupPodcastTimelineControls(podcastData) {
+    const controls = ['day','week','month','year'];
+    const container = document.getElementById('podcastTimelineControls');
+    if (!container) return console.error('[Podcasts] Timeline controls container not found');
+
+    container.innerHTML = '';
+    controls.forEach(ctrl=>{
+        const button = document.createElement('button');
+        button.textContent = ctrl.charAt(0).toUpperCase()+ctrl.slice(1);
+        button.className='timeline-btn';
+        button.dataset.unit = ctrl;
+        if(ctrl==='week') button.classList.add('active'); // default
+
+        button.addEventListener('click', ()=>{
+            currentPodcastTimelineUnit = button.dataset.unit;
+            container.querySelectorAll('.timeline-btn').forEach(b=>b.classList.remove('active'));
+            button.classList.add('active');
+            renderPodcastTimeByDay(podcastData);
+        });
+
+        container.appendChild(button);
+    });
+}
+
+// --- FUNCIONES AUXILIARES ---
 function getStartOfWeek(date) {
     const d = new Date(date);
     const day = d.getDay();
@@ -319,34 +308,22 @@ function getStartOfWeek(date) {
     return new Date(d.setDate(diff)).toISOString().split('T')[0];
 }
 
-function formatDateLabel(dateStr, aggregation) {
+function formatDateLabel(dateStr, unit) {
     const date = new Date(dateStr);
-    switch (aggregation) {
+    switch(unit){
         case 'year': return dateStr;
-        case 'month': return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
-        case 'week': return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        case 'month': return date.toLocaleDateString('en-US',{year:'numeric', month:'short'});
+        case 'week': return date.toLocaleDateString('en-US',{month:'short', day:'numeric'});
         case 'day':
-        default: return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        default: return date.toLocaleDateString('en-US',{month:'short', day:'numeric'});
     }
 }
 
-export function setupPodcastTimelineControls(podcastData) {
-    const controls = ['day', 'week', 'month', 'year'];
-    const container = document.getElementById('podcastTimelineControls');
-    if (!container) return console.error('[Podcasts] Timeline controls container not found');
-
-    container.innerHTML = '';
-    controls.forEach(ctrl => {
-        const button = document.createElement('button');
-        button.textContent = ctrl.charAt(0).toUpperCase() + ctrl.slice(1);
-        button.className = 'timeline-btn';
-        if (ctrl === 'day') button.classList.add('active');
-
-        button.addEventListener('click', () => {
-            container.querySelectorAll('.timeline-btn').forEach(btn => btn.classList.remove('active'));
-            button.classList.add('active');
-            renderPodcastTimeByDay(podcastData, ctrl);
-        });
-        container.appendChild(button);
-    });
+// --- FUNCIÓN PARA RENDER COMPLETO ---
+export function renderPodcastUI(fullData){
+    const { topShows, topEpisodes, podcastData } = analyzePodcasts(fullData);
+    renderTopShowsChart(topShows);
+    renderTopEpisodesChart(topEpisodes);
+    renderPodcastTimeByDay(podcastData);
+    setupPodcastTimelineControls(podcastData);
 }
