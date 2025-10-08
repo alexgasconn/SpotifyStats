@@ -105,7 +105,12 @@ export function renderTimelineChart(timelineData, unit = 'week') {
             }]
         },
         options: {
-            responsive: true, maintainAspectRatio: false,
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                datalabels: false  // 👈 desactivamos DataLabels para este gráfico
+            },
             scales: {
                 x: {
                     type: 'time',
@@ -118,11 +123,11 @@ export function renderTimelineChart(timelineData, unit = 'week') {
                     grid: { color: '#282828' },
                     title: { display: true, text: 'Minutes', color: '#b3b3b3' }
                 }
-            },
-            plugins: { legend: { display: false } }
+            }
         }
     });
 }
+
 
 export function renderListeningClockChart(hourlyData) {
     createOrUpdateChart('listening-clock-chart', {
