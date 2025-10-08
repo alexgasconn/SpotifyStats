@@ -3,6 +3,8 @@
 import { processSpotifyZip } from './store.js';
 import { showLoading, hideLoading, renderUI, populateWrappedFilter, renderWrappedContent } from './ui.js';
 import { setupGame } from './game.js';
+import * as podcasts from './podcasts.js';
+
 
 document.addEventListener('DOMContentLoaded', () => {
     // Referencias al DOM
