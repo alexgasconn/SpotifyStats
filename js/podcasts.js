@@ -3,6 +3,9 @@
 let topShowsChart = null;
 let topEpisodesChart = null;
 let podcastTimelineChart = null;
+// Unidad de tiempo global para el timeline
+let currentPodcastTimelineUnit = 'week';
+
 
 export function analyzePodcasts(fullData) {
     console.log('[Podcasts] Total entries received:', fullData.length);
