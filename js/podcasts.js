@@ -20,32 +20,51 @@ const chartColors = [
 export function analyzePodcasts(fullData) {
     console.log('[Podcasts] Total entries received:', fullData.length);
 
-    // FILTRAR SOLO PODCASTS
+    // Filtro seguro de podcasts
     const podcastData = fullData.filter(d => {
-        const hasEpisodeName = d.hasOwnProperty('episode_name') && d.episode_name != null && d.episode_name !== '';
-        const hasShowName = d.hasOwnProperty('episode_show_name') && d.episode_show_name != null && d.episode_show_name !== '';
-        return hasEpisodeName && hasShowName;
+        // Buscar keys similares a 'episode_name' y 'episode_show_name'
+        const epKey = Object.keys(d).find(k => k.trim().toLowerCase() === 'episode_name');
+        const showKey = Object.keys(d).find(k => k.trim().toLowerCase() === 'episode_show_name');
+
+        if (!epKey || !showKey) {
+            // entry no tiene campos de podcast
+            return false;
+        }
+
+        const epName = d[epKey];
+        const showName = d[showKey];
+
+        const isPodcast = epName != null && epName !== '' && showName != null && showName !== '';
+        if (!isPodcast) {
+            // entry tiene keys pero vacías
+            return false;
+        }
+
+        return true;
     });
 
     console.log('[Podcasts] Entries identified as podcasts:', podcastData.length);
 
     if (podcastData.length === 0) return { topShows: [], topEpisodes: [], podcastData: [] };
 
-    // AGREGAR DATOS POR SHOW
+    // --- Agrupar por show ---
     const showMap = {};
     podcastData.forEach(d => {
-        const show = d.episode_show_name || 'Unknown Show';
+        const epKey = Object.keys(d).find(k => k.trim().toLowerCase() === 'episode_name');
+        const showKey = Object.keys(d).find(k => k.trim().toLowerCase() === 'episode_show_name');
+
+        const show = d[showKey] || 'Unknown Show';
         if (!showMap[show]) showMap[show] = { minutes: 0, episodes: {} };
 
-        const playedMinutes = d.ms_played ? d.ms_played / 60000 : 0;
-        showMap[show].minutes += playedMinutes;
+        const minutes = Number(d.ms_played ?? 0) / 60000; // ms → min
+        showMap[show].minutes += minutes;
 
-        const ep = d.episode_name || 'Unknown Episode';
+        const ep = d[epKey] || 'Unknown Episode';
         if (!showMap[show].episodes[ep]) showMap[show].episodes[ep] = 0;
-        showMap[show].episodes[ep] += playedMinutes;
+        showMap[show].episodes[ep] += minutes;
     });
 
-    // TOP SHOWS
+    // --- Top Shows ---
     const topShows = Object.entries(showMap)
         .map(([name, info]) => ({ name, minutes: info.minutes, episodes: info.episodes }))
         .sort((a, b) => b.minutes - a.minutes)
@@ -53,19 +72,20 @@ export function analyzePodcasts(fullData) {
 
     console.log('[Podcasts] Top Shows:', topShows);
 
-    // TOP EPISODES
+    // --- Top Episodes ---
     let allEpisodes = [];
     topShows.forEach(show => {
         Object.entries(show.episodes).forEach(([epName, minutes]) => {
             allEpisodes.push({ show: show.name, name: epName, minutes });
         });
     });
-
     const topEpisodes = allEpisodes.sort((a, b) => b.minutes - a.minutes).slice(0, 10);
+
     console.log('[Podcasts] Top Episodes:', topEpisodes);
 
     return { topShows, topEpisodes, podcastData };
 }
+
 
 // --- GRAFICOS ---
 export function renderTopShowsChart(topShows) {

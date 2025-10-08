@@ -54,8 +54,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             wrappedYearFilter.addEventListener('change', renderWrappedContent);
 
-
+            console.log('Total entries loaded:', data.length);
             const podcastStats = podcasts.analyzePodcasts(data);
+            console.log('Podcast analysis results:', podcastStats);
             if (podcastStats) {
                 podcasts.renderTopShowsChart(podcastStats.topShows);
                 podcasts.renderTopEpisodesChart(podcastStats.topEpisodes);
