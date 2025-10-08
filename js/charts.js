@@ -61,7 +61,7 @@ export function renderDistributionChart(canvasId, data, title, type = 'doughnut'
                 } : false
             },
             scales: type === 'bar' ? {
-                y: { ticks: { color: '#b3b3b3' }, grid: { color: '#282828' } },
+                y: { type: 'logarithmic', ticks: { color: '#b3b3b3' }, grid: { color: '#282828' } },
                 x: { ticks: { color: '#b3b3b3' }, grid: { display: false } }
             } : {}
         },
