@@ -1,7 +1,5 @@
 // js/podcasts.js
 
-import Chart from 'chart.js/auto';
-
 let topShowsChart = null;
 let topEpisodesChart = null;
 let podcastTimelineChart = null;
