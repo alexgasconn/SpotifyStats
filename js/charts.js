@@ -56,7 +56,7 @@ export function renderDistributionChart(canvasId, data, title, type = 'doughnut'
                     color: '#fff',
                     anchor: 'end',
                     align: 'start',
-                    formatter: (value) => value.toFixed(1) + '%',
+                    formatter: (value) => value.toFixed(2) + '%',
                     font: { weight: 'bold' }
                 } : false
             },

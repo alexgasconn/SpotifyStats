@@ -62,7 +62,7 @@ function renderGlobalKPIs(data) {
 }
 
 function renderTrendCharts(data) {
-    const platformData = store.calculateDistributionPercent(data, 'platform');
+    const platformData = store.calculateDistributionPercent(data, 'platform').slice(0, 10);
     const countryData = store.calculateDistributionPercent(data, 'country').slice(0, 10);
     const reasonStartData = store.calculateDistributionPercent(data, 'reasonStart');
 
