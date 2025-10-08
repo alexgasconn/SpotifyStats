@@ -572,3 +572,13 @@ body {
     color: var(--spotify-black);
     background-color: var(--spotify-green);
 }
+/* Top Shows & Top Episodes Charts */
+#topShowsChart,
+#topEpisodesChart {
+    height: 400px; /* altura fija */
+}
+
+/* Timeline Chart */
+#podcastTimelineChart {
+    height: 300px; /* altura fija */
+}
