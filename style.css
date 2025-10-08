@@ -622,3 +622,7 @@ body {
     background-color: #1db954;
     color: white;
 }
+
+canvas {
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif !important;
+}
