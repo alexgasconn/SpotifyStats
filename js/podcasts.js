@@ -7,25 +7,45 @@ let podcastTimelineChart = null;
 export function analyzePodcasts(fullData) {
     console.log('[Podcasts] Total entries received:', fullData.length);
 
-    // Filtrar solo los podcasts
-    const podcastData = fullData.filter(d => {
-        return d.episodeName != null && 
-               d.episodeName !== '' && 
-               d.episodeShowName != null && 
+    // Filtrar solo los podcasts con nombres válidos
+    const rawPodcastData = fullData.filter(d => {
+        return d.episodeName != null &&
+               d.episodeName !== '' &&
+               d.episodeShowName != null &&
                d.episodeShowName !== '';
     });
 
-    console.log('[Podcasts] Entries identified as podcasts:', podcastData.length);
+    console.log('[Podcasts] Entries identified as podcasts:', rawPodcastData.length);
 
-    if (podcastData.length === 0)
+    if (rawPodcastData.length === 0) {
         return { topShows: [], topEpisodes: [], podcastData: [] };
+    }
+
+    // Enriquecer datos para timeline (duración y fechas)
+    const podcastData = rawPodcastData.map(d => {
+        // Tolerar diferentes nombres de timestamp si existen
+        const tsStr = d.ts || d.endTime || d.timestamp || null;
+        const tsDate = tsStr ? new Date(tsStr) : null;
+        const isValidDate = tsDate && !isNaN(tsDate.getTime());
+
+        const durationMin = Number(d.msPlayed ?? d.durationMs ?? 0) / 60000;
+
+        return {
+            ...d,
+            durationMin,
+            year: isValidDate ? tsDate.getFullYear() : null,
+            month: isValidDate ? tsDate.getMonth() : null, // 0-based
+            date: isValidDate ? tsDate.toISOString().split('T')[0] : null, // YYYY-MM-DD
+            ts: isValidDate ? tsDate.toISOString() : null
+        };
+    }).filter(d => d.durationMin > 0 && d.date);
 
     // --- Agrupar por show ---
     const showMap = {};
     podcastData.forEach(d => {
         const show = d.episodeShowName || 'Unknown Show';
-        const minutes = Number(d.msPlayed ?? 0) / 60000;
-        
+        const minutes = d.durationMin;
+
         if (!showMap[show]) {
             showMap[show] = { minutes: 0, episodes: {}, episodeCount: 0 };
         }
@@ -41,11 +61,11 @@ export function analyzePodcasts(fullData) {
 
     // --- Top Shows ---
     const topShows = Object.entries(showMap)
-        .map(([name, info]) => ({ 
-            name, 
+        .map(([name, info]) => ({
+            name,
             minutes: info.minutes,
             episodeCount: info.episodeCount,
-            episodes: info.episodes 
+            episodes: info.episodes
         }))
         .sort((a, b) => b.minutes - a.minutes)
         .slice(0, 10);
@@ -53,13 +73,13 @@ export function analyzePodcasts(fullData) {
     console.log('[Podcasts] Top Shows:', topShows);
 
     // --- Top Episodes ---
-    let allEpisodes = [];
+    const allEpisodes = [];
     Object.entries(showMap).forEach(([showName, info]) => {
         Object.entries(info.episodes).forEach(([epName, minutes]) => {
-            allEpisodes.push({ 
-                show: showName, 
-                name: epName, 
-                minutes 
+            allEpisodes.push({
+                show: showName,
+                name: epName,
+                minutes
             });
         });
     });
@@ -106,7 +126,7 @@ export function renderTopShowsChart(topShows) {
             }]
         },
         options: {
-            indexAxis: 'y', // barras horizontales
+            indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
@@ -172,7 +192,7 @@ export function renderTopEpisodesChart(topEpisodes) {
             }]
         },
         options: {
-            indexAxis: 'y', // barras horizontales
+            indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
@@ -218,30 +238,35 @@ export function renderPodcastTimeByDay(podcastData, aggregation = 'day') {
 
     const timeMap = {};
     podcastData.forEach(d => {
+        if (!d.date) return; // require enriched date
         let key;
-        const date = new Date(d.ts);
 
-        switch(aggregation) {
+        switch (aggregation) {
             case 'year':
-                key = `${d.year}`;
+                key = d.year != null ? String(d.year) : null;
                 break;
             case 'month':
-                key = `${d.year}-${String(d.month + 1).padStart(2, '0')}`;
+                if (d.year != null && d.month != null) {
+                    key = `${d.year}-${String(d.month + 1).padStart(2, '0')}`;
+                }
                 break;
             case 'week':
-                key = getStartOfWeek(date);
+                key = getStartOfWeek(new Date(d.date));
                 break;
             case 'day':
             default:
                 key = d.date;
                 break;
         }
+
+        if (!key) return;
         if (!timeMap[key]) timeMap[key] = 0;
         timeMap[key] += d.durationMin;
     });
 
     const sortedData = Object.entries(timeMap)
-        .sort((a, b) => new Date(a[0]) - new Date(b[0]))
+        // keys are ISO-like; string sort is sufficient and stable across agg modes
+        .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([date, minutes]) => ({ date, minutes: Math.round(minutes) }));
 
     const labels = sortedData.map(d => formatDateLabel(d.date, aggregation));
@@ -249,18 +274,34 @@ export function renderPodcastTimeByDay(podcastData, aggregation = 'day') {
 
     podcastTimelineChart = new Chart(ctx, {
         type: 'line',
-        data: { labels, datasets: [{ label: 'Minutes', data, borderColor: 'rgba(30, 215, 96, 1)', backgroundColor: 'rgba(30, 215, 96, 0.1)', borderWidth: 2, fill: true, tension: 0.4 }] },
+        data: {
+            labels,
+            datasets: [{
+                label: 'Minutes',
+                data,
+                borderColor: 'rgba(30, 215, 96, 1)',
+                backgroundColor: 'rgba(30, 215, 96, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+            }]
+        },
         options: {
             responsive: true,
-            maintainAspectRatio: false, // altura fija CSS
+            maintainAspectRatio: false,
             plugins: {
                 legend: { display: false },
-                title: { display: true, text: `Podcast Listening Over Time (${aggregation})`, font: { size: 16, weight: 'bold' } },
+                title: {
+                    display: true,
+                    text: `Podcast Listening Over Time (${aggregation})`,
+                    font: { size: 16, weight: 'bold' }
+                },
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            const hours = Math.floor(context.parsed.y / 60);
-                            const mins = Math.round(context.parsed.y % 60);
+                            const val = context.parsed.y ?? 0;
+                            const hours = Math.floor(val / 60);
+                            const mins = Math.round(val % 60);
                             return `${hours}h ${mins}m`;
                         }
                     }
@@ -276,14 +317,14 @@ export function renderPodcastTimeByDay(podcastData, aggregation = 'day') {
 
 function getStartOfWeek(date) {
     const d = new Date(date);
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(d.setDate(diff)).toISOString().split('T')[0];
+    const day = d.getDay(); // 0=Sun, 1=Mon, ...
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // start Monday
+    return new Date(d.setDate(diff)).toISOString().split('T')[0]; // YYYY-MM-DD
 }
 
 function formatDateLabel(dateStr, aggregation) {
     const date = new Date(dateStr);
-    switch(aggregation) {
+    switch (aggregation) {
         case 'year': return dateStr;
         case 'month': return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
         case 'week': return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
