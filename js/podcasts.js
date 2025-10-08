@@ -17,27 +17,33 @@ const chartColors = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#ed
 export function analyzePodcasts(fullData) {
     console.log('[Podcasts] Total entries received:', fullData.length);
 
-    const podcastData = fullData.filter(d => d.episode_name !== null && d.episode_show_name !== null);
-    console.log('[Podcasts] Entries identified as podcasts:', podcastData.length);
+    const podcastData = fullData.filter(d =>
+        d.episode_name !== null &&
+        d.episode_show_name !== null &&
+        d.ms_played != null
+    );
 
-    if (podcastData.length === 0) return null;
+    console.log('[Podcasts] Entries identified as podcasts:', podcastData.length);
 
     const showMap = {};
     podcastData.forEach(d => {
+        const ms = Number(d.ms_played);
+        if (isNaN(ms) || ms <= 0) return;
+
+        const minutes = ms / 60000;
         const show = d.episode_show_name || 'Unknown Show';
         if (!showMap[show]) showMap[show] = { minutes: 0, episodes: {} };
-        showMap[show].minutes += d.ms_played / 60000;
+        showMap[show].minutes += minutes;
+
         const ep = d.episode_name || 'Unknown Episode';
         if (!showMap[show].episodes[ep]) showMap[show].episodes[ep] = 0;
-        showMap[show].episodes[ep] += d.ms_played / 60000;
+        showMap[show].episodes[ep] += minutes;
     });
 
     const topShows = Object.entries(showMap)
         .map(([name, info]) => ({ name, minutes: info.minutes, episodes: info.episodes }))
         .sort((a, b) => b.minutes - a.minutes)
         .slice(0, 10);
-
-    console.log('[Podcasts] Top Shows:', topShows.map(s => ({ name: s.name, minutes: s.minutes })));
 
     let allEpisodes = [];
     topShows.forEach(show => {
@@ -47,14 +53,16 @@ export function analyzePodcasts(fullData) {
     });
 
     const topEpisodes = allEpisodes.sort((a, b) => b.minutes - a.minutes).slice(0, 10);
-    console.log('[Podcasts] Top Episodes:', topEpisodes.map(e => ({ name: e.name, minutes: e.minutes })));
+
+    console.log('[Podcasts] Top Shows:', topShows);
+    console.log('[Podcasts] Top Episodes:', topEpisodes);
 
     return { topShows, topEpisodes, podcastData };
 }
 
-
 // --- GRAFICOS ---
 export function renderTopShowsChart(topShows) {
+    console.log('[Podcasts] Rendering Top Shows Chart with', topShows.length, 'entries');
     createOrUpdateChart('podcast-shows-chart', {
         type: 'bar',
         data: {
@@ -66,7 +74,8 @@ export function renderTopShowsChart(topShows) {
             }]
         },
         options: {
-            responsive: true, maintainAspectRatio: false,
+            responsive: true,
+            maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
                 y: { ticks: { color: '#b3b3b3' }, grid: { color: '#282828' } },
@@ -77,6 +86,7 @@ export function renderTopShowsChart(topShows) {
 }
 
 export function renderTopEpisodesChart(topEpisodes) {
+    console.log('[Podcasts] Rendering Top Episodes Chart with', topEpisodes.length, 'entries');
     createOrUpdateChart('podcast-episodes-chart', {
         type: 'bar',
         data: {
@@ -89,7 +99,8 @@ export function renderTopEpisodesChart(topEpisodes) {
         },
         options: {
             indexAxis: 'y',
-            responsive: true, maintainAspectRatio: false,
+            responsive: true,
+            maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
                 x: { ticks: { color: '#b3b3b3' }, grid: { color: '#282828' } },
@@ -104,22 +115,21 @@ export function renderPodcastTimeByDay(podcastData) {
 
     const dailyMap = {};
     podcastData.forEach(d => {
-        if (!d.ts) {
-            console.warn('[Podcasts] Missing ts field:', d);
-            return;
-        }
-
+        if (!d.ts) return;
         const tsString = typeof d.ts === 'string' ? d.ts : new Date(d.ts).toISOString();
         const day = tsString.split('T')[0];
 
-        dailyMap[day] = (dailyMap[day] || 0) + d.ms_played / 60000;
+        const ms = Number(d.ms_played);
+        if (isNaN(ms) || ms <= 0) return;
+
+        dailyMap[day] = (dailyMap[day] || 0) + ms / 60000;
     });
 
     const labels = Object.keys(dailyMap).sort();
     const data = labels.map(l => dailyMap[l]);
 
-    console.log('[Podcasts] Daily timeline labels:', labels);
-    console.log('[Podcasts] Daily timeline data:', data);
+    console.log('[Podcasts] Daily timeline labels:', labels.length > 10 ? labels.slice(0, 10) : labels);
+    console.log('[Podcasts] Daily timeline data (first 10):', data.slice(0, 10));
 
     createOrUpdateChart('podcast-daily-chart', {
         type: 'line',
@@ -135,7 +145,8 @@ export function renderPodcastTimeByDay(podcastData) {
             }]
         },
         options: {
-            responsive: true, maintainAspectRatio: false,
+            responsive: true,
+            maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
                 y: { ticks: { color: '#b3b3b3' }, grid: { color: '#282828' } },
@@ -144,4 +155,3 @@ export function renderPodcastTimeByDay(podcastData) {
         }
     });
 }
-
