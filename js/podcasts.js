@@ -19,17 +19,44 @@ const chartColors = [
 // --- ANALISIS DE PODCASTS ---
 export function analyzePodcasts(fullData) {
     console.log('[Podcasts] Total entries received:', fullData.length);
+    
+    // Debug: ver cómo se ven los primeros elementos
+    console.log('[Podcasts] First entry sample:', fullData[0]);
+    console.log('[Podcasts] First entry type:', typeof fullData[0]);
+    
+    // Parsear si es necesario
+    const parsedData = fullData.map(d => {
+        if (typeof d === 'string') {
+            try {
+                return JSON.parse(d);
+            } catch (e) {
+                console.error('[Podcasts] Error parsing entry:', e);
+                return null;
+            }
+        }
+        return d;
+    }).filter(d => d !== null);
 
-    // Filtrar solo los podcasts (entries que tienen episode_name y episode_show_name)
-    const podcastData = fullData
-        .map(d => (typeof d === 'string' ? JSON.parse(d) : d))
-        .filter(d => {
-            // Los podcasts tienen episode_name y episode_show_name (no null)
-            return d.episode_name != null && 
-                   d.episode_name !== '' && 
-                   d.episode_show_name != null && 
-                   d.episode_show_name !== '';
-        });
+    console.log('[Podcasts] After parsing, sample entry:', parsedData[0]);
+    console.log('[Podcasts] Sample entry keys:', parsedData[0] ? Object.keys(parsedData[0]) : 'no data');
+    
+    // Buscar podcasts - verificar diferentes posibles formatos de key
+    const podcastData = parsedData.filter(d => {
+        const hasEpisodeName = d.episode_name !== null && d.episode_name !== undefined && d.episode_name !== '';
+        const hasShowName = d.episode_show_name !== null && d.episode_show_name !== undefined && d.episode_show_name !== '';
+        
+        // Debug: loguear algunos casos
+        if (hasEpisodeName || hasShowName) {
+            console.log('[Podcasts] Found potential podcast:', {
+                episode_name: d.episode_name,
+                episode_show_name: d.episode_show_name,
+                hasEpisodeName,
+                hasShowName
+            });
+        }
+        
+        return hasEpisodeName && hasShowName;
+    });
 
     console.log('[Podcasts] Entries identified as podcasts:', podcastData.length);
 
