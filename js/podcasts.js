@@ -15,7 +15,11 @@ const chartColors = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#ed
 
 // --- ANALISIS DE PODCASTS ---
 export function analyzePodcasts(fullData) {
-    const podcastData = fullData.filter(d => d.episode_name);
+    console.log('[Podcasts] Total entries received:', fullData.length);
+
+    const podcastData = fullData.filter(d => d.episode_name !== null && d.episode_show_name !== null);
+    console.log('[Podcasts] Entries identified as podcasts:', podcastData.length);
+
     if (podcastData.length === 0) return null;
 
     const showMap = {};
@@ -33,6 +37,8 @@ export function analyzePodcasts(fullData) {
         .sort((a, b) => b.minutes - a.minutes)
         .slice(0, 10);
 
+    console.log('[Podcasts] Top Shows:', topShows.map(s => ({ name: s.name, minutes: s.minutes })));
+
     let allEpisodes = [];
     topShows.forEach(show => {
         Object.entries(show.episodes).forEach(([epName, minutes]) => {
@@ -41,9 +47,11 @@ export function analyzePodcasts(fullData) {
     });
 
     const topEpisodes = allEpisodes.sort((a, b) => b.minutes - a.minutes).slice(0, 10);
+    console.log('[Podcasts] Top Episodes:', topEpisodes.map(e => ({ name: e.name, minutes: e.minutes })));
 
     return { topShows, topEpisodes, podcastData };
 }
+
 
 // --- GRAFICOS ---
 export function renderTopShowsChart(topShows) {
