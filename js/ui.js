@@ -62,12 +62,12 @@ function renderGlobalKPIs(data) {
 }
 
 function renderTrendCharts(data) {
-    const platformData = store.calculateDistributionPercent(data, 'platform').slice(0, 10);
-    const countryData = store.calculateDistributionPercent(data, 'country').slice(0, 10);
-    const reasonStartData = store.calculateDistributionPercent(data, 'reasonStart');
+    const platformData = store.calculateDistributionPercent(data, 'platform').slice(0, 5);
+    const countryData = store.calculateDistributionPercent(data, 'country').slice(0, 15);
+    const reasonStartData = store.calculateDistributionPercent(data, 'reasonStart').slice(0, 5);
 
     charts.renderDistributionChart('platform-chart', platformData, 'Platform Usage');
-    charts.renderDistributionChart('country-chart', countryData, 'Top 10 Countries', 'bar');
+    charts.renderDistributionChart('country-chart', countryData, 'Top Countries', 'bar');
     charts.renderDistributionChart('reason-start-chart', reasonStartData, 'Playback Start Reason');
     
     charts.renderListeningClockChart(store.calculateTemporalDistribution(data, 'hour'));
