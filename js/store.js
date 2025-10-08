@@ -20,12 +20,23 @@ export async function processSpotifyZip(zipFile) {
 function processEntry(entry) {
     if (entry.ms_played < MIN_MS_PLAYED) return null;
     const ts = new Date(entry.ts);
+    
+    // Determinar si es podcast o música
+    const isPodcast = entry.episode_name != null && entry.episode_show_name != null;
+    
     return {
         ts,
         date: ts.toISOString().split('T')[0],
+        // Campos de música
         trackName: entry.master_metadata_track_name,
         artistName: entry.master_metadata_album_artist_name,
         albumName: entry.master_metadata_album_album_name,
+        // Campos de podcast
+        episodeName: entry.episode_name,
+        episodeShowName: entry.episode_show_name,
+        // Indicador de tipo
+        isPodcast: isPodcast,
+        // Campos comunes
         msPlayed: entry.ms_played,
         durationMin: entry.ms_played / 60000,
         year: ts.getFullYear(),
