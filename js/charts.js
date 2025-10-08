@@ -10,8 +10,7 @@ const chartColors = ['#1DB954', '#17A2B8', '#FFC107', '#FD7E14', '#6F42C1', '#E8
 
 export function renderDistributionChart(canvasId, data, title, type = 'doughnut') {
     const labels = data.map(d => d.value);
-
-    const values = data.map(d => parseFloat(d.percent)); // Usamos parseFloat para convertir el string a número
+    const values = data.map(d => parseFloat(d.percent));
 
     const config = {
         type: type,
@@ -25,34 +24,51 @@ export function renderDistributionChart(canvasId, data, title, type = 'doughnut'
             }]
         },
         options: {
-            responsive: true, maintainAspectRatio: false,
+            responsive: true,
+            maintainAspectRatio: false,
             plugins: {
-                legend: { position: type === 'doughnut' ? 'right' : 'none' , labels: { color: '#b3b3b3' } },
-                title: { display: false, text: title, color: '#FFFFFF', font: { size: 16 } },
-                // MEJORA: Añadimos un tooltip para que muestre el %
+                legend: {
+                    position: type === 'doughnut' ? 'right' : 'none',
+                    labels: { color: '#b3b3b3' }
+                },
+                title: {
+                    display: false,
+                    text: title,
+                    color: '#FFFFFF',
+                    font: { size: 16 }
+                },
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
+                        label: function (context) {
                             let label = context.label || '';
-                            if (label) {
-                                label += ': ';
-                            }
+                            if (label) label += ': ';
                             if (context.parsed !== null) {
                                 label += context.parsed.toFixed(2) + '%';
                             }
                             return label;
                         }
                     }
-                }
+                },
+                // 👇 Mostramos el % encima de la barra solo si es tipo 'bar'
+                datalabels: type === 'bar' ? {
+                    color: '#fff',
+                    anchor: 'end',
+                    align: 'start',
+                    formatter: (value) => value.toFixed(1) + '%',
+                    font: { weight: 'bold' }
+                } : false
             },
             scales: type === 'bar' ? {
                 y: { ticks: { color: '#b3b3b3' }, grid: { color: '#282828' } },
                 x: { ticks: { color: '#b3b3b3' }, grid: { display: false } }
             } : {}
-        }
+        },
+        plugins: type === 'bar' ? [ChartDataLabels] : []
     };
+
     createOrUpdateChart(canvasId, config);
 }
+
 
 
 export function renderWrappedMonthlyChart(monthlyData) {
