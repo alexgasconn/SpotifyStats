@@ -11,37 +11,50 @@ function createOrUpdateChart(canvasId, config) {
     return chart;
 }
 
-const chartColors = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ab'];
+const chartColors = [
+    '#4e79a7','#f28e2b','#e15759','#76b7b2','#59a14f',
+    '#edc948','#b07aa1','#ff9da7','#9c755f','#bab0ab'
+];
 
 // --- ANALISIS DE PODCASTS ---
 export function analyzePodcasts(fullData) {
     console.log('[Podcasts] Total entries received:', fullData.length);
 
+    // FILTRAR SOLO PODCASTS
     const podcastData = fullData.filter(d => {
-        const hasEpisodeName = d.episode_name && d.episode_name.trim() !== '';
-        const hasShowName = d.episode_show_name && d.episode_show_name.trim() !== '';
-        return hasEpisodeName && hasShowName && Number(d.ms_played) > 0;
+        const hasEpisodeName = d.hasOwnProperty('episode_name') && d.episode_name != null && d.episode_name !== '';
+        const hasShowName = d.hasOwnProperty('episode_show_name') && d.episode_show_name != null && d.episode_show_name !== '';
+        return hasEpisodeName && hasShowName;
     });
 
     console.log('[Podcasts] Entries identified as podcasts:', podcastData.length);
 
+    if (podcastData.length === 0) return { topShows: [], topEpisodes: [], podcastData: [] };
+
+    // AGREGAR DATOS POR SHOW
     const showMap = {};
     podcastData.forEach(d => {
-        const minutes = Number(d.ms_played) / 60000;
-        const show = d.episode_show_name.trim();
-        const ep = d.episode_name.trim();
-
+        const show = d.episode_show_name || 'Unknown Show';
         if (!showMap[show]) showMap[show] = { minutes: 0, episodes: {} };
-        showMap[show].minutes += minutes;
-        showMap[show].episodes[ep] = (showMap[show].episodes[ep] || 0) + minutes;
+
+        const playedMinutes = d.ms_played ? d.ms_played / 60000 : 0;
+        showMap[show].minutes += playedMinutes;
+
+        const ep = d.episode_name || 'Unknown Episode';
+        if (!showMap[show].episodes[ep]) showMap[show].episodes[ep] = 0;
+        showMap[show].episodes[ep] += playedMinutes;
     });
 
+    // TOP SHOWS
     const topShows = Object.entries(showMap)
         .map(([name, info]) => ({ name, minutes: info.minutes, episodes: info.episodes }))
         .sort((a, b) => b.minutes - a.minutes)
         .slice(0, 10);
 
-    const allEpisodes = [];
+    console.log('[Podcasts] Top Shows:', topShows);
+
+    // TOP EPISODES
+    let allEpisodes = [];
     topShows.forEach(show => {
         Object.entries(show.episodes).forEach(([epName, minutes]) => {
             allEpisodes.push({ show: show.name, name: epName, minutes });
@@ -49,13 +62,10 @@ export function analyzePodcasts(fullData) {
     });
 
     const topEpisodes = allEpisodes.sort((a, b) => b.minutes - a.minutes).slice(0, 10);
-
-    console.log('[Podcasts] Top Shows:', topShows);
     console.log('[Podcasts] Top Episodes:', topEpisodes);
 
     return { topShows, topEpisodes, podcastData };
 }
-
 
 // --- GRAFICOS ---
 export function renderTopShowsChart(topShows) {
@@ -71,8 +81,7 @@ export function renderTopShowsChart(topShows) {
             }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
                 y: { ticks: { color: '#b3b3b3' }, grid: { color: '#282828' } },
@@ -86,6 +95,7 @@ export function renderTopEpisodesChart(topEpisodes) {
     console.log('[Podcasts] Rendering Top Episodes Chart with', topEpisodes.length, 'entries');
     createOrUpdateChart('podcast-episodes-chart', {
         type: 'bar',
+        indexAxis: 'y',
         data: {
             labels: topEpisodes.map(e => e.name),
             datasets: [{
@@ -95,9 +105,7 @@ export function renderTopEpisodesChart(topEpisodes) {
             }]
         },
         options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
                 x: { ticks: { color: '#b3b3b3' }, grid: { color: '#282828' } },
@@ -109,17 +117,13 @@ export function renderTopEpisodesChart(topEpisodes) {
 
 export function renderPodcastTimeByDay(podcastData) {
     console.log('[Podcasts] Rendering daily timeline. Entries:', podcastData.length);
-
     const dailyMap = {};
     podcastData.forEach(d => {
-        if (!d.ts) return;
-        const tsString = typeof d.ts === 'string' ? d.ts : new Date(d.ts).toISOString();
-        const day = tsString.split('T')[0];
-
-        const ms = Number(d.ms_played);
-        if (isNaN(ms) || ms <= 0) return;
-
-        dailyMap[day] = (dailyMap[day] || 0) + ms / 60000;
+        // Comprobar que ts sea string válido
+        if (d.ts && typeof d.ts === 'string') {
+            const day = d.ts.split('T')[0];
+            dailyMap[day] = (dailyMap[day] || 0) + (d.ms_played ? d.ms_played / 60000 : 0);
+        }
     });
 
     const labels = Object.keys(dailyMap).sort();
@@ -142,8 +146,7 @@ export function renderPodcastTimeByDay(podcastData) {
             }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
                 y: { ticks: { color: '#b3b3b3' }, grid: { color: '#282828' } },
