@@ -1,9 +1,12 @@
 // js/podcasts.js
 
+Chart.register(ChartDataLabels);
+
 let topShowsChart = null;
 let topEpisodesChart = null;
 let podcastTimelineChart = null;
-// Unidad de tiempo global para el timeline
+
+
 let currentPodcastTimelineUnit = 'week';
 
 
