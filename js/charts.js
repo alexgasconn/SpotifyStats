@@ -1,6 +1,6 @@
-let chartInstances = {};
 Chart.register(ChartDataLabels);
 
+let chartInstances = {};
 
 function createOrUpdateChart(canvasId, config) {
     if (chartInstances[canvasId]) { chartInstances[canvasId].destroy(); }
