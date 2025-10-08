@@ -9,8 +9,7 @@ function createOrUpdateChart(canvasId, config) {
 const chartColors = ['#1DB954', '#17A2B8', '#FFC107', '#FD7E14', '#6F42C1', '#E83E8C'];
 
 export function renderDistributionChart(canvasId, data, title, type = 'doughnut') {
-    // const labels = data.map(d => d.value);
-    const labels = data.map(d => `${getFlagEmoji(d.value)} ${d.value}`);
+    const labels = data.map(d => d.value);
 
     const values = data.map(d => parseFloat(d.percent)); // Usamos parseFloat para convertir el string a número
 
@@ -54,17 +53,6 @@ export function renderDistributionChart(canvasId, data, title, type = 'doughnut'
     };
     createOrUpdateChart(canvasId, config);
 }
-
-function getFlagEmoji(countryCode) {
-    if (!countryCode) return '';
-    // Convierte cada letra a su código regional (A=0x1F1E6, B=0x1F1E7, etc.)
-    const codePoints = countryCode
-        .toUpperCase()
-        .split('')
-        .map(char => 127397 + char.charCodeAt());
-    return String.fromCodePoint(...codePoints);
-}
-
 
 
 export function renderWrappedMonthlyChart(monthlyData) {
