@@ -59,6 +59,7 @@
                     <button class="tab-link" data-tab="wrapped-tab">🎉 Your Wrapped</button>
                     <button class="tab-link" data-tab="game-tab">🎮 The Game</button>
                     <button class="tab-link" data-tab="explorer-tab">🔍 Data Explorer</button>
+                    <button class="tab-link" data-tab="podcast-tab">🎙️ Podcasts</button>
                 </nav>
             </header>
 
@@ -158,6 +159,24 @@
                     </div>
                 </div>
             </main>
+        </div>
+
+        <!-- PESTAÑA 6: PODCASTS -->
+        <div id="podcast-tab" class="tab-content">
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h3>Top Podcast Shows</h3>
+                    <canvas id="podcast-shows-chart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Top Podcast Episodes</h3>
+                    <canvas id="podcast-episodes-chart"></canvas>
+                </div>
+                <div class="chart-container full-width">
+                    <h3>Podcast Listening Timeline</h3>
+                    <canvas id="podcast-daily-chart"></canvas>
+                </div>
+            </div>
         </div>
 
         <div id="loading-overlay" class="hidden">

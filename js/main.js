@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- MANEJADORES DE EVENTOS ---
     uploadButton.addEventListener('click', () => zipInput.click());
-    
+
     zipInput.addEventListener('change', async (event) => {
         const file = event.target.files[0];
         if (!file) return;
@@ -41,17 +41,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
             uploadSection.classList.add('hidden');
             dashboardSection.classList.remove('hidden');
-            
+
             // Configurar la UI por primera vez
             setupDateFilters(data);
-            populateOtherFilters(data); // NUEVA LLAMADA PARA LOS NUEVOS FILTROS
+            populateOtherFilters(data);
             renderUI();
             setupTabNavigation();
             setupGame();
             populateWrappedFilter();
-            
-            // --- ¡CORRECCIÓN! El listener del Wrapped se añade UNA SOLA VEZ aquí ---
+
             wrappedYearFilter.addEventListener('change', renderWrappedContent);
+
+
+            const podcastStats = podcasts.analyzePodcasts(data);
+            if (podcastStats) {
+                podcasts.renderTopShowsChart(podcastStats.topShows);
+                podcasts.renderTopEpisodesChart(podcastStats.topEpisodes);
+                podcasts.renderPodcastTimeByDay(podcastStats.podcastData);
+            }
 
         } catch (error) {
             console.error('Failed to process Spotify data:', error);
@@ -95,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
             dateFromInput.min = firstDate;
             dateFromInput.max = lastDate;
             dateFromInput.value = firstDate; // Establecer valor inicial
-            
+
             dateToInput.min = firstDate;
             dateToInput.max = lastDate;
             dateToInput.value = lastDate; // Establecer valor inicial
@@ -131,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (selectedTrack && d.trackName !== selectedTrack) return false;
             return true;
         });
-        
+
         renderUI();
         hideLoading();
     }

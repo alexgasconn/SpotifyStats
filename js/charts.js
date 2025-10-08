@@ -55,7 +55,6 @@ export function renderDistributionChart(canvasId, data, title, type = 'doughnut'
 }
 
 
-// --- ¡NUEVA FUNCIÓN PARA EL GRÁFICO DEL WRAPPED! ---
 export function renderWrappedMonthlyChart(monthlyData) {
     const config = {
         type: 'bar',
