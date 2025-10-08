@@ -7,7 +7,6 @@ let podcastTimelineChart = null;
 export function analyzePodcasts(fullData) {
     console.log('[Podcasts] Total entries received:', fullData.length);
 
-    // Filtrar solo los podcasts con nombres válidos
     const rawPodcastData = fullData.filter(d => {
         return d.episodeName != null &&
                d.episodeName !== '' &&
@@ -21,9 +20,7 @@ export function analyzePodcasts(fullData) {
         return { topShows: [], topEpisodes: [], podcastData: [] };
     }
 
-    // Enriquecer datos para timeline (duración y fechas)
     const podcastData = rawPodcastData.map(d => {
-        // Tolerar diferentes nombres de timestamp si existen
         const tsStr = d.ts || d.endTime || d.timestamp || null;
         const tsDate = tsStr ? new Date(tsStr) : null;
         const isValidDate = tsDate && !isNaN(tsDate.getTime());
@@ -34,13 +31,12 @@ export function analyzePodcasts(fullData) {
             ...d,
             durationMin,
             year: isValidDate ? tsDate.getFullYear() : null,
-            month: isValidDate ? tsDate.getMonth() : null, // 0-based
-            date: isValidDate ? tsDate.toISOString().split('T')[0] : null, // YYYY-MM-DD
+            month: isValidDate ? tsDate.getMonth() : null,
+            date: isValidDate ? tsDate.toISOString().split('T')[0] : null,
             ts: isValidDate ? tsDate.toISOString() : null
         };
     }).filter(d => d.durationMin > 0 && d.date);
 
-    // --- Agrupar por show ---
     const showMap = {};
     podcastData.forEach(d => {
         const show = d.episodeShowName || 'Unknown Show';
@@ -59,7 +55,6 @@ export function analyzePodcasts(fullData) {
         showMap[show].episodes[ep] += minutes;
     });
 
-    // --- Top Shows ---
     const topShows = Object.entries(showMap)
         .map(([name, info]) => ({
             name,
@@ -72,7 +67,6 @@ export function analyzePodcasts(fullData) {
 
     console.log('[Podcasts] Top Shows:', topShows);
 
-    // --- Top Episodes ---
     const allEpisodes = [];
     Object.entries(showMap).forEach(([showName, info]) => {
         Object.entries(info.episodes).forEach(([epName, minutes]) => {
@@ -92,6 +86,14 @@ export function analyzePodcasts(fullData) {
     return { topShows, topEpisodes, podcastData };
 }
 
+// --- Opciones comunes para texto blanco ---
+const whiteTextOptions = {
+    color: '#fff',
+    title: { color: '#fff' },
+    ticks: { color: '#fff' },
+    grid: { color: 'rgba(255,255,255,0.2)' }
+};
+
 export function renderTopShowsChart(topShows) {
     const canvas = document.getElementById('topShowsChart');
     if (!canvas) return console.error('[Podcasts] Canvas element "topShowsChart" not found');
@@ -102,7 +104,7 @@ export function renderTopShowsChart(topShows) {
     if (topShows.length === 0) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.font = '16px Arial';
-        ctx.fillStyle = '#666';
+        ctx.fillStyle = '#fff';
         ctx.textAlign = 'center';
         ctx.fillText('No podcast data available', canvas.width / 2, canvas.height / 2);
         return;
@@ -130,13 +132,10 @@ export function renderTopShowsChart(topShows) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false },
-                title: {
-                    display: true,
-                    text: 'Top 10 Podcast Shows',
-                    font: { size: 16, weight: 'bold' }
-                },
+                legend: { display: false, labels: { color: '#fff' } },
                 tooltip: {
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
                     callbacks: {
                         label: function(context) {
                             const show = topShows[context.dataIndex];
@@ -148,10 +147,8 @@ export function renderTopShowsChart(topShows) {
                 }
             },
             scales: {
-                x: {
-                    beginAtZero: true,
-                    title: { display: true, text: 'Minutes' }
-                }
+                x: { ...whiteTextOptions, title: { ...whiteTextOptions.title, text: 'Minutes' } },
+                y: { ...whiteTextOptions }
             }
         }
     });
@@ -167,7 +164,7 @@ export function renderTopEpisodesChart(topEpisodes) {
     if (topEpisodes.length === 0) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.font = '16px Arial';
-        ctx.fillStyle = '#666';
+        ctx.fillStyle = '#fff';
         ctx.textAlign = 'center';
         ctx.fillText('No episode data available', canvas.width / 2, canvas.height / 2);
         return;
@@ -196,13 +193,10 @@ export function renderTopEpisodesChart(topEpisodes) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false },
-                title: {
-                    display: true,
-                    text: 'Top 10 Episodes',
-                    font: { size: 16, weight: 'bold' }
-                },
+                legend: { display: false, labels: { color: '#fff' } },
                 tooltip: {
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
                     callbacks: {
                         label: function(context) {
                             const episode = topEpisodes[context.dataIndex];
@@ -214,7 +208,8 @@ export function renderTopEpisodesChart(topEpisodes) {
                 }
             },
             scales: {
-                x: { beginAtZero: true, title: { display: true, text: 'Minutes' } }
+                x: { ...whiteTextOptions, title: { ...whiteTextOptions.title, text: 'Minutes' } },
+                y: { ...whiteTextOptions }
             }
         }
     });
@@ -230,7 +225,7 @@ export function renderPodcastTimeByDay(podcastData, aggregation = 'day') {
     if (podcastData.length === 0) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.font = '16px Arial';
-        ctx.fillStyle = '#666';
+        ctx.fillStyle = '#fff';
         ctx.textAlign = 'center';
         ctx.fillText('No timeline data available', canvas.width / 2, canvas.height / 2);
         return;
@@ -238,7 +233,7 @@ export function renderPodcastTimeByDay(podcastData, aggregation = 'day') {
 
     const timeMap = {};
     podcastData.forEach(d => {
-        if (!d.date) return; // require enriched date
+        if (!d.date) return;
         let key;
 
         switch (aggregation) {
@@ -265,7 +260,6 @@ export function renderPodcastTimeByDay(podcastData, aggregation = 'day') {
     });
 
     const sortedData = Object.entries(timeMap)
-        // keys are ISO-like; string sort is sufficient and stable across agg modes
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([date, minutes]) => ({ date, minutes: Math.round(minutes) }));
 
@@ -290,13 +284,16 @@ export function renderPodcastTimeByDay(podcastData, aggregation = 'day') {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false },
+                legend: { display: false, labels: { color: '#fff' } },
                 title: {
                     display: true,
                     text: `Podcast Listening Over Time (${aggregation})`,
-                    font: { size: 16, weight: 'bold' }
+                    font: { size: 16, weight: 'bold' },
+                    color: '#fff'
                 },
                 tooltip: {
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
                     callbacks: {
                         label: function(context) {
                             const val = context.parsed.y ?? 0;
@@ -308,8 +305,8 @@ export function renderPodcastTimeByDay(podcastData, aggregation = 'day') {
                 }
             },
             scales: {
-                y: { beginAtZero: true, title: { display: true, text: 'Minutes' } },
-                x: { ticks: { maxRotation: 45, minRotation: 45 } }
+                y: { ...whiteTextOptions, title: { ...whiteTextOptions.title, text: 'Minutes' } },
+                x: { ...whiteTextOptions, ticks: { ...whiteTextOptions.ticks, maxRotation: 45, minRotation: 45 } }
             }
         }
     });
@@ -317,9 +314,9 @@ export function renderPodcastTimeByDay(podcastData, aggregation = 'day') {
 
 function getStartOfWeek(date) {
     const d = new Date(date);
-    const day = d.getDay(); // 0=Sun, 1=Mon, ...
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // start Monday
-    return new Date(d.setDate(diff)).toISOString().split('T')[0]; // YYYY-MM-DD
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(d.setDate(diff)).toISOString().split('T')[0];
 }
 
 function formatDateLabel(dateStr, aggregation) {
