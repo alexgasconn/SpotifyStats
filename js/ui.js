@@ -67,7 +67,7 @@ function renderTrendCharts(data) {
     const reasonStartData = store.calculateDistributionPercent(data, 'reasonStart').slice(0, 5);
 
     charts.renderDistributionChart('platform-chart', platformData, 'Platform Usage');
-    charts.renderDistributionChart('country-chart', countryData, 'Top Countries', 'bar');
+    charts.renderDistributionChart('country-chart', countryData, 'Top Countries', 'bar', true);
     charts.renderDistributionChart('reason-start-chart', reasonStartData, 'Playback Start Reason');
     
     charts.renderListeningClockChart(store.calculateTemporalDistribution(data, 'hour'));

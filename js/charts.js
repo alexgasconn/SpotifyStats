@@ -10,7 +10,7 @@ function createOrUpdateChart(canvasId, config) {
 
 const chartColors = ['#1DB954', '#17A2B8', '#FFC107', '#FD7E14', '#6F42C1', '#E83E8C'];
 
-export function renderDistributionChart(canvasId, data, title, type = 'doughnut') {
+export function renderDistributionChart(canvasId, data, title, type = 'doughnut', showLabels = false) {
     const labels = data.map(d => d.value);
     const values = data.map(d => parseFloat(d.percent));
 
@@ -51,8 +51,7 @@ export function renderDistributionChart(canvasId, data, title, type = 'doughnut'
                         }
                     }
                 },
-                // 👇 Mostramos el % encima de la barra solo si es tipo 'bar'
-                datalabels: type === 'bar' ? {
+                datalabels: type === 'bar' && showLabels ? {
                     color: '#fff',
                     anchor: 'end',
                     align: 'start',
@@ -65,11 +64,12 @@ export function renderDistributionChart(canvasId, data, title, type = 'doughnut'
                 x: { ticks: { color: '#b3b3b3' }, grid: { display: false } }
             } : {}
         },
-        plugins: type === 'bar' ? [ChartDataLabels] : []
+        plugins: type === 'bar' && showLabels ? [ChartDataLabels] : []
     };
 
     createOrUpdateChart(canvasId, config);
 }
+
 
 
 
