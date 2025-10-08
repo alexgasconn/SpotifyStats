@@ -109,7 +109,7 @@ export function renderTimelineChart(timelineData, unit = 'week') {
             maintainAspectRatio: false,
             plugins: {
                 legend: { display: false },
-                datalabels: false  // 👈 desactivamos DataLabels para este gráfico
+                datalabels: false
             },
             scales: {
                 x: {

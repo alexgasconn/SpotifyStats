@@ -135,7 +135,7 @@ export function renderTopShowsChart(topShows) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false, labels: { color: '#fff' } },
+                legend: { display: false, labels: { color: '#fff' }, datalabels: false },
                 tooltip: {
                     titleColor: '#fff',
                     bodyColor: '#fff',
@@ -196,7 +196,7 @@ export function renderTopEpisodesChart(topEpisodes) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false, labels: { color: '#fff' } },
+                legend: { display: false, labels: { color: '#fff' }, datalabels: false },
                 tooltip: {
                     titleColor: '#fff',
                     bodyColor: '#fff',
@@ -265,7 +265,7 @@ export function renderPodcastTimeByDay(podcastData) {
             responsive:true,
             maintainAspectRatio:false,
             plugins:{
-                legend:{ display:false, labels:{color:'#fff'} },
+                legend:{ display:false, labels:{color:'#fff'}, datalabels: false },
                 title:{ display:true, text:`Podcast Listening Over Time (${currentPodcastTimelineUnit})`, font:{size:16,weight:'bold'}, color:'#fff' },
                 tooltip:{
                     titleColor:'#fff',
