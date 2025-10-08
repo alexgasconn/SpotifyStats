@@ -7,9 +7,13 @@ export async function processSpotifyZip(zipFile) {
     const zip = await jszip.loadAsync(zipFile);
     const historyFiles = [];
     zip.forEach((relativePath, zipEntry) => {
-        if (relativePath.includes('Streaming_History_Audio_') && relativePath.endsWith('.json')) {
+        if (
+            (relativePath.includes('Streaming_History_Audio_') || relativePath.includes('Streaming_History_Video_'))
+            && relativePath.endsWith('.json')
+        ) {
             historyFiles.push(zipEntry);
         }
+
     });
     if (historyFiles.length === 0) throw new Error('No "Streaming_History_Audio_....json" files found.');
     const allEntries = await Promise.all(historyFiles.map(file => file.async('string').then(JSON.parse)));
@@ -20,10 +24,10 @@ export async function processSpotifyZip(zipFile) {
 function processEntry(entry) {
     if (entry.ms_played < MIN_MS_PLAYED) return null;
     const ts = new Date(entry.ts);
-    
+
     // Determinar si es podcast o música
     const isPodcast = entry.episode_name != null && entry.episode_show_name != null;
-    
+
     return {
         ts,
         date: ts.toISOString().split('T')[0],
@@ -168,7 +172,7 @@ export function calculateTemporalDistribution(data, groupBy) {
         groups.month[d.month]++;
         groups.year[d.year] = (groups.year[d.year] || 0) + d.durationMin;
     });
-    
+
     if (groupBy === 'year') {
         return Object.entries(groups.year)
             .sort((a, b) => a[0] - b[0])
