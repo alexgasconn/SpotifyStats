@@ -582,14 +582,7 @@ body {
     justify-content: stretch; /* Que cada chart ocupe espacio disponible */
 }
 
-/* Cada chart */
-.chart-container {
-    flex: 0.9;              /* Ocupa proporcionalmente todo el espacio */
-    max-height: 500px;
-    height: 400px;        /* Altura base */
-    overflow-y: hidden;     /* Scroll si hay muchas barras */
-    padding: 10px 0;
-}
+
 
 /* Canvas dentro del contenedor */
 .chart-container canvas {
