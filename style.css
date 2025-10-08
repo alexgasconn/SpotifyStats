@@ -572,19 +572,29 @@ body {
     color: var(--spotify-black);
     background-color: var(--spotify-green);
 }
-/* Top Shows & Top Episodes Charts */
-.chart-container {
+
+
+/* Contenedor principal para los charts horizontales */
+.charts-row {
+    display: flex;
+    gap: 20px;           /* Separación entre los charts */
     width: 100%;
-    max-height: 500px; /* Altura máxima */
-    height: auto;       /* Se ajusta según el canvas */
-    overflow-y: auto;   /* Scroll vertical si hay muchas barras */
+    justify-content: stretch; /* Que cada chart ocupe espacio disponible */
+}
+
+/* Cada chart */
+.chart-container {
+    flex: 1;              /* Ocupa proporcionalmente todo el espacio */
+    max-height: 500px;
+    height: 400px;        /* Altura base */
+    overflow-y: auto;     /* Scroll si hay muchas barras */
     padding: 10px 0;
 }
 
 /* Canvas dentro del contenedor */
 .chart-container canvas {
     width: 100% !important;
-    height: 400px !important; /* Altura base */
+    height: 100% !important;
 }
 
 /* Timeline Chart */
