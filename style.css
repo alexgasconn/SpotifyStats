@@ -596,6 +596,17 @@ body {
     height: 300px !important;
 }
 
+/* Solo para los charts de top podcasts */
+.podcast-top-chart {
+    flex: 0.9;           /* Ocupa proporcionalmente espacio */
+    max-height: 500px;
+    height: 400px;        /* Altura base */
+    overflow-y: hidden;   /* Evita scroll innecesario */
+    padding: 10px 0;
+}
+
+
+
 /* Botones de timeline */
 .timeline-btn {
     margin: 0 5px 5px 0;
