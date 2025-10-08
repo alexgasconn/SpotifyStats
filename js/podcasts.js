@@ -20,17 +20,15 @@ const chartColors = [
 export function analyzePodcasts(fullData) {
     console.log('[Podcasts] Total entries received:', fullData.length);
 
-    // Asegurarnos que cada entry es un objeto
+    // Filtrar solo los podcasts (entries que tienen episode_name y episode_show_name)
     const podcastData = fullData
         .map(d => (typeof d === 'string' ? JSON.parse(d) : d))
         .filter(d => {
-            // Normalizar keys a minúsculas
-            const keys = Object.fromEntries(
-                Object.entries(d).map(([k, v]) => [k.toLowerCase(), v])
-            );
-            const epName = keys['episode_name'];
-            const showName = keys['episode_show_name'];
-            return epName != null && epName !== '' && showName != null && showName !== '';
+            // Los podcasts tienen episode_name y episode_show_name (no null)
+            return d.episode_name != null && 
+                   d.episode_name !== '' && 
+                   d.episode_show_name != null && 
+                   d.episode_show_name !== '';
         });
 
     console.log('[Podcasts] Entries identified as podcasts:', podcastData.length);
@@ -41,22 +39,28 @@ export function analyzePodcasts(fullData) {
     // --- Agrupar por show ---
     const showMap = {};
     podcastData.forEach(d => {
-        const keys = Object.fromEntries(
-            Object.entries(d).map(([k, v]) => [k.toLowerCase(), v])
-        );
-        const show = keys['episode_show_name'] || 'Unknown Show';
-        const minutes = Number(keys['ms_played'] ?? 0) / 60000;
-        if (!showMap[show]) showMap[show] = { minutes: 0, episodes: {} };
+        const show = d.episode_show_name || 'Unknown Show';
+        const minutes = Number(d.ms_played ?? 0) / 60000;
+        
+        if (!showMap[show]) {
+            showMap[show] = { minutes: 0, episodes: {} };
+        }
         showMap[show].minutes += minutes;
 
-        const ep = keys['episode_name'] || 'Unknown Episode';
-        if (!showMap[show].episodes[ep]) showMap[show].episodes[ep] = 0;
+        const ep = d.episode_name || 'Unknown Episode';
+        if (!showMap[show].episodes[ep]) {
+            showMap[show].episodes[ep] = 0;
+        }
         showMap[show].episodes[ep] += minutes;
     });
 
     // --- Top Shows ---
     const topShows = Object.entries(showMap)
-        .map(([name, info]) => ({ name, minutes: info.minutes, episodes: info.episodes }))
+        .map(([name, info]) => ({ 
+            name, 
+            minutes: info.minutes, 
+            episodes: info.episodes 
+        }))
         .sort((a, b) => b.minutes - a.minutes)
         .slice(0, 10);
 
@@ -66,10 +70,16 @@ export function analyzePodcasts(fullData) {
     let allEpisodes = [];
     topShows.forEach(show => {
         Object.entries(show.episodes).forEach(([epName, minutes]) => {
-            allEpisodes.push({ show: show.name, name: epName, minutes });
+            allEpisodes.push({ 
+                show: show.name, 
+                name: epName, 
+                minutes 
+            });
         });
     });
-    const topEpisodes = allEpisodes.sort((a, b) => b.minutes - a.minutes).slice(0, 10);
+    const topEpisodes = allEpisodes
+        .sort((a, b) => b.minutes - a.minutes)
+        .slice(0, 10);
 
     console.log('[Podcasts] Top Episodes:', topEpisodes);
 
