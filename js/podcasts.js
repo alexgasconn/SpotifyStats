@@ -19,43 +19,15 @@ const chartColors = [
 // --- ANALISIS DE PODCASTS ---
 export function analyzePodcasts(fullData) {
     console.log('[Podcasts] Total entries received:', fullData.length);
-    
-    // Debug: ver cómo se ven los primeros elementos
-    console.log('[Podcasts] First entry sample:', fullData[0]);
-    console.log('[Podcasts] First entry type:', typeof fullData[0]);
-    
-    // Parsear si es necesario
-    const parsedData = fullData.map(d => {
-        if (typeof d === 'string') {
-            try {
-                return JSON.parse(d);
-            } catch (e) {
-                console.error('[Podcasts] Error parsing entry:', e);
-                return null;
-            }
-        }
-        return d;
-    }).filter(d => d !== null);
 
-    console.log('[Podcasts] After parsing, sample entry:', parsedData[0]);
-    console.log('[Podcasts] Sample entry keys:', parsedData[0] ? Object.keys(parsedData[0]) : 'no data');
-    
-    // Buscar podcasts - verificar diferentes posibles formatos de key
-    const podcastData = parsedData.filter(d => {
-        const hasEpisodeName = d.episode_name !== null && d.episode_name !== undefined && d.episode_name !== '';
-        const hasShowName = d.episode_show_name !== null && d.episode_show_name !== undefined && d.episode_show_name !== '';
-        
-        // Debug: loguear algunos casos
-        if (hasEpisodeName || hasShowName) {
-            console.log('[Podcasts] Found potential podcast:', {
-                episode_name: d.episode_name,
-                episode_show_name: d.episode_show_name,
-                hasEpisodeName,
-                hasShowName
-            });
-        }
-        
-        return hasEpisodeName && hasShowName;
+    // Filtrar solo los podcasts (entries que tienen episodeName y episodeShowName)
+    const podcastData = fullData.filter(d => {
+        // Los podcasts tienen episodeName y episodeShowName (no null/undefined)
+        // Las canciones tienen trackName y artistName
+        return d.episodeName != null && 
+               d.episodeName !== '' && 
+               d.episodeShowName != null && 
+               d.episodeShowName !== '';
     });
 
     console.log('[Podcasts] Entries identified as podcasts:', podcastData.length);
@@ -66,15 +38,15 @@ export function analyzePodcasts(fullData) {
     // --- Agrupar por show ---
     const showMap = {};
     podcastData.forEach(d => {
-        const show = d.episode_show_name || 'Unknown Show';
-        const minutes = Number(d.ms_played ?? 0) / 60000;
+        const show = d.episodeShowName || 'Unknown Show';
+        const minutes = Number(d.msPlayed ?? 0) / 60000;
         
         if (!showMap[show]) {
             showMap[show] = { minutes: 0, episodes: {} };
         }
         showMap[show].minutes += minutes;
 
-        const ep = d.episode_name || 'Unknown Episode';
+        const ep = d.episodeName || 'Unknown Episode';
         if (!showMap[show].episodes[ep]) {
             showMap[show].episodes[ep] = 0;
         }
