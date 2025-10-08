@@ -476,7 +476,7 @@ body {
 
 .table-container {
     max-height: 600px;
-    overflow-y: auto;
+    overflow-y: hidden;
 }
 
 .df-table {
@@ -587,7 +587,7 @@ body {
     flex: 1;              /* Ocupa proporcionalmente todo el espacio */
     max-height: 500px;
     height: 400px;        /* Altura base */
-    overflow-y: auto;     /* Scroll si hay muchas barras */
+    overflow-y: hidden;     /* Scroll si hay muchas barras */
     padding: 10px 0;
 }
 
