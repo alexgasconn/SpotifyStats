@@ -602,7 +602,7 @@ body {
     max-height: 500px;
     height: 400px;        /* Altura base */
     overflow-y: hidden;   /* Evita scroll innecesario */
-    padding: 10px 0;
+    padding: 10px 0 30px 0;
 }
 
 
