@@ -68,7 +68,7 @@ export function analyzePodcasts(fullData) {
             episodes: info.episodes
         }))
         .sort((a, b) => b.minutes - a.minutes)
-        .slice(0, 20);
+        .slice(0, 10);
 
     console.log('[Podcasts] Top Shows:', topShows);
 
@@ -85,7 +85,7 @@ export function analyzePodcasts(fullData) {
     });
     const topEpisodes = allEpisodes
         .sort((a, b) => b.minutes - a.minutes)
-        .slice(0, 20);
+        .slice(0, 10);
 
     console.log('[Podcasts] Top Episodes:', topEpisodes);
 
@@ -133,7 +133,7 @@ export function renderTopShowsChart(topShows) {
                 legend: { display: false },
                 title: {
                     display: true,
-                    text: 'Top 20 Podcast Shows',
+                    text: 'Top 10 Podcast Shows',
                     font: { size: 16, weight: 'bold' }
                 },
                 tooltip: {
@@ -199,7 +199,7 @@ export function renderTopEpisodesChart(topEpisodes) {
                 legend: { display: false },
                 title: {
                     display: true,
-                    text: 'Top 20 Episodes',
+                    text: 'Top 10 Episodes',
                     font: { size: 16, weight: 'bold' }
                 },
                 tooltip: {
