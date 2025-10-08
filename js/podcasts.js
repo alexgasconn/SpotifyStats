@@ -215,7 +215,7 @@ export function renderTopEpisodesChart(topEpisodes) {
     });
 }
 
-export function renderPodcastTimeByDay(podcastData, aggregation = 'day') {
+export function renderPodcastTimeByDay(podcastData, aggregation = 'week') {
     const canvas = document.getElementById('podcastTimelineChart');
     if (!canvas) return console.error('[Podcasts] Canvas element "podcastTimelineChart" not found');
 
