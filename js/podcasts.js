@@ -20,10 +20,46 @@ const chartColors = [
 export function analyzePodcasts(fullData) {
     console.log('[Podcasts] Total entries received:', fullData.length);
 
-    // Filtrar solo los podcasts (entries que tienen episodeName y episodeShowName)
+    // Mostrar las primeras 10 entradas completas
+    console.log('[Podcasts] First 10 entries:', fullData.slice(0, 10));
+    
+    // Buscar entradas que podrían ser podcasts
+    const samplesWithPodcastKeys = fullData.slice(0, 1000).filter(d => {
+        const keys = Object.keys(d);
+        const podcastRelatedKeys = keys.filter(k => 
+            k.toLowerCase().includes('episode') || 
+            k.toLowerCase().includes('show') ||
+            k.toLowerCase().includes('podcast')
+        );
+        return podcastRelatedKeys.length > 0;
+    });
+    
+    console.log('[Podcasts] Samples with podcast-related keys:', samplesWithPodcastKeys.slice(0, 5));
+    
+    // Mostrar todas las keys únicas en los primeros 100 elementos
+    const allKeys = new Set();
+    fullData.slice(0, 100).forEach(d => {
+        Object.keys(d).forEach(k => allKeys.add(k));
+    });
+    console.log('[Podcasts] All unique keys found in first 100 entries:', Array.from(allKeys).sort());
+    
+    // Buscar alguna entrada que no sea null en campos de episodio
+    const episodeTests = fullData.slice(0, 1000).map((d, idx) => ({
+        index: idx,
+        hasEpisodeName: d.episodeName !== null && d.episodeName !== undefined,
+        hasEpisodeShowName: d.episodeShowName !== null && d.episodeShowName !== undefined,
+        episodeName: d.episodeName,
+        episodeShowName: d.episodeShowName,
+        // Probar otras posibles variaciones
+        episode_name: d.episode_name,
+        episode_show_name: d.episode_show_name,
+        keys: Object.keys(d).filter(k => k.includes('episode') || k.includes('show'))
+    })).filter(t => t.hasEpisodeName || t.hasEpisodeShowName || t.episode_name || t.episode_show_name);
+    
+    console.log('[Podcasts] Episode field tests (first 10 with any episode data):', episodeTests.slice(0, 10));
+
+    // Filtrar solo los podcasts
     const podcastData = fullData.filter(d => {
-        // Los podcasts tienen episodeName y episodeShowName (no null/undefined)
-        // Las canciones tienen trackName y artistName
         return d.episodeName != null && 
                d.episodeName !== '' && 
                d.episodeShowName != null && 
@@ -31,6 +67,10 @@ export function analyzePodcasts(fullData) {
     });
 
     console.log('[Podcasts] Entries identified as podcasts:', podcastData.length);
+    
+    if (podcastData.length > 0) {
+        console.log('[Podcasts] First podcast found:', podcastData[0]);
+    }
 
     if (podcastData.length === 0)
         return { topShows: [], topEpisodes: [], podcastData: [] };
