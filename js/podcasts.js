@@ -17,27 +17,23 @@ const chartColors = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#ed
 export function analyzePodcasts(fullData) {
     console.log('[Podcasts] Total entries received:', fullData.length);
 
-    const podcastData = fullData.filter(d =>
-        d.episode_name !== null &&
-        d.episode_show_name !== null &&
-        d.ms_played != null
-    );
+    const podcastData = fullData.filter(d => {
+        const hasEpisodeName = d.episode_name && d.episode_name.trim() !== '';
+        const hasShowName = d.episode_show_name && d.episode_show_name.trim() !== '';
+        return hasEpisodeName && hasShowName && Number(d.ms_played) > 0;
+    });
 
     console.log('[Podcasts] Entries identified as podcasts:', podcastData.length);
 
     const showMap = {};
     podcastData.forEach(d => {
-        const ms = Number(d.ms_played);
-        if (isNaN(ms) || ms <= 0) return;
+        const minutes = Number(d.ms_played) / 60000;
+        const show = d.episode_show_name.trim();
+        const ep = d.episode_name.trim();
 
-        const minutes = ms / 60000;
-        const show = d.episode_show_name || 'Unknown Show';
         if (!showMap[show]) showMap[show] = { minutes: 0, episodes: {} };
         showMap[show].minutes += minutes;
-
-        const ep = d.episode_name || 'Unknown Episode';
-        if (!showMap[show].episodes[ep]) showMap[show].episodes[ep] = 0;
-        showMap[show].episodes[ep] += minutes;
+        showMap[show].episodes[ep] = (showMap[show].episodes[ep] || 0) + minutes;
     });
 
     const topShows = Object.entries(showMap)
@@ -45,7 +41,7 @@ export function analyzePodcasts(fullData) {
         .sort((a, b) => b.minutes - a.minutes)
         .slice(0, 10);
 
-    let allEpisodes = [];
+    const allEpisodes = [];
     topShows.forEach(show => {
         Object.entries(show.episodes).forEach(([epName, minutes]) => {
             allEpisodes.push({ show: show.name, name: epName, minutes });
@@ -59,6 +55,7 @@ export function analyzePodcasts(fullData) {
 
     return { topShows, topEpisodes, podcastData };
 }
+
 
 // --- GRAFICOS ---
 export function renderTopShowsChart(topShows) {
