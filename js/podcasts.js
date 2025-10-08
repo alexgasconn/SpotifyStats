@@ -100,14 +100,26 @@ export function renderTopEpisodesChart(topEpisodes) {
 }
 
 export function renderPodcastTimeByDay(podcastData) {
+    console.log('[Podcasts] Rendering daily timeline. Entries:', podcastData.length);
+
     const dailyMap = {};
     podcastData.forEach(d => {
-        const day = d.ts.split('T')[0];
+        if (!d.ts) {
+            console.warn('[Podcasts] Missing ts field:', d);
+            return;
+        }
+
+        const tsString = typeof d.ts === 'string' ? d.ts : new Date(d.ts).toISOString();
+        const day = tsString.split('T')[0];
+
         dailyMap[day] = (dailyMap[day] || 0) + d.ms_played / 60000;
     });
 
     const labels = Object.keys(dailyMap).sort();
     const data = labels.map(l => dailyMap[l]);
+
+    console.log('[Podcasts] Daily timeline labels:', labels);
+    console.log('[Podcasts] Daily timeline data:', data);
 
     createOrUpdateChart('podcast-daily-chart', {
         type: 'line',
@@ -132,3 +144,4 @@ export function renderPodcastTimeByDay(podcastData) {
         }
     });
 }
+
