@@ -1,39 +1,45 @@
 // js/podcasts.js
-import { createOrUpdateChart } from './charts.js'; // quitamos chartColors
 
-// Definimos los colores localmente
+// --- FUNCIONES DE CHARTS ---
+function createOrUpdateChart(canvasId, config) {
+    if (window.chartsMap === undefined) window.chartsMap = {};
+    const existingChart = window.chartsMap[canvasId];
+    if (existingChart) existingChart.destroy();
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    const chart = new Chart(ctx, config);
+    window.chartsMap[canvasId] = chart;
+    return chart;
+}
+
 const chartColors = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ab'];
 
+// --- ANALISIS DE PODCASTS ---
 export function analyzePodcasts(fullData) {
-    // Filtrar solo podcasts
     const podcastData = fullData.filter(d => d.episode_name);
-
     if (podcastData.length === 0) return null;
 
-    // Agregar datos por show
     const showMap = {};
     podcastData.forEach(d => {
         const show = d.episode_show_name || 'Unknown Show';
         if (!showMap[show]) showMap[show] = { minutes: 0, episodes: {} };
-        showMap[show].minutes += d.ms_played / 60000; // ms → min
+        showMap[show].minutes += d.ms_played / 60000;
         const ep = d.episode_name || 'Unknown Episode';
         if (!showMap[show].episodes[ep]) showMap[show].episodes[ep] = 0;
         showMap[show].episodes[ep] += d.ms_played / 60000;
     });
 
-    // Top shows
     const topShows = Object.entries(showMap)
         .map(([name, info]) => ({ name, minutes: info.minutes, episodes: info.episodes }))
         .sort((a, b) => b.minutes - a.minutes)
         .slice(0, 10);
 
-    // Top episodes
     let allEpisodes = [];
     topShows.forEach(show => {
         Object.entries(show.episodes).forEach(([epName, minutes]) => {
             allEpisodes.push({ show: show.name, name: epName, minutes });
         });
     });
+
     const topEpisodes = allEpisodes.sort((a, b) => b.minutes - a.minutes).slice(0, 10);
 
     return { topShows, topEpisodes, podcastData };
@@ -74,7 +80,7 @@ export function renderTopEpisodesChart(topEpisodes) {
             }]
         },
         options: {
-            indexAxis: 'y', // horizontal bar
+            indexAxis: 'y',
             responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
