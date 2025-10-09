@@ -325,11 +325,78 @@ function formatDateLabel(dateStr, unit) {
     }
 }
 
+
+export function renderPodcastStats(podcastData) {
+    const container = document.getElementById('podcastStatsGrid');
+    if (!container) return console.error('[Podcasts] Stats grid container "podcastStatsGrid" not found');
+
+    // Clear previous stats
+    container.innerHTML = '';
+
+    if (podcastData.length === 0) {
+        container.innerHTML = '<p style="color:#fff; text-align:center;">No podcast data available to show stats.</p>';
+        return;
+    }
+
+    const totalMinutes = podcastData.reduce((acc, d) => acc + d.durationMin, 0);
+    const totalHours = Math.floor(totalMinutes / 60);
+    const remainingMinutes = Math.round(totalMinutes % 60);
+
+    const uniqueShows = new Set();
+    const uniqueEpisodes = new Set();
+    const totalEpisodesListened = podcastData.length; // Each entry is one listen
+
+    podcastData.forEach(d => {
+        if (d.episodeShowName) uniqueShows.add(d.episodeShowName);
+        if (d.episodeName && d.episodeShowName) uniqueEpisodes.add(`${d.episodeShowName} - ${d.episodeName}`);
+    });
+
+    const numberOfUniqueShows = uniqueShows.size;
+    const numberOfUniqueEpisodes = uniqueEpisodes.size;
+
+    // Find first and last listening date
+    const sortedDates = podcastData
+        .filter(d => d.ts)
+        .map(d => new Date(d.ts))
+        .sort((a, b) => a - b);
+
+    const firstListenDate = sortedDates.length > 0 ? sortedDates[0] : null;
+    const lastListenDate = sortedDates.length > 0 ? sortedDates[sortedDates.length - 1] : null;
+
+    // Helper to format date for display
+    const formatDate = (date) => date ? date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
+
+
+    // Create and append stat items
+    const stats = [
+        { title: 'Total Listening Time', value: `${totalHours}h ${remainingMinutes}m` },
+        { title: 'Unique Shows Listened', value: numberOfUniqueShows },
+        { title: 'Unique Episodes', value: numberOfUniqueEpisodes, subText: `(Total Listens: ${totalEpisodesListened})` },
+        { title: 'First Listen', value: formatDate(firstListenDate) },
+        { title: 'Last Listen', value: formatDate(lastListenDate) }
+        // Add more stats here if needed, e.g., average episode length, longest episode, etc.
+    ];
+
+    stats.forEach(stat => {
+        const statItem = document.createElement('div');
+        statItem.className = 'stat-item';
+        statItem.innerHTML = `
+            <h3>${stat.title}</h3>
+            <p>${stat.value}</p>
+            ${stat.subText ? `<p class="small-text">${stat.subText}</p>` : ''}
+        `;
+        container.appendChild(statItem);
+    });
+}
+
+
 // --- FUNCIÓN PARA RENDER COMPLETO ---
 export function renderPodcastUI(fullData){
     const { topShows, topEpisodes, podcastData } = analyzePodcasts(fullData);
+    renderPodcastStats(podcastData);
     renderTopShowsChart(topShows);
     renderTopEpisodesChart(topEpisodes);
-    renderPodcastTimeByDay(podcastData);
     setupPodcastTimelineControls(podcastData);
+    renderPodcastTimeByDay(podcastData);
+    
 }

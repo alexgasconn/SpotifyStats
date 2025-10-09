@@ -622,3 +622,66 @@ body {
     background-color: #1db954;
     color: white;
 }
+
+/* style.css (or similar) */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.stat-item {
+    background-color: #282828; /* Darker background for stat items */
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.stat-item h3 {
+    color: #1ed760; /* Spotify green for titles */
+    margin-bottom: 10px;
+    font-size: 1.1em;
+}
+
+.stat-item p {
+    color: #fff;
+    font-size: 1.8em;
+    font-weight: bold;
+}
+
+.stat-item p.small-text {
+    font-size: 1em; /* For showing "Total Episodes" below "Unique Episodes" */
+    color: #bbb;
+}
+/* Add this to your style.css */
+.timeline-controls {
+    text-align: center;
+    margin: 15px 0;
+    display: flex; /* Makes buttons lay out horizontally */
+    justify-content: center; /* Centers the buttons */
+    gap: 10px; /* Space between buttons */
+}
+
+.timeline-btn {
+    background-color: #333;
+    color: #fff;
+    border: 1px solid #555;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.timeline-btn:hover {
+    background-color: #444;
+    border-color: #1ed760; /* Spotify green on hover */
+}
+
+.timeline-btn.active {
+    background-color: #1ed760; /* Active button is Spotify green */
+    border-color: #1ed760;
+    color: #000; /* Darker text for contrast */
+    font-weight: bold;
+}
