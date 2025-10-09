@@ -327,6 +327,12 @@ function formatDateLabel(dateStr, unit) {
 
 
 export function renderPodcastStats(podcastData) {
+    // Ensure podcastData is an array
+    if (!Array.isArray(podcastData)) {
+        console.error('[Podcasts] podcastData is not an array:', podcastData);
+        podcastData = [];
+    }
+
     const container = document.getElementById('podcastStatsGrid');
     if (!container) {
         console.error('[Podcasts] Stats grid container "podcastStatsGrid" not found');
@@ -343,19 +349,20 @@ export function renderPodcastStats(podcastData) {
         return;
     }
 
-    const totalMinutes = podcastData.reduce((acc, d) => acc + d.durationMin, 0);
+    // Safely sum duration
+    const totalMinutes = podcastData.reduce((acc, d) => acc + (d.durationMin || 0), 0);
     const totalHours = Math.floor(totalMinutes / 60);
     const remainingMinutes = Math.round(totalMinutes % 60);
 
     const uniqueShows = new Set();
     const uniqueEpisodes = new Set();
-    const totalEpisodesListened = podcastData.length; // Each entry is one listen
+    const totalEpisodesListened = podcastData.length;
 
     podcastData.forEach(d => {
-        // Ensure property names are correct based on your analyzePodcasts output
-        // analyzePodcasts should already normalize them to episodeName and episodeShowName
-        if (d.episodeShowName) uniqueShows.add(d.episodeShowName);
-        if (d.episodeName && d.episodeShowName) uniqueEpisodes.add(`${d.episodeShowName} - ${d.episodeName}`);
+        const showName = d.episodeShowName || 'Unknown Show';
+        const episodeName = d.episodeName || 'Unknown Episode';
+        uniqueShows.add(showName);
+        uniqueEpisodes.add(`${showName} - ${episodeName}`);
     });
 
     const numberOfUniqueShows = uniqueShows.size;
@@ -363,17 +370,18 @@ export function renderPodcastStats(podcastData) {
 
     // Find first and last listening date
     const sortedDates = podcastData
-        .filter(d => d.ts) // Only consider entries with valid timestamps
         .map(d => new Date(d.ts))
+        .filter(d => !isNaN(d))
         .sort((a, b) => a - b);
 
     const firstListenDate = sortedDates.length > 0 ? sortedDates[0] : null;
     const lastListenDate = sortedDates.length > 0 ? sortedDates[sortedDates.length - 1] : null;
 
-    // Helper to format date for display
-    const formatDate = (date) => date ? date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
+    const formatDate = date => date
+        ? date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+        : 'N/A';
 
-    // Create and append stat items
+    // Create stats array
     const stats = [
         { title: 'Total Listening Time', value: `${totalHours}h ${remainingMinutes}m` },
         { title: 'Unique Shows Listened', value: numberOfUniqueShows },
@@ -384,7 +392,7 @@ export function renderPodcastStats(podcastData) {
 
     console.log('[Podcasts] renderPodcastStats: Calculated stats array:', stats);
 
-    let itemsAppendedCount = 0;
+    // Append stat items
     stats.forEach(stat => {
         const statItem = document.createElement('div');
         statItem.className = 'stat-item';
@@ -394,10 +402,9 @@ export function renderPodcastStats(podcastData) {
             ${stat.subText ? `<p class="small-text">${stat.subText}</p>` : ''}
         `;
         container.appendChild(statItem);
-        itemsAppendedCount++;
     });
-    console.log(`[Podcasts] renderPodcastStats: Appended ${itemsAppendedCount} stat items to #podcastStatsGrid.`);
 }
+
 
 
 // --- FUNCIÓN PARA RENDER COMPLETO ---
