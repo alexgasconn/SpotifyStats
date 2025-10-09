@@ -4,6 +4,10 @@ import { processSpotifyZip } from './store.js';
 import { showLoading, hideLoading, renderUI, populateWrappedFilter, renderWrappedContent } from './ui.js';
 import { setupGame } from './game.js';
 import * as podcasts from './podcasts.js';
+// import { renderPodcastUI } from './podcasts.js';
+
+// // After processing Spotify data
+// renderPodcastUI(podcastFullData);
 
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -59,6 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 podcasts.renderTopShowsChart(podcastStats.topShows);
                 podcasts.renderTopEpisodesChart(podcastStats.topEpisodes);
                 podcasts.renderPodcastTimeByDay(podcastStats.podcastData);
+                podcasts.renderPodcastStats(podcastStats);
             }
 
         } catch (error) {
