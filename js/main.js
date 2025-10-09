@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 podcasts.renderTopShowsChart(podcastStats.topShows);
                 podcasts.renderTopEpisodesChart(podcastStats.topEpisodes);
                 podcasts.renderPodcastTimeByDay(podcastStats.podcastData);
-                podcasts.renderPodcastStats(podcastStats);
+                podcasts.renderPodcastStats(podcastStats.podcastData);
             }
 
         } catch (error) {
