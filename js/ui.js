@@ -156,7 +156,7 @@ export function renderWrappedContent() {
         </div>
 
         <div class="wrapped-card">
-            <div class="title">Top 5 Songs</div>
+            <div class="title">Top 10 Songs</div>
             <ul class="list">
                 ${stats.topSong.map((s, i) => `
                     <li>
@@ -168,7 +168,7 @@ export function renderWrappedContent() {
         </div>
 
         <div class="wrapped-card">
-            <div class="title">Top 5 Artists</div>
+            <div class="title">Top 10 Artists</div>
             <ul class="list">
                 ${stats.topArtist.map((a, i) => `
                     <li>
@@ -180,7 +180,7 @@ export function renderWrappedContent() {
         </div>
 
         <div class="wrapped-card">
-            <div class="title">Top 5 Albums</div>
+            <div class="title">Top 10 Albums</div>
             <ul class="list">
                 ${stats.topAlbum.map((al, i) => `
                     <li>
