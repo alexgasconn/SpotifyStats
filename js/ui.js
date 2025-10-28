@@ -82,12 +82,15 @@ function renderTopItemsList(element, items) {
             <span class="rank">${index + 1}</span>
             <div class="item-details">
                 <span class="item-name">${item.name}</span>
-                ${item.artist ? `<span class="item-artist">${item.artist}</span>` : ''}
             </div>
-            <span class="metric">${item.minutes.toLocaleString()} min</span>
+            <div class="metrics">
+                <span class="metric">${item.minutes.toLocaleString()} min</span>
+                <span class="metric">• ${item.plays.toLocaleString()} plays</span>
+            </div>
         </div>
     `).join('');
 }
+
 
 function renderDataTable(data) {
     const headers = `<thead><tr><th>Time</th><th>Track</th><th>Artist</th><th>Reason End</th></tr></thead>`;
