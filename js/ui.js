@@ -121,24 +121,82 @@ export function renderWrappedContent() {
     }
 
     wrappedContent.innerHTML = `
-        <div class="wrapped-card"> <div class="title">Total Minutes</div> <div class="value">${stats.totalMinutes.toLocaleString()}</div> </div>
+        <div class="wrapped-card">
+            <div class="title">Total Minutes</div>
+            <div class="value">${stats.totalMinutes.toLocaleString()}</div>
+        </div>
+
         <div class="wrapped-card">
             <div class="title">Monthly Breakdown</div>
             <div class="chart-wrapper" style="height: 150px;"><canvas id="wrapped-monthly-chart"></canvas></div>
         </div>
-        <div class="wrapped-card"> <div class="title">Unique Tracks</div> <div class="value">${stats.uniques.tracks}</div> <div class="subtitle">${stats.discoveries.tracks}% new</div> </div>
-        <div class="wrapped-card"> <div class="title">Unique Artists</div> <div class="value">${stats.uniques.artists}</div> <div class="subtitle">${stats.discoveries.artists}% new</div> </div>
-        <div class="wrapped-card"> <div class="title">Unique Albums</div> <div class="value">${stats.uniques.albums}</div> <div class="subtitle">${stats.discoveries.albums}% new</div> </div>
-        <div class="wrapped-card"> <div class="title">Skip Rate</div> <div class="value">${stats.skipRate}%</div> <div class="subtitle">of tracks skipped</div> </div>
-        <div class="wrapped-card"> <div class="title">Top 5 Songs</div> <ul class="list">${stats.topSong.map((s, i) => `<li><span class="rank">${i+1}</span> ${s.name}</li>`).join('')}</ul> </div>
-        <div class="wrapped-card"> <div class="title">Top 5 Artists</div> <ul class="list">${stats.topArtist.map((a, i) => `<li><span class="rank">${i+1}</span> ${a.name}</li>`).join('')}</ul> </div>
-        <div class="wrapped-card"> <div class="title">Top 5 Albums</div> <ul class="list">${stats.topAlbum.map((al, i) => `<li><span class="rank">${i+1}</span> ${al.name}</li>`).join('')}</ul> </div>
+
+        <div class="wrapped-card">
+            <div class="title">Unique Tracks</div>
+            <div class="value">${stats.uniques.tracks}</div>
+            <div class="subtitle">${stats.discoveries.tracks}% new</div>
+        </div>
+
+        <div class="wrapped-card">
+            <div class="title">Unique Artists</div>
+            <div class="value">${stats.uniques.artists}</div>
+            <div class="subtitle">${stats.discoveries.artists}% new</div>
+        </div>
+
+        <div class="wrapped-card">
+            <div class="title">Unique Albums</div>
+            <div class="value">${stats.uniques.albums}</div>
+            <div class="subtitle">${stats.discoveries.albums}% new</div>
+        </div>
+
+        <div class="wrapped-card">
+            <div class="title">Skip Rate</div>
+            <div class="value">${stats.skipRate}%</div>
+            <div class="subtitle">of tracks skipped</div>
+        </div>
+
+        <div class="wrapped-card">
+            <div class="title">Top 5 Songs</div>
+            <ul class="list">
+                ${stats.topSong.map((s, i) => `
+                    <li>
+                        <span class="rank">${i + 1}</span>
+                        ${s.name} • ${s.minutes.toLocaleString()} min • ${s.plays.toLocaleString()} plays
+                    </li>
+                `).join('')}
+            </ul>
+        </div>
+
+        <div class="wrapped-card">
+            <div class="title">Top 5 Artists</div>
+            <ul class="list">
+                ${stats.topArtist.map((a, i) => `
+                    <li>
+                        <span class="rank">${i + 1}</span>
+                        ${a.name} • ${a.minutes.toLocaleString()} min • ${a.plays.toLocaleString()} plays
+                    </li>
+                `).join('')}
+            </ul>
+        </div>
+
+        <div class="wrapped-card">
+            <div class="title">Top 5 Albums</div>
+            <ul class="list">
+                ${stats.topAlbum.map((al, i) => `
+                    <li>
+                        <span class="rank">${i + 1}</span>
+                        ${al.name} • ${al.minutes.toLocaleString()} min • ${al.plays.toLocaleString()} plays
+                    </li>
+                `).join('')}
+            </ul>
+        </div>
     `;
 
     setTimeout(() => {
         charts.renderWrappedMonthlyChart(stats.monthlyMinutes);
     }, 0);
 }
+
 
 // --- NUEVAS FUNCIONES PARA EL GRÁFICO DE LÍNEA DE TIEMPO ---
 
