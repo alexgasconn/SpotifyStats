@@ -81,19 +81,30 @@ export function calculateGlobalKPIs(data) {
 
 export function calculateTopItems(data, key, metric = 'minutes', topN = 10) {
     const grouped = data.reduce((acc, d) => {
-        const itemKey = (key === 'albumName') ? `${d.albumName} - ${d.artistName}` : d[key];
+        const itemKey = (key === 'albumName')
+            ? `${d.albumName} - ${d.artistName}`
+            : d[key];
         if (!itemKey) return acc;
-        if (!acc[itemKey]) acc[itemKey] = { count: 0, minutes: 0, artist: d.artistName };
-        acc[itemKey].count++;
+
+        if (!acc[itemKey]) {
+            acc[itemKey] = { plays: 0, minutes: 0, artist: d.artistName };
+        }
+
+        acc[itemKey].plays++;
         acc[itemKey].minutes += d.durationMin;
         return acc;
     }, {});
+
     return Object.entries(grouped)
-        .map(([name, values]) => ({ name, ...values }))
+        .map(([name, values]) => ({
+            name,
+            ...values,
+            minutes: Math.round(values.minutes),
+        }))
         .sort((a, b) => b[metric] - a[metric])
-        .slice(0, topN)
-        .map(item => ({ ...item, minutes: Math.round(item.minutes) }));
+        .slice(0, topN);
 }
+
 
 function getStartOfWeek(d) {
     const date = new Date(d);
