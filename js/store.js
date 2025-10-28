@@ -195,28 +195,34 @@ export function calculateTemporalDistribution(data, groupBy) {
 
 export function calculateWrappedStats(year, fullData) {
     const yearData = fullData.filter(d => d.year === year);
-    if (yearData.length === 0) return null;
+    if (!yearData.length) return null;
+
     const previousData = fullData.filter(d => d.year < year);
+
     const uniqueTracks = new Set(yearData.map(d => d.trackName));
     const uniqueArtists = new Set(yearData.map(d => d.artistName));
     const uniqueAlbums = new Set(yearData.map(d => `${d.albumName} - ${d.artistName}`));
+
     const prevTracks = new Set(previousData.map(d => d.trackName));
     const prevArtists = new Set(previousData.map(d => d.artistName));
     const prevAlbums = new Set(previousData.map(d => `${d.albumName} - ${d.artistName}`));
+
     const isFirstYear = prevArtists.size === 0;
     const newTracks = isFirstYear ? uniqueTracks.size : [...uniqueTracks].filter(t => !prevTracks.has(t)).length;
     const newArtists = isFirstYear ? uniqueArtists.size : [...uniqueArtists].filter(a => !prevArtists.has(a)).length;
     const newAlbums = isFirstYear ? uniqueAlbums.size : [...uniqueAlbums].filter(al => !prevAlbums.has(al)).length;
+
     const monthlyMinutes = Array(12).fill(0);
     const skippedTracks = yearData.filter(d => d.reasonEnd !== 'trackdone').length;
     yearData.forEach(d => { monthlyMinutes[d.month] += d.durationMin; });
+
     return {
         totalMinutes: Math.round(yearData.reduce((sum, d) => sum + d.durationMin, 0)),
-        topSong: calculateTopItems(yearData, 'trackName', 'count', 5),
-        topArtist: calculateTopItems(yearData, 'artistName', 'count', 5),
+        topSong: calculateTopItems(yearData, 'trackName', 'minutes', 5),
+        topArtist: calculateTopItems(yearData, 'artistName', 'minutes', 5),
         topAlbum: calculateTopItems(yearData, 'albumName', 'minutes', 5),
         monthlyMinutes: monthlyMinutes.map(m => Math.round(m)),
-        uniques: { tracks: uniqueTracks.size, artists: uniqueArtists.size, albums: uniqueAlbums.size, },
+        uniques: { tracks: uniqueTracks.size, artists: uniqueArtists.size, albums: uniqueAlbums.size },
         discoveries: {
             tracks: (newTracks / uniqueTracks.size * 100).toFixed(0),
             artists: (newArtists / uniqueArtists.size * 100).toFixed(0),
