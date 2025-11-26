@@ -8,7 +8,7 @@ let currentTimelineUnit = 'week'; // El valor por defecto es 'week'
 
 // --- REFERENCIAS GLOBALES ---
 const kpiGrid = document.getElementById('kpi-grid');
-const advancedKpiGrid = document.getElementById('advanced-kpi-grid'); 
+const advancedKpiGrid = document.getElementById('advanced-kpi-grid');
 const topTracksTable = document.getElementById('top-tracks-table');
 const topArtistsTable = document.getElementById('top-artists-table');
 const topAlbumsTable = document.getElementById('top-albums-table');
@@ -26,17 +26,17 @@ export function renderUI() {
     renderTopItemsList(topTracksTable, store.calculateTopItems(data, 'trackName'));
     renderTopItemsList(topArtistsTable, store.calculateTopItems(data, 'artistName'));
     renderTopItemsList(topAlbumsTable, store.calculateTopItems(data, 'albumName'));
-    
+
     // Llama a las nuevas funciones para el gráfico de línea de tiempo dinámico
-    updateTimelineChart(); 
-    setupTimelineControls(); 
-    
+    updateTimelineChart();
+    setupTimelineControls();
+
     // --- Pestaña Trends ---
     renderTrendCharts(data);
 
     // --- Pestaña Wrapped ---
     renderWrappedContent();
-    
+
     // --- Pestaña Explorer ---
     renderWordCloud(data);
     renderDataTable(data);
@@ -69,7 +69,7 @@ function renderTrendCharts(data) {
     charts.renderDistributionChart('platform-chart', platformData, 'Platform Usage');
     charts.renderDistributionChart('country-chart', countryData, 'Top Countries', 'bar', true);
     charts.renderDistributionChart('reason-start-chart', reasonStartData, 'Playback Start Reason');
-    
+
     charts.renderListeningClockChart(store.calculateTemporalDistribution(data, 'hour'));
     charts.renderDayOfWeekChart(store.calculateTemporalDistribution(data, 'weekday'));
     charts.renderMonthlyListeningChart(store.calculateTemporalDistribution(data, 'month'));
@@ -100,14 +100,14 @@ function renderDataTable(data) {
 
 function renderWordCloud(data) {
     const list = Object.entries(data.reduce((acc, d) => {
-        if(d.trackName) acc[d.trackName] = (acc[d.trackName] || 0) + 1;
+        if (d.trackName) acc[d.trackName] = (acc[d.trackName] || 0) + 1;
         return acc;
     }, {})).sort((a, b) => b[1] - a[1]).slice(0, 100).map(([text, weight]) => [text, Math.log2(weight + 1) * 5]);
     if (list.length > 0) WordCloud(wordCloudCanvas, { list, gridSize: 8, weightFactor: 2.5, fontFamily: 'CircularSp, sans-serif', color: 'random-light', backgroundColor: 'transparent', shuffle: true });
 }
 
 export function populateWrappedFilter() {
-    const years = [...new Set(window.spotifyData.full.map(d => d.year))].sort((a,b) => b-a);
+    const years = [...new Set(window.spotifyData.full.map(d => d.year))].sort((a, b) => b - a);
     wrappedYearFilter.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
 }
 
@@ -210,7 +210,7 @@ function updateTimelineChart() {
 
 function setupTimelineControls() {
     const buttons = document.querySelectorAll('.time-agg-btn');
-    
+
     // Un truco para evitar añadir listeners duplicados si esta función se llama varias veces
     buttons.forEach(button => {
         button.replaceWith(button.cloneNode(true));
@@ -239,4 +239,32 @@ export function showLoading(message) {
 
 export function hideLoading() {
     document.getElementById('loading-overlay').classList.add('hidden');
+}
+
+// --- CÁLCULOS EN STORE.JS ---
+
+export function calculateTopItems(data, key, metric = 'plays', topN = 10) {
+    const grouped = data.reduce((acc, d) => {
+        const itemKey = (key === 'albumName')
+            ? `${d.albumName} - ${d.artistName}`
+            : d[key];
+        if (!itemKey) return acc;
+
+        if (!acc[itemKey]) {
+            acc[itemKey] = { plays: 0, minutes: 0, artist: d.artistName };
+        }
+
+        acc[itemKey].plays++;
+        acc[itemKey].minutes += d.durationMin;
+        return acc;
+    }, {});
+
+    return Object.entries(grouped)
+        .map(([name, values]) => ({
+            name,
+            ...values,
+            minutes: Math.round(values.minutes),
+        }))
+        .sort((a, b) => b[metric] - a[metric])
+        .slice(0, topN);
 }
