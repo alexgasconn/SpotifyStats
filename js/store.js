@@ -79,7 +79,7 @@ export function calculateGlobalKPIs(data) {
     };
 }
 
-export function calculateTopItems(data, key, metric = 'minutes', topN = 10) {
+export function calculateTopItems(data, key, metric = 'plays', topN = 10) {
     const grouped = data.reduce((acc, d) => {
         const itemKey = (key === 'albumName')
             ? `${d.albumName} - ${d.artistName}`
