@@ -243,7 +243,7 @@ export function hideLoading() {
 
 // --- CÁLCULOS EN STORE.JS ---
 
-export function calculateTopItems(data, key, metric = 'plays', topN = 10) {
+export function calculateTopItems(data, key, metric = 'plays', topN = 20) {
     const grouped = data.reduce((acc, d) => {
         const itemKey = (key === 'albumName')
             ? `${d.albumName} - ${d.artistName}`

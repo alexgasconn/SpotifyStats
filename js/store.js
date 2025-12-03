@@ -218,9 +218,9 @@ export function calculateWrappedStats(year, fullData) {
 
     return {
         totalMinutes: Math.round(yearData.reduce((sum, d) => sum + d.durationMin, 0)),
-        topSong: calculateTopItems(yearData, 'trackName', 'minutes', 10),
-        topArtist: calculateTopItems(yearData, 'artistName', 'minutes', 10),
-        topAlbum: calculateTopItems(yearData, 'albumName', 'minutes', 10),
+        topSong: calculateTopItems(yearData, 'trackName', 'plays', 10),
+        topArtist: calculateTopItems(yearData, 'artistName', 'plays', 10),
+        topAlbum: calculateTopItems(yearData, 'albumName', 'plays', 10),
         monthlyMinutes: monthlyMinutes.map(m => Math.round(m)),
         uniques: { tracks: uniqueTracks.size, artists: uniqueArtists.size, albums: uniqueAlbums.size },
         discoveries: {
