@@ -74,6 +74,9 @@ function renderTrendCharts(data) {
     charts.renderDayOfWeekChart(store.calculateTemporalDistribution(data, 'weekday'));
     charts.renderMonthlyListeningChart(store.calculateTemporalDistribution(data, 'month'));
     charts.renderYearlyListeningChart(store.calculateTemporalDistribution(data, 'year'));
+
+    const weekdayHourData = store.calculateTemporalDistribution(data, 'weekday', 'hour');
+    charts.renderMatrixChart('weekday-hour-chart', weekdayHourData, 'Plays by Weekday and Hour');
 }
 
 function renderTopItemsList(element, items) {

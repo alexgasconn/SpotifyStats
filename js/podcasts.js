@@ -369,26 +369,11 @@ export function renderPodcastStats(podcastDataArray) {
     const numberOfUniqueShows = uniqueShows.size;
     const numberOfUniqueEpisodes = uniqueEpisodes.size;
 
-    // First and last listen dates
-    const sortedDates = podcastDataArray
-        .map(d => new Date(d.ts))
-        .filter(d => !isNaN(d))
-        .sort((a, b) => a - b);
-
-    const firstListenDate = sortedDates.length > 0 ? sortedDates[0] : null;
-    const lastListenDate = sortedDates.length > 0 ? sortedDates[sortedDates.length - 1] : null;
-
-    const formatDate = date => date
-        ? date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-        : 'N/A';
-
     // Stats array
     const stats = [
         { title: 'Total Listening Time', value: `${totalHours}h ${remainingMinutes}m` },
         { title: 'Unique Shows Listened', value: numberOfUniqueShows },
-        { title: 'Unique Episodes', value: numberOfUniqueEpisodes, subText: `(Total Listens: ${totalEpisodesListened})` },
-        { title: 'First Listen', value: formatDate(firstListenDate) },
-        { title: 'Last Listen', value: formatDate(lastListenDate) }
+        { title: 'Unique Episodes', value: numberOfUniqueEpisodes, subText: `(Total Listens: ${totalEpisodesListened})` }
     ];
 
     // Append stat items

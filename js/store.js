@@ -81,13 +81,29 @@ export function calculateGlobalKPIs(data) {
 
 export function calculateTopItems(data, key, metric = 'plays', topN = 10) {
     const grouped = data.reduce((acc, d) => {
-        const itemKey = (key === 'albumName')
-            ? `${d.albumName} - ${d.artistName}`
-            : d[key];
-        if (!itemKey) return acc;
+        let itemKey;
+        let artistNameForItem = d.artistName;
+
+        // Normalize and validate depending on key
+        if (key === 'albumName') {
+            const album = d.albumName ? String(d.albumName).trim() : '';
+            const artist = d.artistName ? String(d.artistName).trim() : '';
+            // Skip if album or artist is missing or literally "null"
+            if (!album || !artist) return acc;
+            if (album.toLowerCase() === 'null' || artist.toLowerCase() === 'null') return acc;
+            itemKey = `${album} - ${artist}`;
+            artistNameForItem = artist;
+        } else {
+            const value = d[key];
+            const valStr = value ? String(value).trim() : '';
+            // Skip if missing or literally "null"
+            if (!valStr) return acc;
+            if (valStr.toLowerCase() === 'null') return acc;
+            itemKey = valStr;
+        }
 
         if (!acc[itemKey]) {
-            acc[itemKey] = { plays: 0, minutes: 0, artist: d.artistName };
+            acc[itemKey] = { plays: 0, minutes: 0, artist: artistNameForItem };
         }
 
         acc[itemKey].plays++;
