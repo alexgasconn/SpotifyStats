@@ -183,6 +183,8 @@ export function renderMonthlyListeningChart(monthlyData) {
     });
 }
 
+
+
 export function renderYearlyListeningChart(yearlyData) {
     const labels = yearlyData.map(d => d.year);
     const data = yearlyData.map(d => d.minutes);
@@ -205,6 +207,73 @@ export function renderYearlyListeningChart(yearlyData) {
             scales: {
                 y: { ticks: { color: '#b3b3b3' }, grid: { color: '#282828' } },
                 x: { ticks: { color: '#b3b3b3' }, grid: { display: false } }
+            }
+        }
+    });
+}
+
+// 1. Update arguments to match the call: (elementId, data, title)
+export function renderMatrixChart(elementId, matrixData, title) {
+
+    // 2. IMPORTANT: Bubble charts need {x, y, r} structure.
+    // If your store returns {x, y, count}, map 'count' to 'r' (radius).
+    // We also cap the radius so bubbles don't get too massive.
+    const formattedData = matrixData.map(item => ({
+        x: item.x, 
+        y: item.y,
+        // If your data has 'count', use it. Otherwise assume 'r' exists.
+        // Math.min caps the size, or you can divide by a factor (e.g., item.count / 10)
+        r: item.r || (item.count ? Math.min(item.count / 2, 20) : 5) 
+    }));
+
+    // 3. Use the dynamic 'elementId' passed from the call
+    createOrUpdateChart(elementId, {
+        type: 'bubble',
+        data: {
+            datasets: [{
+                label: title, // Use the passed title
+                data: formattedData,
+                backgroundColor: 'rgba(29, 185, 84, 0.6)', // Spotify Green with opacity helps bubbles overlap
+                borderColor: '#1DB954',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        // Optional: Make tooltips readable
+                        label: function(context) {
+                            return `${context.raw.r * 2} plays`; // Adjust calculation based on how you scaled 'r'
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    min: -0.5,
+                    max: 6.5, // 0-6 (Sunday to Saturday)
+                    ticks: { 
+                        color: '#b3b3b3',
+                        stepSize: 1,
+                        // Optional: Map numbers to Day names
+                        callback: (val) => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][val] 
+                    },
+                    grid: { color: '#282828' }
+                },
+                x: {
+                    min: -0.5,
+                    max: 23.5, // 0-23 Hours
+                    ticks: { 
+                        color: '#b3b3b3',
+                        stepSize: 1
+                    },
+                    grid: { display: false },
+                    title: { display: true, text: 'Hour of Day', color: '#b3b3b3' }
+                }
             }
         }
     });
