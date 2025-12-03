@@ -68,11 +68,11 @@ document.addEventListener('DOMContentLoaded', () => {
     applyFilterBtn.addEventListener('click', applyAllFilters);
 
     // Auto-apply filters on change
-    artistFilter.addEventListener('change', applyAllFilters);
-    albumFilter.addEventListener('change', applyAllFilters);
-    trackFilter.addEventListener('change', applyAllFilters);
-    dateFromInput.addEventListener('change', applyAllFilters); // Add this!
-    dateToInput.addEventListener('change', applyAllFilters);   // Add this!
+    // artistFilter.addEventListener('change', applyAllFilters);
+    // albumFilter.addEventListener('change', applyAllFilters);
+    // trackFilter.addEventListener('change', applyAllFilters);
+    // dateFromInput.addEventListener('change', applyAllFilters); // Add this!
+    // dateToInput.addEventListener('change', applyAllFilters);   // Add this!
 
 
     function setupTabNavigation() {
