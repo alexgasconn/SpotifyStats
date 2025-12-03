@@ -4,14 +4,9 @@ import { processSpotifyZip } from './store.js';
 import { showLoading, hideLoading, renderUI, populateWrappedFilter, renderWrappedContent } from './ui.js';
 import { setupGame } from './game.js';
 import * as podcasts from './podcasts.js';
-// import { renderPodcastUI } from './podcasts.js';
-
-// // After processing Spotify data
-// renderPodcastUI(podcastFullData);
-
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Referencias al DOM
+    // References
     const uploadSection = document.getElementById('upload-section');
     const dashboardSection = document.getElementById('dashboard-section');
     const zipInput = document.getElementById('zip-input');
@@ -21,25 +16,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const dateToInput = document.getElementById('date-to');
     const wrappedYearFilter = document.getElementById('wrapped-year-filter');
 
-    // NUEVAS REFERENCIAS A LOS FILTROS
     const artistFilter = document.getElementById('artist-filter');
     const albumFilter = document.getElementById('album-filter');
     const trackFilter = document.getElementById('track-filter');
 
-    // Estado global de la aplicación
     window.spotifyData = {
         full: [],
         filtered: []
     };
 
-    // --- MANEJADORES DE EVENTOS ---
+    // --- EVENT HANDLERS ---
     uploadButton.addEventListener('click', () => zipInput.click());
 
     zipInput.addEventListener('change', async (event) => {
         const file = event.target.files[0];
         if (!file) return;
 
-        showLoading('Unzipping and processing files (this may take a moment)...');
+        showLoading('Unzipping and processing files...');
         try {
             const data = await processSpotifyZip(file);
             window.spotifyData.full = data;
@@ -48,23 +41,18 @@ document.addEventListener('DOMContentLoaded', () => {
             uploadSection.classList.add('hidden');
             dashboardSection.classList.remove('hidden');
 
-            // Configurar la UI por primera vez
             setupDateFilters(data);
             populateOtherFilters(data);
-            renderUI();
+            
             setupTabNavigation();
             setupGame();
             populateWrappedFilter();
 
             wrappedYearFilter.addEventListener('change', renderWrappedContent);
 
-            const podcastStats = podcasts.analyzePodcasts(data);
-            if (podcastStats) {
-                podcasts.renderTopShowsChart(podcastStats.topShows);
-                podcasts.renderTopEpisodesChart(podcastStats.topEpisodes);
-                podcasts.renderPodcastTimeByDay(podcastStats.podcastData);
-                podcasts.renderPodcastStats(podcastStats.podcastData);
-            }
+            // --- FIXED: Render Initial UI ---
+            renderUI(); // Renders Music Charts
+            podcasts.renderPodcastUI(data); // Renders Podcast Charts
 
         } catch (error) {
             console.error('Failed to process Spotify data:', error);
@@ -74,14 +62,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    applyFilterBtn.addEventListener('click', () => {
-        applyAllFilters(); // USAMOS UNA FUNCIÓN PARA APLICAR TODOS LOS FILTROS
-    });
+    // --- FIXED: Single Filter Function ---
+    // We remove the separate listener for applyFilterBtn and just use the unified function
+    // But if you want a manual button, keep it:
+    applyFilterBtn.addEventListener('click', applyAllFilters);
 
-    // MANEJADORES DE CAMBIO PARA LOS NUEVOS FILTROS (APLICAR FILTRO INMEDIATAMENTE)
+    // Auto-apply filters on change
     artistFilter.addEventListener('change', applyAllFilters);
     albumFilter.addEventListener('change', applyAllFilters);
     trackFilter.addEventListener('change', applyAllFilters);
+    dateFromInput.addEventListener('change', applyAllFilters); // Add this!
+    dateToInput.addEventListener('change', applyAllFilters);   // Add this!
 
 
     function setupTabNavigation() {
@@ -101,51 +92,66 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setupDateFilters(data) {
         if (data.length > 0) {
-            // Asumiendo que `data` ya está ordenado por fecha
+            // Ensure sorting happens here if not guaranteed by store.js
+            // const sorted = [...data].sort((a,b) => new Date(a.date) - new Date(b.date));
             const firstDate = data[0].date;
             const lastDate = data[data.length - 1].date;
 
             dateFromInput.min = firstDate;
             dateFromInput.max = lastDate;
-            dateFromInput.value = firstDate; // Establecer valor inicial
-
+            dateFromInput.value = firstDate;
+            
             dateToInput.min = firstDate;
             dateToInput.max = lastDate;
-            dateToInput.value = lastDate; // Establecer valor inicial
+            dateToInput.value = lastDate;
         }
     }
 
-    // NUEVA FUNCIÓN PARA POPULAR LOS FILTROS DE ARTISTA, ÁLBUM Y CANCIÓN
     function populateOtherFilters(data) {
+        // Optimization: Use Sets directly
         const uniqueArtists = [...new Set(data.map(d => d.artistName).filter(Boolean))].sort();
         const uniqueAlbums = [...new Set(data.map(d => d.albumName).filter(Boolean))].sort();
         const uniqueTracks = [...new Set(data.map(d => d.trackName).filter(Boolean))].sort();
 
-        artistFilter.innerHTML = '<option value="">All Artists</option>' + uniqueArtists.map(artist => `<option value="${artist}">${artist}</option>`).join('');
-        albumFilter.innerHTML = '<option value="">All Albums</option>' + uniqueAlbums.map(album => `<option value="${album}">${album}</option>`).join('');
-        trackFilter.innerHTML = '<option value="">All Tracks</option>' + uniqueTracks.map(track => `<option value="${track}">${track}</option>`).join('');
+        artistFilter.innerHTML = '<option value="">All Artists</option>' + uniqueArtists.map(a => `<option value="${a}">${a}</option>`).join('');
+        albumFilter.innerHTML = '<option value="">All Albums</option>' + uniqueAlbums.map(a => `<option value="${a}">${a}</option>`).join('');
+        trackFilter.innerHTML = '<option value="">All Tracks</option>' + uniqueTracks.map(t => `<option value="${t}">${t}</option>`).join('');
     }
 
-    // NUEVA FUNCIÓN PARA APLICAR TODOS LOS FILTROS
+    // --- FIXED: applyAllFilters ---
     function applyAllFilters() {
         showLoading('Applying filters...');
-        const from = dateFromInput.value;
-        const to = dateToInput.value;
-        const selectedArtist = artistFilter.value;
-        const selectedAlbum = albumFilter.value;
-        const selectedTrack = trackFilter.value;
+        
+        // Use a small timeout to allow the Loading Spinner to render before the heavy loop
+        setTimeout(() => {
+            const from = dateFromInput.value;
+            const to = dateToInput.value;
+            const selectedArtist = artistFilter.value;
+            const selectedAlbum = albumFilter.value;
+            const selectedTrack = trackFilter.value;
 
-        window.spotifyData.filtered = window.spotifyData.full.filter(d => {
-            const date = d.date;
-            if (from && date < from) return false;
-            if (to && date > to) return false;
-            if (selectedArtist && d.artistName !== selectedArtist) return false;
-            if (selectedAlbum && d.albumName !== selectedAlbum) return false;
-            if (selectedTrack && d.trackName !== selectedTrack) return false;
-            return true;
-        });
+            window.spotifyData.filtered = window.spotifyData.full.filter(d => {
+                const date = d.date; // Ensure format matches input (YYYY-MM-DD)
+                
+                // Date Filter
+                if (from && date < from) return false;
+                if (to && date > to) return false;
+                
+                // Metadata Filters
+                if (selectedArtist && d.artistName !== selectedArtist) return false;
+                if (selectedAlbum && d.albumName !== selectedAlbum) return false;
+                if (selectedTrack && d.trackName !== selectedTrack) return false;
+                
+                return true;
+            });
 
-        renderUI();
-        hideLoading();
+            // 1. Render General Music Charts
+            renderUI(); 
+
+            // 2. Render Podcast Charts with the NEW filtered data
+            podcasts.renderPodcastUI(window.spotifyData.filtered); 
+
+            hideLoading();
+        }, 50); // 50ms delay
     }
 });
