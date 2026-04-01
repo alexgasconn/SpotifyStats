@@ -36,7 +36,7 @@ function nextRound() {
         return;
     }
     rounds++;
-    
+
     // Generar un nuevo desafío
     currentChallenge = generateChallenge();
 
@@ -50,11 +50,11 @@ function nextRound() {
             <div class="game-options">
                 <div class="game-card" data-choice="0">
                     <h3>${currentChallenge.options[0].name}</h3>
-                    ${gameMode === 'tracks' ? `<p>${currentChallenge.options[0].artist}</p>` : ''}
+                    ${gameMode === 'tracks' ? `<p>${currentChallenge.options[0].artistName || 'Unknown Artist'}</p>` : ''}
                 </div>
                 <div class="game-card" data-choice="1">
                     <h3>${currentChallenge.options[1].name}</h3>
-                    ${gameMode === 'tracks' ? `<p>${currentChallenge.options[1].artist}</p>` : ''}
+                    ${gameMode === 'tracks' ? `<p>${currentChallenge.options[1].artistName || 'Unknown Artist'}</p>` : ''}
                 </div>
             </div>
         </div>
@@ -68,7 +68,7 @@ function nextRound() {
 function generateChallenge() {
     const key = gameMode === 'artists' ? 'artistName' : 'trackName';
     const topItems = store.calculateTopItems(window.spotifyData.full, key, 'minutes', 200);
-    
+
     // Elegir dos items distintos al azar
     let index1 = Math.floor(Math.random() * topItems.length);
     let index2 = Math.floor(Math.random() * topItems.length);
@@ -104,7 +104,7 @@ function handleChoice(event) {
     // Mostrar los minutos reales
     cards[0].innerHTML += `<p>${currentChallenge.options[0].minutes.toLocaleString()} minutes</p>`;
     cards[1].innerHTML += `<p>${currentChallenge.options[1].minutes.toLocaleString()} minutes</p>`;
-    
+
     setTimeout(nextRound, 2500); // Esperar 2.5 segundos antes de la siguiente ronda
 }
 

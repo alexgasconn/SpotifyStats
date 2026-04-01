@@ -886,6 +886,63 @@ export function calculateWrappedStats(year, fullData) {
     const topArtist = calculateTopItems(yearData, 'artistName', 'plays', 10);
     const topAlbum = calculateTopItems(yearData, 'albumName', 'plays', 10);
 
+    // Quarters and year arc
+    const quarterMinutes = [0, 0, 0, 0];
+    const firstHalfMonths = new Set([0, 1, 2, 3, 4, 5]);
+    let firstHalfMinutes = 0;
+    let secondHalfMinutes = 0;
+    yearData.forEach(d => {
+        const q = Math.floor(d.month / 3);
+        quarterMinutes[q] += d.durationMin;
+        if (firstHalfMonths.has(d.month)) firstHalfMinutes += d.durationMin;
+        else secondHalfMinutes += d.durationMin;
+    });
+
+    // Monthly play density
+    const monthlyPlays = Array(12).fill(0);
+    yearData.forEach(d => { monthlyPlays[d.month] += 1; });
+
+    // Active-day metrics
+    const activeDays = uniqueDates.length;
+    const playsPerActiveDay = activeDays > 0 ? +(currentPlays / activeDays).toFixed(1) : 0;
+    const minutesPerActiveDay = activeDays > 0 ? +(currentMinutes / activeDays).toFixed(1) : 0;
+
+    // Obsession and loyalty
+    const topSongMain = topSong[0] || null;
+    const topArtistMain = topArtist[0] || null;
+    const topAlbumMain = topAlbum[0] || null;
+    const obsessionShare = topSongMain ? +((topSongMain.plays / currentPlays) * 100).toFixed(1) : 0;
+    const top5ArtistMinutes = topArtist.slice(0, 5).reduce((sum, a) => sum + (a.minutes || 0), 0);
+    const loyaltyTop5Share = currentMinutes > 0 ? +((top5ArtistMinutes / currentMinutes) * 100).toFixed(1) : 0;
+
+    // Discovery rhythm by month
+    const seenArtists = new Set(prevArtists);
+    const monthlyNewArtists = Array(12).fill(0);
+    for (let m = 0; m < 12; m++) {
+        const monthArtists = new Set(yearData.filter(d => d.month === m).map(d => d.artistName).filter(Boolean));
+        monthArtists.forEach(a => {
+            if (!seenArtists.has(a)) {
+                monthlyNewArtists[m] += 1;
+                seenArtists.add(a);
+            }
+        });
+    }
+
+    // Year progression tags
+    const yearArc = secondHalfMinutes >= firstHalfMinutes ? 'Stronger Second Half' : 'Front-Loaded Year';
+    const quarterPeakIndex = quarterMinutes.indexOf(Math.max(...quarterMinutes));
+    const quarterLabels = ['Q1', 'Q2', 'Q3', 'Q4'];
+
+    const daypartTotal = Object.values(buckets).reduce((a, b) => a + b, 0) || 1;
+    const daypartPct = {
+        morning: +((buckets.morning / daypartTotal) * 100).toFixed(1),
+        afternoon: +((buckets.afternoon / daypartTotal) * 100).toFixed(1),
+        evening: +((buckets.evening / daypartTotal) * 100).toFixed(1),
+        night: +((buckets.night / daypartTotal) * 100).toFixed(1),
+    };
+
+    const mood = daypartPct.night >= 35 ? 'Late-night heavy' : daypartPct.morning >= 35 ? 'Morning-focused' : daypartPct.evening >= 35 ? 'Evening-driven' : 'Balanced listener';
+
     return {
         totalMinutes: Math.round(currentMinutes),
         totalPlays: currentPlays,
@@ -893,15 +950,18 @@ export function calculateWrappedStats(year, fullData) {
         topSong,
         topArtist,
         topAlbum,
-        topSongMain: topSong[0] || null,
-        topArtistMain: topArtist[0] || null,
-        topAlbumMain: topAlbum[0] || null,
+        topSongMain,
+        topArtistMain,
+        topAlbumMain,
         monthlyMinutes: monthlyMinutes.map(m => Math.round(m)),
+        monthlyPlays,
+        quarterMinutes: quarterMinutes.map(v => Math.round(v)),
         uniques: { tracks: uniqueTracks.size, artists: uniqueArtists.size, albums: uniqueAlbums.size },
         discoveries: {
             tracks: Math.round((newTracks / uniqueTracks.size) * 100),
             artists: Math.round((newArtists / uniqueArtists.size) * 100)
         },
+        monthlyNewArtists,
         skipRate: ((skipped / yearData.length) * 100).toFixed(1),
         peakMonth: monthNames[peakMonth],
         peakMonthMinutes: Math.round(monthlyMinutes[peakMonth] || 0),
@@ -913,9 +973,20 @@ export function calculateWrappedStats(year, fullData) {
             plays: topDayEntry[1].plays
         } : null,
         longestStreak,
+        activeDays,
+        playsPerActiveDay,
+        minutesPerActiveDay,
         persona: personaMap[dominantTime] || 'Music Lover',
         timeBuckets: buckets,
+        daypartPct,
+        mood,
         weekendShare,
+        obsessionShare,
+        loyaltyTop5Share,
+        yearArc,
+        quarterPeak: quarterLabels[quarterPeakIndex],
+        firstHalfMinutes: Math.round(firstHalfMinutes),
+        secondHalfMinutes: Math.round(secondHalfMinutes),
         comparePrev: {
             available: prevYearData.length > 0,
             minutesPct: deltaPct(currentMinutes, prevMinutes),

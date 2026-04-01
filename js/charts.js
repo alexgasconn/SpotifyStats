@@ -193,13 +193,33 @@ export function renderBarChart(canvasId, data, title) {
 // ── HEATMAP / BUBBLE ──────────────────────────────────────────────────────────
 
 export function renderBubbleChart(canvasId, matrixData) {
+    const maxCount = Math.max(...matrixData.map(d => d.count || 0), 1);
+    const weekdayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    const toHourLabel = hour => {
+        const h = Number(hour);
+        if (h === 0) return '12am';
+        if (h < 12) return `${h}am`;
+        if (h === 12) return '12pm';
+        return `${h - 12}pm`;
+    };
+
+    // 3-stop gradient: dark green -> spotify green -> bright mint
+    const colorFor = count => {
+        const t = Math.max(0, Math.min(1, count / maxCount));
+        const r = Math.round(12 + (124 * t));
+        const g = Math.round(80 + (175 * t));
+        const b = Math.round(44 + (124 * t));
+        return `rgba(${r},${g},${b},0.82)`;
+    };
+
     make(canvasId, {
         type: 'bubble',
         data: {
             datasets: [{
                 data: matrixData,
-                backgroundColor: 'rgba(29,185,84,0.55)',
-                borderColor: GREEN,
+                backgroundColor: matrixData.map(d => colorFor(d.count || 0)),
+                borderColor: matrixData.map(d => colorFor((d.count || 0) * 0.9)),
                 borderWidth: 1
             }]
         },
@@ -207,7 +227,16 @@ export function renderBubbleChart(canvasId, matrixData) {
             responsive: true, maintainAspectRatio: false,
             plugins: {
                 legend: { display: false }, datalabels: false,
-                tooltip: { callbacks: { label: ctx => `${ctx.raw.count} plays` } }
+                tooltip: {
+                    callbacks: {
+                        title: ctxItems => {
+                            const p = ctxItems[0]?.raw;
+                            if (!p) return '';
+                            return `${weekdayNames[p.y] || ''} · ${toHourLabel(p.x)}`;
+                        },
+                        label: ctx => `${ctx.raw.count} plays`
+                    }
+                }
             },
             scales: {
                 y: {

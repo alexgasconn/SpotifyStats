@@ -587,6 +587,13 @@ export function renderWrappedContent() {
         return `<span class="wc-pill ${cls}">${label}: ${arrow} ${Math.abs(val)}%</span>`;
     };
 
+    const monthShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const maxQuarter = Math.max(...s.quarterMinutes, 1);
+    const maxNewArtist = Math.max(...s.monthlyNewArtists, 1);
+
+    const dayPartLabel = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening', night: 'Night' };
+    const dayPartOrder = ['morning', 'afternoon', 'evening', 'night'];
+
     container.innerHTML = `
         <div class="wrapped-card wrapped-hero-card">
             <div class="wc-label">Your ${year} Story</div>
@@ -597,6 +604,20 @@ export function renderWrappedContent() {
                 ${trendPill('Plays vs prev year', s.comparePrev.playsPct)}
                 ${trendPill('Artists vs prev year', s.comparePrev.artistsPct)}
             </div>
+        </div>
+
+        <div class="wrapped-card">
+            <div class="wc-label">Year Arc</div>
+            <div class="wc-highlight">${s.yearArc}</div>
+            <div class="wc-sub">Peak quarter: ${s.quarterPeak} · Active days: ${s.activeDays}</div>
+            <div class="wc-sub">${s.playsPerActiveDay} plays/day · ${Math.round(s.minutesPerActiveDay)} min/day on active days</div>
+        </div>
+
+        <div class="wrapped-card">
+            <div class="wc-label">Obsession & Loyalty</div>
+            <div class="wc-sub">Top song concentration: <strong>${s.obsessionShare}%</strong> of all yearly plays</div>
+            <div class="wc-sub">Top 5 artists concentration: <strong>${s.loyaltyTop5Share}%</strong> of total minutes</div>
+            <div class="wc-sub">Mood profile: <strong>${esc(s.mood)}</strong></div>
         </div>
 
         <div class="wrapped-card">
@@ -630,6 +651,46 @@ export function renderWrappedContent() {
             <div class="wc-sub">${s.discoveries.tracks}% of your tracks were first-time discoveries</div>
             <div class="wc-sub">${s.discoveries.artists}% of your artists were new for you</div>
             <div class="wc-sub">Skip rate: ${s.skipRate}%</div>
+        </div>
+
+        <div class="wrapped-card wrapped-wide-card">
+            <div class="wc-label">Quarter Momentum</div>
+            <div class="wc-mini-bars">
+                ${s.quarterMinutes.map((v, i) => `
+                    <div class="wc-mini-bar-row">
+                        <span>${['Q1', 'Q2', 'Q3', 'Q4'][i]}</span>
+                        <div class="wc-mini-bar-wrap"><div class="wc-mini-bar" style="width:${Math.round((v / maxQuarter) * 100)}%"></div></div>
+                        <strong>${v.toLocaleString()} min</strong>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="wc-sub" style="margin-top:0.5rem">First half: ${s.firstHalfMinutes.toLocaleString()} min · Second half: ${s.secondHalfMinutes.toLocaleString()} min</div>
+        </div>
+
+        <div class="wrapped-card wrapped-wide-card">
+            <div class="wc-label">Daypart DNA</div>
+            <div class="wc-mini-bars">
+                ${dayPartOrder.map(k => `
+                    <div class="wc-mini-bar-row">
+                        <span>${dayPartLabel[k]}</span>
+                        <div class="wc-mini-bar-wrap"><div class="wc-mini-bar" style="width:${s.daypartPct[k]}%"></div></div>
+                        <strong>${s.daypartPct[k]}%</strong>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+
+        <div class="wrapped-card wrapped-wide-card">
+            <div class="wc-label">Discovery Rhythm (New Artists per Month)</div>
+            <div class="wc-mini-bars">
+                ${s.monthlyNewArtists.map((v, i) => `
+                    <div class="wc-mini-bar-row">
+                        <span>${monthShort[i]}</span>
+                        <div class="wc-mini-bar-wrap"><div class="wc-mini-bar" style="width:${Math.round((v / maxNewArtist) * 100)}%"></div></div>
+                        <strong>${v}</strong>
+                    </div>
+                `).join('')}
+            </div>
         </div>
 
         <div class="wrapped-card">
