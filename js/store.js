@@ -660,6 +660,44 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
         weeklyByYear[year].push({ weekStart, topWeek, fastestLapKey, fastestLapMinutes });
     });
 
+    const yearStreaks = {};
+    Object.entries(weeklyByYear).forEach(([y, weeks]) => {
+        const yearKeys = Object.keys(yearStandingMap[y] || {});
+        const streakMap = {};
+        yearKeys.forEach(key => {
+            streakMap[key] = {
+                currentWin: 0,
+                bestWin: 0,
+                currentPodium: 0,
+                bestPodium: 0
+            };
+        });
+
+        weeks.forEach(week => {
+            const winnerKey = week.topWeek[0]?.key || null;
+            const podiumKeys = new Set(week.topWeek.slice(0, 3).map(r => r.key));
+
+            yearKeys.forEach(key => {
+                const s = streakMap[key];
+                if (key === winnerKey) {
+                    s.currentWin += 1;
+                } else {
+                    s.currentWin = 0;
+                }
+                s.bestWin = Math.max(s.bestWin, s.currentWin);
+
+                if (podiumKeys.has(key)) {
+                    s.currentPodium += 1;
+                } else {
+                    s.currentPodium = 0;
+                }
+                s.bestPodium = Math.max(s.bestPodium, s.currentPodium);
+            });
+        });
+
+        yearStreaks[y] = streakMap;
+    });
+
     const standingsByYear = {};
     Object.entries(yearStandingMap).forEach(([y, map]) => {
         standingsByYear[y] = Object.entries(map)
@@ -670,6 +708,8 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
                 weeksWon: val.weeksWon,
                 podiums: val.podiums,
                 fastestLaps: val.fastestLaps || 0,
+                bestWinStreak: yearStreaks[y]?.[key]?.bestWin || 0,
+                bestPodiumStreak: yearStreaks[y]?.[key]?.bestPodium || 0,
                 minutes: Math.round(val.minutes)
             }))
             .sort((a, b) => b.points - a.points);
@@ -705,6 +745,14 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
         }))
         .filter(w => w.winner);
 
+    const yearlyTop3 = Object.entries(standingsByYear)
+        .sort((a, b) => Number(a[0]) - Number(b[0]))
+        .map(([y, standings]) => ({
+            year: Number(y),
+            top3: standings.slice(0, 3)
+        }))
+        .filter(row => row.top3.length > 0);
+
     // Calculate all-time records: count gold/silver/bronze for each contender
     const allTimeRecords = {};
     Object.entries(standingsByYear).forEach(([y, standings]) => {
@@ -720,6 +768,8 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
                     totalWins: 0,
                     totalPodiums: 0,
                     totalFastestLaps: 0,
+                    bestWinStreak: 0,
+                    bestPodiumStreak: 0,
                     totalPoints: 0,
                     yearsActive: new Set()
                 };
@@ -728,6 +778,8 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
             allTimeRecords[key].totalWins += record.weeksWon;
             allTimeRecords[key].totalPodiums += record.podiums;
             allTimeRecords[key].totalFastestLaps += record.fastestLaps;
+            allTimeRecords[key].bestWinStreak = Math.max(allTimeRecords[key].bestWinStreak, record.bestWinStreak || 0);
+            allTimeRecords[key].bestPodiumStreak = Math.max(allTimeRecords[key].bestPodiumStreak, record.bestPodiumStreak || 0);
             allTimeRecords[key].totalPoints += record.points;
 
             if (idx === 0) allTimeRecords[key].golds++;
@@ -738,11 +790,7 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
 
     const allTimeList = Object.values(allTimeRecords)
         .filter(r => r.golds > 0 || r.silvers > 0 || r.bronzes > 0)
-        .sort((a, b) => {
-            if (b.golds !== a.golds) return b.golds - a.golds;
-            if (b.silvers !== a.silvers) return b.silvers - a.silvers;
-            return b.bronzes - a.bronzes;
-        });
+        .sort((a, b) => b.totalPoints - a.totalPoints);
 
     return {
         mode,
@@ -755,6 +803,7 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
             series: evolutionSeries
         },
         winners,
+        yearlyTop3,
         allTimeList
     };
 }

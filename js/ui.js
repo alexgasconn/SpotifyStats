@@ -9,6 +9,11 @@ let currentTimelineUnit = 'week';
 // F1 state
 let f1Mode = 'artists';
 let f1Year = null;
+let f1WeekIndex = -1;
+let f1StandingsSort = { key: 'points', dir: 'desc' };
+let f1AllTimeSort = { key: 'totalPoints', dir: 'desc' };
+let f1YearlySort = { key: 'points', dir: 'desc' };
+let f1WeekSort = { key: 'rank', dir: 'asc' };
 
 // KPI state
 let topTracksN = 10;
@@ -580,6 +585,31 @@ export function renderF1Tab() {
 
     f1Year = stats.selectedYear;
 
+    const val = (row, key) => {
+        if (key === 'name') return String(row.name || '').toLowerCase();
+        return Number(row[key] ?? 0);
+    };
+
+    const sortRows = (rows, sortState) => {
+        const list = [...rows];
+        const dir = sortState.dir === 'asc' ? 1 : -1;
+        return list.sort((a, b) => {
+            const av = val(a, sortState.key);
+            const bv = val(b, sortState.key);
+            if (typeof av === 'string' || typeof bv === 'string') {
+                return String(av).localeCompare(String(bv)) * dir;
+            }
+            return (av - bv) * dir;
+        });
+    };
+
+    const sortedStandings = sortRows(stats.standings, f1StandingsSort);
+    const sortedAllTime = sortRows(stats.allTimeList, f1AllTimeSort);
+    const yearlyTop3Rows = sortRows(
+        stats.yearlyTop3.flatMap(y => y.top3.map((row, idx) => ({ ...row, year: y.year, yearRank: idx + 1 }))),
+        f1YearlySort
+    );
+
     const leader = stats.standings[0];
     const second = stats.standings[1];
     const gap = leader && second ? leader.points - second.points : 0;
@@ -591,6 +621,10 @@ export function renderF1Tab() {
         label: `Week ${stats.weekly.length - idx}`,
         idx: stats.weekly.length - idx - 1
     }));
+
+    if (f1WeekIndex >= stats.weekly.length) f1WeekIndex = -1;
+
+    const sortMark = (state, key) => state.key === key ? (state.dir === 'asc' ? ' ▲' : ' ▼') : '';
 
     container.innerHTML = `
         <div class="f1-controls">
@@ -609,6 +643,15 @@ export function renderF1Tab() {
                 </select>
             </div>
         </div>
+
+        <details class="f1-help">
+            <summary>How this F1 mode works</summary>
+            <div>
+                Weekly ranking gives F1 points (25-18-15-12-10-8-6-4-2-1) to the top 10 by listening minutes.<br>
+                Fastest lap gives +1 extra point to the weekly #1.<br>
+                Wins = weekly P1 finishes, Podiums = weekly Top 3 finishes, Streak = best consecutive weeks winning.
+            </div>
+        </details>
 
         <div class="f1-hero">
             <div class="f1-pill">
@@ -637,18 +680,28 @@ export function renderF1Tab() {
             <div class="f1-card" style="grid-column:1/-1">
                 <h3>🏁 ${stats.selectedYear} Final Standings</h3>
                 <div style="overflow:auto;">
-                    <table class="f1-standings f1-standings-detailed">
+                    <table class="f1-standings f1-standings-detailed f1-podium-highlight">
                         <thead>
-                            <tr><th>#</th><th>Name</th><th>Wins</th><th>Podiums</th><th>⚡ FL</th><th>Minutes</th><th>Points</th></tr>
+                            <tr>
+                                <th>#</th>
+                                <th class="f1-sortable-th" data-f1-table="standings" data-sort-key="name">Name${sortMark(f1StandingsSort, 'name')}</th>
+                                <th class="f1-sortable-th" data-f1-table="standings" data-sort-key="weeksWon">Wins${sortMark(f1StandingsSort, 'weeksWon')}</th>
+                                <th class="f1-sortable-th" data-f1-table="standings" data-sort-key="podiums">Podiums${sortMark(f1StandingsSort, 'podiums')}</th>
+                                <th class="f1-sortable-th" data-f1-table="standings" data-sort-key="bestWinStreak">Racha${sortMark(f1StandingsSort, 'bestWinStreak')}</th>
+                                <th class="f1-sortable-th" data-f1-table="standings" data-sort-key="fastestLaps">⚡ FL${sortMark(f1StandingsSort, 'fastestLaps')}</th>
+                                <th class="f1-sortable-th" data-f1-table="standings" data-sort-key="minutes">Minutes${sortMark(f1StandingsSort, 'minutes')}</th>
+                                <th class="f1-sortable-th" data-f1-table="standings" data-sort-key="points">Points${sortMark(f1StandingsSort, 'points')}</th>
+                            </tr>
                         </thead>
                         <tbody>
-                            ${stats.standings.slice(0, 15).map((r, i) => {
+                            ${sortedStandings.slice(0, 15).map((r, i) => {
         const pctMin = ((r.minutes / totalMinutes) * 100).toFixed(1);
         return `<tr>
                                     <td><strong>${i + 1}</strong></td>
                                     <td>${esc(r.name)}${r.subtitle ? `<div style="font-size:0.7rem;color:var(--text-muted)">${esc(r.subtitle)}</div>` : ''}</td>
                                     <td><strong>${r.weeksWon}</strong></td>
                                     <td>${r.podiums}</td>
+                                    <td>${r.bestWinStreak || 0}</td>
                                     <td>${r.fastestLaps || 0}</td>
                                     <td>${Math.round(r.minutes)}<span style="color:var(--text-muted);font-size:0.8rem"> (${pctMin}%)</span></td>
                                     <td><strong style="color:var(--green)">${r.points}</strong></td>
@@ -676,27 +729,50 @@ export function renderF1Tab() {
             <div class="f1-card" style="grid-column:1/-1">
                 <h3>🏆 All-Time Championship Records</h3>
                 <table class="f1-standings">
-                    <thead><tr><th>Name</th><th>🥇</th><th>🥈</th><th>🥉</th><th>Total Wins</th><th>Podiums</th><th>⚡</th><th>Points</th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="name">Name${sortMark(f1AllTimeSort, 'name')}</th>
+                            <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="golds">Oros${sortMark(f1AllTimeSort, 'golds')}</th>
+                            <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="silvers">Platas${sortMark(f1AllTimeSort, 'silvers')}</th>
+                            <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="bronzes">Bronces${sortMark(f1AllTimeSort, 'bronzes')}</th>
+                            <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="totalWins">Wins${sortMark(f1AllTimeSort, 'totalWins')}</th>
+                            <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="totalPodiums">Podiums${sortMark(f1AllTimeSort, 'totalPodiums')}</th>
+                            <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="bestWinStreak">Racha${sortMark(f1AllTimeSort, 'bestWinStreak')}</th>
+                            <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="totalFastestLaps">⚡${sortMark(f1AllTimeSort, 'totalFastestLaps')}</th>
+                            <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="totalPoints">Points${sortMark(f1AllTimeSort, 'totalPoints')}</th>
+                        </tr>
+                    </thead>
                     <tbody>
-                        ${stats.allTimeList.slice(0, 20).map(r => `<tr><td>${esc(r.name)}${r.subtitle ? `<div style="font-size:0.7rem;color:var(--text-muted);">${esc(r.subtitle)}</div>` : ''}</td><td><strong style="color:#FFD700">${r.golds}</strong></td><td><strong style="color:#C0C0C0">${r.silvers}</strong></td><td><strong style="color:#CD7F32">${r.bronzes}</strong></td><td>${r.totalWins}</td><td>${r.totalPodiums}</td><td>${r.totalFastestLaps}</td><td><strong style="color:var(--green)">${r.totalPoints}</strong></td></tr>`).join('')}
+                        ${sortedAllTime.slice(0, 20).map(r => `<tr><td>${esc(r.name)}${r.subtitle ? `<div style="font-size:0.7rem;color:var(--text-muted);">${esc(r.subtitle)}</div>` : ''}</td><td>${r.golds}</td><td>${r.silvers}</td><td>${r.bronzes}</td><td>${r.totalWins}</td><td>${r.totalPodiums}</td><td>${r.bestWinStreak || 0}</td><td>${r.totalFastestLaps}</td><td><strong style="color:var(--green)">${r.totalPoints}</strong></td></tr>`).join('')}
                     </tbody>
                 </table>
             </div>
 
             <div class="f1-card" style="grid-column:1/-1">
-                <h3>🏅 Year-by-Year Champions</h3>
+                <h3>Year-by-Year Top 3</h3>
                 <table class="f1-standings">
-                    <thead><tr><th>Year</th><th>🏆 Champion</th><th>Wins</th><th>⚡</th><th>Points</th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th class="f1-sortable-th" data-f1-table="yearly" data-sort-key="year">Year${sortMark(f1YearlySort, 'year')}</th>
+                            <th class="f1-sortable-th" data-f1-table="yearly" data-sort-key="yearRank">Pos${sortMark(f1YearlySort, 'yearRank')}</th>
+                            <th class="f1-sortable-th" data-f1-table="yearly" data-sort-key="name">Name${sortMark(f1YearlySort, 'name')}</th>
+                            <th class="f1-sortable-th" data-f1-table="yearly" data-sort-key="weeksWon">Wins${sortMark(f1YearlySort, 'weeksWon')}</th>
+                            <th class="f1-sortable-th" data-f1-table="yearly" data-sort-key="podiums">Podiums${sortMark(f1YearlySort, 'podiums')}</th>
+                            <th class="f1-sortable-th" data-f1-table="yearly" data-sort-key="bestWinStreak">Racha${sortMark(f1YearlySort, 'bestWinStreak')}</th>
+                            <th class="f1-sortable-th" data-f1-table="yearly" data-sort-key="fastestLaps">⚡${sortMark(f1YearlySort, 'fastestLaps')}</th>
+                            <th class="f1-sortable-th" data-f1-table="yearly" data-sort-key="points">Points${sortMark(f1YearlySort, 'points')}</th>
+                        </tr>
+                    </thead>
                     <tbody>
-                        ${stats.winners.map(w => `<tr><td><strong>${w.year}</strong></td><td>${esc(w.winner.name)}${w.winner.subtitle ? `<div style="font-size:0.7rem;color:var(--text-muted);">${esc(w.winner.subtitle)}</div>` : ''}</td><td>${w.winner.weeksWon}</td><td>${w.winner.fastestLaps || 0}</td><td><strong>${w.winner.points}</strong></td></tr>`).join('')}
+                        ${yearlyTop3Rows.map(row => `<tr><td>${row.year}</td><td>${row.yearRank}</td><td>${esc(row.name)}${row.subtitle ? `<div style="font-size:0.7rem;color:var(--text-muted);">${esc(row.subtitle)}</div>` : ''}</td><td>${row.weeksWon}</td><td>${row.podiums}</td><td>${row.bestWinStreak || 0}</td><td>${row.fastestLaps || 0}</td><td><strong>${row.points}</strong></td></tr>`).join('')}
                     </tbody>
                 </table>
             </div>
         </div>
     `;
 
-    // Render first week by default
-    renderF1WeekDetails(stats, -1);
+    // Render week table with selected state
+    renderF1WeekDetails(stats, f1WeekIndex, f1WeekSort);
     charts.renderF1EvolutionChart(stats.evolution.labels, stats.evolution.series);
 
     document.getElementById('f1-mode')?.addEventListener('change', (e) => {
@@ -710,12 +786,46 @@ export function renderF1Tab() {
     });
 
     document.getElementById('f1-week-selector')?.addEventListener('change', (e) => {
-        const weekIdx = parseInt(e.target.value, 10);
-        renderF1WeekDetails(stats, weekIdx);
+        f1WeekIndex = parseInt(e.target.value, 10);
+        renderF1WeekDetails(stats, f1WeekIndex, f1WeekSort);
+    });
+
+    container.querySelectorAll('.f1-sortable-th').forEach(th => {
+        th.addEventListener('click', () => {
+            const table = th.dataset.f1Table;
+            const key = th.dataset.sortKey;
+            const toggle = (state, nextKey) => ({
+                key: nextKey,
+                dir: state.key === nextKey ? (state.dir === 'asc' ? 'desc' : 'asc') : 'desc'
+            });
+
+            if (table === 'standings') {
+                f1StandingsSort = toggle(f1StandingsSort, key);
+                renderF1Tab();
+                return;
+            }
+            if (table === 'alltime') {
+                f1AllTimeSort = toggle(f1AllTimeSort, key);
+                renderF1Tab();
+                return;
+            }
+            if (table === 'yearly') {
+                f1YearlySort = toggle(f1YearlySort, key);
+                renderF1Tab();
+                return;
+            }
+            if (table === 'week') {
+                f1WeekSort = {
+                    key,
+                    dir: f1WeekSort.key === key ? (f1WeekSort.dir === 'asc' ? 'desc' : 'asc') : 'desc'
+                };
+                renderF1WeekDetails(stats, f1WeekIndex, f1WeekSort);
+            }
+        });
     });
 }
 
-function renderF1WeekDetails(stats, weekIdx) {
+function renderF1WeekDetails(stats, weekIdx, sortState = { key: 'rank', dir: 'asc' }) {
     const container = document.getElementById('f1-week-details');
     if (!container) return;
 
@@ -725,6 +835,16 @@ function renderF1WeekDetails(stats, weekIdx) {
     const weekNumber = weekIdx === -1 ? stats.weekly.length : weekIdx + 1;
     const weekLabel = weekIdx === -1 ? '(Latest)' : `(Week ${weekNumber})`;
 
+    const rows = [...targetWeek.topWeek.slice(0, 10)].sort((a, b) => {
+        const dir = sortState.dir === 'asc' ? 1 : -1;
+        const av = sortState.key === 'name' ? String(a.name || '').toLowerCase() : Number(a[sortState.key] ?? 0);
+        const bv = sortState.key === 'name' ? String(b.name || '').toLowerCase() : Number(b[sortState.key] ?? 0);
+        if (typeof av === 'string' || typeof bv === 'string') return String(av).localeCompare(String(bv)) * dir;
+        return (av - bv) * dir;
+    });
+
+    const weekSortMark = (key) => sortState.key === key ? (sortState.dir === 'asc' ? ' ▲' : ' ▼') : '';
+
     const table = `
         <div style="padding:0.8rem;margin-bottom:1rem;background:rgba(29,185,84,0.08);border-radius:var(--radius);text-align:center;">
             <div style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Week of <strong style="color:var(--green);font-size:1rem">${targetWeek.weekStart}</strong> ${weekLabel}</div>
@@ -732,16 +852,16 @@ function renderF1WeekDetails(stats, weekIdx) {
         <table class="f1-standings f1-standings-week">
             <thead>
                 <tr>
-                    <th>#</th>
-                    <th>Name</th>
-                    <th>Minutes</th>
-                    <th>Base Pts</th>
-                    <th>Bonus</th>
-                    <th>Total Pts</th>
+                    <th class="f1-sortable-th" data-f1-table="week" data-sort-key="rank">#${weekSortMark('rank')}</th>
+                    <th class="f1-sortable-th" data-f1-table="week" data-sort-key="name">Name${weekSortMark('name')}</th>
+                    <th class="f1-sortable-th" data-f1-table="week" data-sort-key="minutes">Minutes${weekSortMark('minutes')}</th>
+                    <th class="f1-sortable-th" data-f1-table="week" data-sort-key="basePoints">Base Pts${weekSortMark('basePoints')}</th>
+                    <th class="f1-sortable-th" data-f1-table="week" data-sort-key="bonusPoints">Bonus${weekSortMark('bonusPoints')}</th>
+                    <th class="f1-sortable-th" data-f1-table="week" data-sort-key="points">Total Pts${weekSortMark('points')}</th>
                 </tr>
             </thead>
             <tbody>
-                ${targetWeek.topWeek.slice(0, 10).map((r, idx) => `
+                ${rows.map((r, idx) => `
                     <tr>
                         <td><strong>${r.rank}</strong></td>
                         <td>${r.fastestLap ? '⚡ ' : ''}${esc(r.name)}${r.subtitle ? `<div style="font-size:0.7rem;color:var(--text-muted)">${esc(r.subtitle)}</div>` : ''}</td>
