@@ -29,6 +29,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const applyBtn = document.getElementById('apply-filter-btn');
     const resetFiltersBtn = document.getElementById('reset-filters-btn');
     const resetBtn = document.getElementById('reset-btn');
+    const filtersPanel = document.querySelector('.filters-panel');
+    const toggleFiltersBtn = document.getElementById('toggle-filters-btn');
 
     const wrappedYearFilter = document.getElementById('wrapped-year-filter');
 
@@ -135,6 +137,12 @@ document.addEventListener('DOMContentLoaded', () => {
         uploadSection.classList.remove('hidden');
         window.spotifyData = { full: [], filtered: [] };
         zipInput.value = '';
+    });
+
+    toggleFiltersBtn?.addEventListener('click', () => {
+        if (!filtersPanel) return;
+        const collapsed = filtersPanel.classList.toggle('filters-collapsed');
+        toggleFiltersBtn.textContent = collapsed ? 'Show Filters' : 'Hide Filters';
     });
 
     // ── DETAIL MODAL ────────────────────────────

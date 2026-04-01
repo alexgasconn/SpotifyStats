@@ -376,6 +376,21 @@ header {
     background: var(--green-light);
 }
 
+.filters-panel-head {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.7rem;
+}
+
+.filters-panel.filters-collapsed .filters-row,
+.filters-panel.filters-collapsed #active-filter-pills {
+    display: none;
+}
+
+.filters-panel.filters-collapsed {
+    padding-bottom: 0.7rem;
+}
+
 .secondary-btn {
     background: var(--gray);
     color: var(--text-muted);
