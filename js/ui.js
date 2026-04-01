@@ -6,6 +6,10 @@ import { openDetail } from './detail.js';
 
 let currentTimelineUnit = 'week';
 
+// F1 state
+let f1Mode = 'artists';
+let f1Year = null;
+
 // KPI state
 let topTracksN = 10;
 let topArtistsN = 10;
@@ -557,6 +561,139 @@ export function renderDeepDiveTab() {
             const extra = el.dataset.detailExtra || '';
             openDetail(name, type, extra, window.spotifyData.full);
         });
+    });
+}
+
+// ─────────────────────────────────────────────
+//  F1 CHAMPIONSHIP
+// ─────────────────────────────────────────────
+
+export function renderF1Tab() {
+    const container = document.getElementById('f1-content');
+    if (!container) return;
+
+    const stats = store.calculateF1Championship(window.spotifyData.filtered, f1Mode, f1Year, 20);
+    if (!stats) {
+        container.innerHTML = '<p style="color:var(--text-muted);padding:1rem">No data available for F1 championship.</p>';
+        return;
+    }
+
+    f1Year = stats.selectedYear;
+
+    const leader = stats.standings[0];
+    const second = stats.standings[1];
+    const gap = leader && second ? leader.points - second.points : 0;
+
+    container.innerHTML = `
+        <div class="f1-controls">
+            <div>
+                <label for="f1-mode">Championship</label><br>
+                <select id="f1-mode">
+                    <option value="artists" ${stats.mode === 'artists' ? 'selected' : ''}>Artists Championship</option>
+                    <option value="tracks" ${stats.mode === 'tracks' ? 'selected' : ''}>Tracks Championship</option>
+                    <option value="albums" ${stats.mode === 'albums' ? 'selected' : ''}>Albums Championship</option>
+                </select>
+            </div>
+            <div>
+                <label for="f1-year">Season (Year)</label><br>
+                <select id="f1-year">
+                    ${stats.years.map(y => `<option value="${y}" ${y === stats.selectedYear ? 'selected' : ''}>${y}</option>`).join('')}
+                </select>
+            </div>
+        </div>
+
+        <div class="f1-hero">
+            <div class="f1-pill">
+                <div class="k">Current Leader</div>
+                <div class="v">${leader ? esc(leader.name) : '—'}</div>
+                <div class="k">${leader?.points || 0} pts</div>
+            </div>
+            <div class="f1-pill">
+                <div class="k">Points Gap to P2</div>
+                <div class="v">${gap}</div>
+                <div class="k">championship points</div>
+            </div>
+            <div class="f1-pill">
+                <div class="k">Season Winner Projection</div>
+                <div class="v">${leader ? esc(leader.name) : '—'}</div>
+                <div class="k">based on current standings</div>
+            </div>
+        </div>
+
+        <div class="f1-grid">
+            <div class="f1-card" style="grid-column:1/-1">
+                <h3>Evolution by Month (Cumulative F1 Points)</h3>
+                <div style="height:310px"><canvas id="f1-evolution-chart"></canvas></div>
+            </div>
+
+            <div class="f1-card">
+                <h3>${stats.selectedYear} Standings</h3>
+                <div style="max-height:520px;overflow:auto">
+                    <table class="f1-standings">
+                        <thead>
+                            <tr><th>#</th><th>Name</th><th>Wins</th><th>Podiums</th><th>Points</th></tr>
+                        </thead>
+                        <tbody>
+                            ${stats.standings.map((r, i) => `
+                                <tr>
+                                    <td>${i + 1}</td>
+                                    <td>${esc(r.name)}${r.subtitle ? `<div style="font-size:0.72rem;color:var(--text-muted)">${esc(r.subtitle)}</div>` : ''}</td>
+                                    <td>${r.weeksWon}</td>
+                                    <td>${r.podiums}</td>
+                                    <td><strong>${r.points}</strong></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="f1-card">
+                <h3>Weekly Podiums (${stats.selectedYear})</h3>
+                <div class="f1-week-list">
+                    ${stats.weekly.slice().reverse().map(w => {
+        const p = w.topWeek.slice(0, 3);
+        return `<div class="f1-week-item">
+                            <div class="wk">Week of ${w.weekStart}</div>
+                            <div class="podium">
+                                ${p[0] ? `<span>🥇 ${esc(p[0].name)} (${p[0].points} pts)</span>` : ''}
+                                ${p[1] ? `<span>🥈 ${esc(p[1].name)} (${p[1].points} pts)</span>` : ''}
+                                ${p[2] ? `<span>🥉 ${esc(p[2].name)} (${p[2].points} pts)</span>` : ''}
+                            </div>
+                        </div>`;
+    }).join('')}
+                </div>
+            </div>
+
+            <div class="f1-card" style="grid-column:1/-1">
+                <h3>World Champions by Year</h3>
+                <table class="f1-standings">
+                    <thead><tr><th>Year</th><th>Champion</th><th>Wins</th><th>Points</th></tr></thead>
+                    <tbody>
+                        ${stats.winners.map(w => `
+                            <tr>
+                                <td>${w.year}</td>
+                                <td>${esc(w.winner.name)}${w.winner.subtitle ? ` <span style="color:var(--text-muted)">· ${esc(w.winner.subtitle)}</span>` : ''}</td>
+                                <td>${w.winner.weeksWon}</td>
+                                <td><strong>${w.winner.points}</strong></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    charts.renderF1EvolutionChart(stats.evolution.labels, stats.evolution.series);
+
+    document.getElementById('f1-mode')?.addEventListener('change', (e) => {
+        f1Mode = e.target.value;
+        renderF1Tab();
+    });
+
+    document.getElementById('f1-year')?.addEventListener('change', (e) => {
+        f1Year = parseInt(e.target.value, 10);
+        renderF1Tab();
     });
 }
 

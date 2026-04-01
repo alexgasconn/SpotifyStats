@@ -565,6 +565,141 @@ export function calculateDeepInsights(data) {
 }
 
 // ─────────────────────────────────────────────
+//  F1 CHAMPIONSHIP
+// ─────────────────────────────────────────────
+
+const F1_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
+
+export function calculateF1Championship(data, mode = 'artists', selectedYear = null, topN = 15) {
+    const music = data.filter(d => !d.isPodcast && d.trackName);
+    if (!music.length) return null;
+
+    const getKey = (d) => {
+        if (mode === 'artists') {
+            return d.artistName ? String(d.artistName).trim() : '';
+        }
+        if (mode === 'tracks') {
+            const t = d.trackName ? String(d.trackName).trim() : '';
+            const a = d.artistName ? String(d.artistName).trim() : '';
+            return t ? `${t}|||${a}` : '';
+        }
+        const al = d.albumName ? String(d.albumName).trim() : '';
+        const a = d.artistName ? String(d.artistName).trim() : '';
+        return al ? `${al}|||${a}` : '';
+    };
+
+    const getLabel = (key) => {
+        if (mode === 'artists') return { name: key, subtitle: '' };
+        const [name, artist] = key.split('|||');
+        return { name, subtitle: artist || '' };
+    };
+
+    const weekMap = {};
+    music.forEach(d => {
+        const wk = getStartOfWeek(d.ts);
+        const key = getKey(d);
+        if (!key) return;
+        if (!weekMap[wk]) weekMap[wk] = {};
+        if (!weekMap[wk][key]) weekMap[wk][key] = 0;
+        weekMap[wk][key] += d.durationMin;
+    });
+
+    const years = [...new Set(music.map(d => d.year))].sort((a, b) => a - b);
+    const activeYear = selectedYear && years.includes(selectedYear) ? selectedYear : years[years.length - 1];
+
+    const yearStandingMap = {};
+    const weeklyByYear = {};
+
+    Object.entries(weekMap).sort((a, b) => a[0].localeCompare(b[0])).forEach(([weekStart, values]) => {
+        const year = new Date(weekStart).getFullYear();
+        if (!yearStandingMap[year]) yearStandingMap[year] = {};
+        if (!weeklyByYear[year]) weeklyByYear[year] = [];
+
+        const ranking = Object.entries(values)
+            .map(([key, minutes]) => ({ key, minutes }))
+            .sort((a, b) => b.minutes - a.minutes);
+
+        const topWeek = ranking.slice(0, 10).map((r, idx) => {
+            const pts = F1_POINTS[idx] || 0;
+            if (!yearStandingMap[year][r.key]) {
+                yearStandingMap[year][r.key] = { points: 0, weeksWon: 0, podiums: 0, minutes: 0 };
+            }
+            yearStandingMap[year][r.key].points += pts;
+            yearStandingMap[year][r.key].minutes += r.minutes;
+            if (idx === 0) yearStandingMap[year][r.key].weeksWon += 1;
+            if (idx < 3) yearStandingMap[year][r.key].podiums += 1;
+
+            return {
+                rank: idx + 1,
+                key: r.key,
+                points: pts,
+                minutes: Math.round(r.minutes),
+                ...getLabel(r.key)
+            };
+        });
+
+        weeklyByYear[year].push({ weekStart, topWeek });
+    });
+
+    const standingsByYear = {};
+    Object.entries(yearStandingMap).forEach(([y, map]) => {
+        standingsByYear[y] = Object.entries(map)
+            .map(([key, val]) => ({
+                key,
+                ...getLabel(key),
+                points: val.points,
+                weeksWon: val.weeksWon,
+                podiums: val.podiums,
+                minutes: Math.round(val.minutes)
+            }))
+            .sort((a, b) => b.points - a.points);
+    });
+
+    const selectedStandings = (standingsByYear[activeYear] || []).slice(0, topN);
+    const selectedWeekly = weeklyByYear[activeYear] || [];
+
+    // Evolution month-by-month (cumulative points) for top contenders of selected year
+    const contenders = selectedStandings.slice(0, 8).map(s => s.key);
+    const monthPoints = {};
+    contenders.forEach(c => { monthPoints[c] = Array(12).fill(0); });
+
+    selectedWeekly.forEach(w => {
+        const month = new Date(w.weekStart).getMonth();
+        w.topWeek.forEach(row => {
+            if (monthPoints[row.key]) monthPoints[row.key][month] += row.points;
+        });
+    });
+
+    const evolutionSeries = contenders.map(key => {
+        let cum = 0;
+        const data = monthPoints[key].map(v => { cum += v; return cum; });
+        const label = getLabel(key);
+        return { key, name: label.name, subtitle: label.subtitle, data };
+    });
+
+    const winners = Object.entries(standingsByYear)
+        .sort((a, b) => Number(a[0]) - Number(b[0]))
+        .map(([y, standings]) => ({
+            year: Number(y),
+            winner: standings[0] || null
+        }))
+        .filter(w => w.winner);
+
+    return {
+        mode,
+        years,
+        selectedYear: activeYear,
+        standings: selectedStandings,
+        weekly: selectedWeekly,
+        evolution: {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+            series: evolutionSeries
+        },
+        winners
+    };
+}
+
+// ─────────────────────────────────────────────
 //  DETAIL PAGE STATS
 // ─────────────────────────────────────────────
 

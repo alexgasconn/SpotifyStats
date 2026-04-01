@@ -255,6 +255,44 @@ export function renderBubbleChart(canvasId, matrixData) {
     });
 }
 
+// ── F1 CHAMPIONSHIP ───────────────────────────────────────────────────────────
+
+export function renderF1EvolutionChart(labels, series) {
+    make('f1-evolution-chart', {
+        type: 'line',
+        data: {
+            labels,
+            datasets: series.map((s, i) => ({
+                label: s.subtitle ? `${s.name} — ${s.subtitle}` : s.name,
+                data: s.data,
+                borderColor: COLORS[i % COLORS.length],
+                backgroundColor: COLORS[i % COLORS.length] + '33',
+                tension: 0.25,
+                pointRadius: 2,
+                borderWidth: 2
+            }))
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: TICK, boxWidth: 10 }
+                },
+                datalabels: false,
+                tooltip: {
+                    callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw} pts` }
+                }
+            },
+            scales: {
+                x: { ticks: { color: TICK }, grid: { display: false } },
+                y: { ticks: { color: TICK }, grid: { color: GRID }, title: { display: true, text: 'Cumulative Points', color: TICK } }
+            }
+        }
+    });
+}
+
 // ── WRAPPED ───────────────────────────────────────────────────────────────────
 
 export function renderWrappedMonthlyChart(monthlyData) {

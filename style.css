@@ -1265,6 +1265,133 @@ header {
     margin-bottom: 0.75rem;
 }
 
+/* ── F1 CHAMPIONSHIP ── */
+.f1-controls {
+    display: flex;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.f1-controls label {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.f1-controls select {
+    background: var(--gray);
+    color: var(--text);
+    border: 1px solid var(--gray-light);
+    border-radius: 6px;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.85rem;
+}
+
+.f1-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.25rem;
+}
+
+.f1-card {
+    background: var(--dark);
+    border: 1px solid var(--gray);
+    border-radius: var(--radius);
+    padding: 1.2rem;
+}
+
+.f1-card h3 {
+    font-size: 1rem;
+    margin-bottom: 0.8rem;
+}
+
+.f1-hero {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.2rem;
+}
+
+.f1-pill {
+    background: rgba(29, 185, 84, 0.1);
+    border: 1px solid rgba(29, 185, 84, 0.35);
+    border-radius: 10px;
+    padding: 0.8rem;
+}
+
+.f1-pill .k {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.f1-pill .v {
+    color: var(--green);
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-top: 0.2rem;
+}
+
+.f1-standings {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.84rem;
+}
+
+.f1-standings th,
+.f1-standings td {
+    padding: 0.5rem 0.4rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    text-align: left;
+}
+
+.f1-standings th {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.f1-standings td:last-child,
+.f1-standings th:last-child {
+    text-align: right;
+}
+
+.f1-week-list {
+    max-height: 360px;
+    overflow: auto;
+}
+
+.f1-week-item {
+    padding: 0.55rem 0.4rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 0.82rem;
+}
+
+.f1-week-item .wk {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    margin-bottom: 0.25rem;
+}
+
+.f1-week-item .podium {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.f1-week-item .podium span {
+    background: var(--gray);
+    border-radius: 500px;
+    padding: 0.1rem 0.5rem;
+}
+
 /* ── GAME ── */
 .game-container {
     text-align: center;
