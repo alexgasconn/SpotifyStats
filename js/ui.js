@@ -608,13 +608,6 @@ export function renderF1Tab() {
                     ${stats.years.map(y => `<option value="${y}" ${y === stats.selectedYear ? 'selected' : ''}>${y}</option>`).join('')}
                 </select>
             </div>
-            <div>
-                <label for="f1-week">View Week</label>
-                <select id="f1-week">
-                    <option value="-1">Latest</option>
-                    ${weeks.map(w => `<option value="${w.idx}">${w.label} (${w.weekStart})</option>`).join('')}
-                </select>
-            </div>
         </div>
 
         <div class="f1-hero">
@@ -668,15 +661,32 @@ export function renderF1Tab() {
 
             <div class="f1-card" style="grid-column:1/-1">
                 <h3>📋 Top 10 By Week</h3>
+                <div style="margin-bottom:1rem;padding:0.8rem;background:rgba(29,185,84,0.08);border-radius:var(--radius);border-left:3px solid var(--green);">
+                    <label for="f1-week-selector" style="font-size:0.8rem;color:var(--green);font-weight:600;margin-right:0.5rem;">SELECT WEEK:</label>
+                    <select id="f1-week-selector" style="padding:0.5rem 0.8rem;background:var(--gray);color:var(--text);border:1px solid rgba(29,185,84,0.3);border-radius:var(--radius);font-size:0.9rem;cursor:pointer;">
+                        <option value="-1">Latest Week</option>
+                        ${weeks.map(w => `<option value="${w.idx}">${w.label} (${w.weekStart})</option>`).join('')}
+                    </select>
+                </div>
                 <div id="f1-week-details" style="overflow:auto;">
                     <!-- Populated by JS -->
                 </div>
             </div>
 
             <div class="f1-card" style="grid-column:1/-1">
-                <h3>🏆 Champions History</h3>
+                <h3>🏆 All-Time Championship Records</h3>
                 <table class="f1-standings">
-                    <thead><tr><th>Year</th><th>Champion</th><th>Wins</th><th>⚡</th><th>Points</th></tr></thead>
+                    <thead><tr><th>Name</th><th>🥇</th><th>🥈</th><th>🥉</th><th>Total Wins</th><th>Podiums</th><th>⚡</th><th>Points</th></tr></thead>
+                    <tbody>
+                        ${stats.allTimeList.slice(0, 20).map(r => `<tr><td>${esc(r.name)}${r.subtitle ? `<div style="font-size:0.7rem;color:var(--text-muted);">${esc(r.subtitle)}</div>` : ''}</td><td><strong style="color:#FFD700">${r.golds}</strong></td><td><strong style="color:#C0C0C0">${r.silvers}</strong></td><td><strong style="color:#CD7F32">${r.bronzes}</strong></td><td>${r.totalWins}</td><td>${r.totalPodiums}</td><td>${r.totalFastestLaps}</td><td><strong style="color:var(--green)">${r.totalPoints}</strong></td></tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="f1-card" style="grid-column:1/-1">
+                <h3>🏅 Year-by-Year Champions</h3>
+                <table class="f1-standings">
+                    <thead><tr><th>Year</th><th>🏆 Champion</th><th>Wins</th><th>⚡</th><th>Points</th></tr></thead>
                     <tbody>
                         ${stats.winners.map(w => `<tr><td><strong>${w.year}</strong></td><td>${esc(w.winner.name)}${w.winner.subtitle ? `<div style="font-size:0.7rem;color:var(--text-muted);">${esc(w.winner.subtitle)}</div>` : ''}</td><td>${w.winner.weeksWon}</td><td>${w.winner.fastestLaps || 0}</td><td><strong>${w.winner.points}</strong></td></tr>`).join('')}
                     </tbody>
@@ -699,7 +709,7 @@ export function renderF1Tab() {
         renderF1Tab();
     });
 
-    document.getElementById('f1-week')?.addEventListener('change', (e) => {
+    document.getElementById('f1-week-selector')?.addEventListener('change', (e) => {
         const weekIdx = parseInt(e.target.value, 10);
         renderF1WeekDetails(stats, weekIdx);
     });
@@ -712,7 +722,13 @@ function renderF1WeekDetails(stats, weekIdx) {
     const targetWeek = weekIdx === -1 ? stats.weekly[stats.weekly.length - 1] : stats.weekly[weekIdx];
     if (!targetWeek) return;
 
+    const weekNumber = weekIdx === -1 ? stats.weekly.length : weekIdx + 1;
+    const weekLabel = weekIdx === -1 ? '(Latest)' : `(Week ${weekNumber})`;
+
     const table = `
+        <div style="padding:0.8rem;margin-bottom:1rem;background:rgba(29,185,84,0.08);border-radius:var(--radius);text-align:center;">
+            <div style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Week of <strong style="color:var(--green);font-size:1rem">${targetWeek.weekStart}</strong> ${weekLabel}</div>
+        </div>
         <table class="f1-standings f1-standings-week">
             <thead>
                 <tr>
@@ -737,9 +753,6 @@ function renderF1WeekDetails(stats, weekIdx) {
                 `).join('')}
             </tbody>
         </table>
-        <div style="padding:0.5rem;text-align:center;font-size:0.75rem;color:var(--text-muted)">
-            Week of ${targetWeek.weekStart}
-        </div>
     `;
     container.innerHTML = table;
 }

@@ -705,6 +705,45 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
         }))
         .filter(w => w.winner);
 
+    // Calculate all-time records: count gold/silver/bronze for each contender
+    const allTimeRecords = {};
+    Object.entries(standingsByYear).forEach(([y, standings]) => {
+        standings.forEach((record, idx) => {
+            const key = record.key;
+            if (!allTimeRecords[key]) {
+                allTimeRecords[key] = {
+                    key,
+                    ...getLabel(key),
+                    golds: 0,      // 1st place finishes
+                    silvers: 0,    // 2nd place finishes
+                    bronzes: 0,    // 3rd place finishes
+                    totalWins: 0,
+                    totalPodiums: 0,
+                    totalFastestLaps: 0,
+                    totalPoints: 0,
+                    yearsActive: new Set()
+                };
+            }
+            allTimeRecords[key].yearsActive.add(Number(y));
+            allTimeRecords[key].totalWins += record.weeksWon;
+            allTimeRecords[key].totalPodiums += record.podiums;
+            allTimeRecords[key].totalFastestLaps += record.fastestLaps;
+            allTimeRecords[key].totalPoints += record.points;
+
+            if (idx === 0) allTimeRecords[key].golds++;
+            else if (idx === 1) allTimeRecords[key].silvers++;
+            else if (idx === 2) allTimeRecords[key].bronzes++;
+        });
+    });
+
+    const allTimeList = Object.values(allTimeRecords)
+        .filter(r => r.golds > 0 || r.silvers > 0 || r.bronzes > 0)
+        .sort((a, b) => {
+            if (b.golds !== a.golds) return b.golds - a.golds;
+            if (b.silvers !== a.silvers) return b.silvers - a.silvers;
+            return b.bronzes - a.bronzes;
+        });
+
     return {
         mode,
         years,
@@ -715,7 +754,8 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
             labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
             series: evolutionSeries
         },
-        winners
+        winners,
+        allTimeList
     };
 }
 
