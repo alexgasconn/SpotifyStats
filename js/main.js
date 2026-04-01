@@ -120,9 +120,9 @@ document.addEventListener('DOMContentLoaded', () => {
         initDateFilters(data);
         yearFilter.value = '';
         seasonFilter.value = '';
-        artistFilter.value = '';
-        albumFilter.value = '';
-        trackFilter.value = '';
+        Array.from(artistFilter.options).forEach(o => o.selected = false);
+        Array.from(albumFilter.options).forEach(o => o.selected = false);
+        Array.from(trackFilter.options).forEach(o => o.selected = false);
         platformFilter.value = '';
         countryFilter.value = '';
         timeOfDayFilter.value = '';
@@ -181,15 +181,39 @@ document.addEventListener('DOMContentLoaded', () => {
         yearFilter.innerHTML = '<option value="">All Years</option>' +
             years.map(y => `<option value="${y}">${y}</option>`).join('');
 
-        const artists = [...new Set(music.map(d => d.artistName).filter(Boolean))].sort();
+        // Count play counts for each artist - ordered by play count
+        const artistCounts = {};
+        music.forEach(d => {
+            if (d.artistName) {
+                artistCounts[d.artistName] = (artistCounts[d.artistName] || 0) + 1;
+            }
+        });
+        const artists = Object.keys(artistCounts)
+            .sort((a, b) => artistCounts[b] - artistCounts[a]);
         artistFilter.innerHTML = '<option value="">All Artists</option>' +
             artists.map(a => `<option value="${escOpt(a)}">${escOpt(a)}</option>`).join('');
 
-        const albums = [...new Set(music.map(d => d.albumName).filter(Boolean))].sort();
+        // Count play counts for each album - ordered by play count
+        const albumCounts = {};
+        music.forEach(d => {
+            if (d.albumName) {
+                albumCounts[d.albumName] = (albumCounts[d.albumName] || 0) + 1;
+            }
+        });
+        const albums = Object.keys(albumCounts)
+            .sort((a, b) => albumCounts[b] - albumCounts[a]);
         albumFilter.innerHTML = '<option value="">All Albums</option>' +
             albums.map(a => `<option value="${escOpt(a)}">${escOpt(a)}</option>`).join('');
 
-        const tracks = [...new Set(music.map(d => d.trackName).filter(Boolean))].sort();
+        // Count play counts for each track - ordered by play count
+        const trackCounts = {};
+        music.forEach(d => {
+            if (d.trackName) {
+                trackCounts[d.trackName] = (trackCounts[d.trackName] || 0) + 1;
+            }
+        });
+        const tracks = Object.keys(trackCounts)
+            .sort((a, b) => trackCounts[b] - trackCounts[a]);
         trackFilter.innerHTML = '<option value="">All Tracks</option>' +
             tracks.map(t => `<option value="${escOpt(t)}">${escOpt(t)}</option>`).join('');
 
@@ -211,9 +235,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const to = dateTo.value;
             const year = yearFilter.value;
             const season = seasonFilter.value;
-            const artist = artistFilter.value;
-            const album = albumFilter.value;
-            const track = trackFilter.value;
+            const artists = Array.from(artistFilter.selectedOptions).map(o => o.value).filter(v => v);
+            const albums = Array.from(albumFilter.selectedOptions).map(o => o.value).filter(v => v);
+            const tracks = Array.from(trackFilter.selectedOptions).map(o => o.value).filter(v => v);
             const platform = platformFilter.value;
             const country = countryFilter.value;
             const timeOfDay = timeOfDayFilter.value;
@@ -224,9 +248,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (to && d.date > to) return false;
                 if (year && String(d.year) !== String(year)) return false;
                 if (season && d.season !== season) return false;
-                if (artist && d.artistName !== artist) return false;
-                if (album && d.albumName !== album) return false;
-                if (track && d.trackName !== track) return false;
+                if (artists.length > 0 && !artists.includes(d.artistName)) return false;
+                if (albums.length > 0 && !albums.includes(d.albumName)) return false;
+                if (tracks.length > 0 && !tracks.includes(d.trackName)) return false;
                 if (platform && d.platform !== platform) return false;
                 if (country && d.country !== country) return false;
                 if (timeOfDay && d.timeOfDay !== timeOfDay) return false;
@@ -235,7 +259,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 return true;
             });
 
-            renderFilterPills({ from, to, year, season, artist, album, track, platform, country, timeOfDay, skipMode });
+            // Format for display in pills
+            const artistLabel = artists.length > 0 ? `${artists.length} artist${artists.length !== 1 ? 's' : ''}` : '';
+            const albumLabel = albums.length > 0 ? `${albums.length} album${albums.length !== 1 ? 's' : ''}` : '';
+            const trackLabel = tracks.length > 0 ? `${tracks.length} track${tracks.length !== 1 ? 's' : ''}` : '';
+
+            renderFilterPills({
+                from, to, year, season,
+                artist: artistLabel || null,
+                album: albumLabel || null,
+                track: trackLabel || null,
+                platform, country, timeOfDay, skipMode
+            });
 
             renderUI();
             renderStreaksTab();
@@ -272,11 +307,17 @@ document.addEventListener('DOMContentLoaded', () => {
         container.querySelectorAll('button[data-key]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const key = btn.dataset.key;
-                const elMap = { from: dateFrom, to: dateTo, year: yearFilter, season: seasonFilter, artist: artistFilter, album: albumFilter, track: trackFilter, platform: platformFilter, country: countryFilter, timeOfDay: timeOfDayFilter, skipMode: skipFilter };
-                const el = elMap[key];
-                if (el) {
-                    if (el.type === 'date') { const data = window.spotifyData.full; initDateFilters(data); }
-                    else el.value = '';
+                if (key === 'artist' || key === 'album' || key === 'track') {
+                    const elMap = { artist: artistFilter, album: albumFilter, track: trackFilter };
+                    const el = elMap[key];
+                    if (el) Array.from(el.options).forEach(o => o.selected = false);
+                } else {
+                    const elMap = { from: dateFrom, to: dateTo, year: yearFilter, season: seasonFilter, platform: platformFilter, country: countryFilter, timeOfDay: timeOfDayFilter, skipMode: skipFilter };
+                    const el = elMap[key];
+                    if (el) {
+                        if (el.type === 'date') { const data = window.spotifyData.full; initDateFilters(data); }
+                        else el.value = '';
+                    }
                 }
                 applyFilters();
             });
