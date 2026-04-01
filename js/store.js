@@ -18,10 +18,18 @@ let _cfg = {
 
 export function getConfig() { return { ..._cfg }; }
 
-export async function processSpotifyZip(zipFile, config = {}) {
+export async function processSpotifyZip(zipFile, config = {}, onProgress = null) {
     _cfg = { ..._cfg, ...config };
+
+    const report = (pct, msg) => {
+        if (typeof onProgress === 'function') onProgress(pct, msg);
+    };
+
+    report(5, 'Opening ZIP archive...');
     const jszip = new JSZip();
     const zip = await jszip.loadAsync(zipFile);
+
+    report(12, 'Scanning files inside ZIP...');
     const historyFiles = [];
     zip.forEach((relativePath, zipEntry) => {
         if (
@@ -36,11 +44,33 @@ export async function processSpotifyZip(zipFile, config = {}) {
     if (historyFiles.length === 0) {
         throw new Error('No Spotify streaming history JSON files found in the ZIP.');
     }
-    const allEntries = await Promise.all(
-        historyFiles.map(file => file.async('string').then(JSON.parse))
-    );
+
+    report(16, `Found ${historyFiles.length} history files. Reading JSON...`);
+
+    const allEntries = [];
+    for (let i = 0; i < historyFiles.length; i++) {
+        const file = historyFiles[i];
+        const filePct = 16 + Math.round(((i + 1) / historyFiles.length) * 54);
+        report(filePct, `Parsing file ${i + 1}/${historyFiles.length}: ${file.name}`);
+
+        let parsed;
+        try {
+            const text = await file.async('string');
+            parsed = JSON.parse(text);
+        } catch (err) {
+            throw new Error(`Failed to parse ${file.name}: ${err.message}`);
+        }
+        allEntries.push(parsed);
+    }
+
+    report(74, 'Transforming entries and applying filters...');
     const processedData = allEntries.flat().map(processEntry).filter(Boolean);
-    return processedData.sort((a, b) => a.ts - b.ts);
+
+    report(86, 'Sorting timeline and finalizing data...');
+    const sorted = processedData.sort((a, b) => a.ts - b.ts);
+
+    report(90, 'Data processing complete. Preparing dashboard...');
+    return sorted;
 }
 
 function processEntry(entry) {

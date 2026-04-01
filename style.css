@@ -1555,6 +1555,32 @@ header {
     color: var(--text-muted);
 }
 
+.loading-progress-wrap {
+    width: min(520px, 84vw);
+    height: 10px;
+    background: #1f1f1f;
+    border: 1px solid #2f2f2f;
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 0.8rem auto 0;
+}
+
+.loading-progress-bar {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #1DB954, #7CE9A8);
+    border-radius: 999px;
+    transition: width 0.2s ease;
+}
+
+.loading-progress-text {
+    margin-top: 0.45rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--green-light);
+    letter-spacing: 0.4px;
+}
+
 @keyframes spin {
     0% {
         transform: rotate(0deg);

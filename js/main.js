@@ -1,7 +1,7 @@
 // js/main.js — Application bootstrap & filter management
 
 import { processSpotifyZip } from './store.js';
-import { showLoading, hideLoading, renderUI, renderStreaksTab, renderDeepDiveTab, renderExplorerTab, populateWrappedFilter, renderWrappedContent } from './ui.js';
+import { showLoading, hideLoading, setLoadingProgress, renderUI, renderStreaksTab, renderDeepDiveTab, renderExplorerTab, populateWrappedFilter, renderWrappedContent } from './ui.js';
 import { setupGame } from './game.js';
 import * as podcasts from './podcasts.js';
 import { openDetail, closeDetail } from './detail.js';
@@ -70,13 +70,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const file = e.target.files[0];
         if (!file) return;
 
-        showLoading('Unzipping and processing files...');
+        showLoading('Preparing your ZIP...');
+        setLoadingProgress(2, 'Preparing your ZIP...');
         try {
             const config = readConfig();
             window.spotifyConfig = config;
-            const data = await processSpotifyZip(file, config);
+            const data = await processSpotifyZip(file, config, (progress, status) => {
+                setLoadingProgress(progress, status);
+            });
             window.spotifyData.full = data;
             window.spotifyData.filtered = data;
+
+            setLoadingProgress(88, 'Preparing filters and tabs...');
 
             uploadSection.classList.add('hidden');
             dashboardSection.classList.remove('hidden');
@@ -88,17 +93,22 @@ document.addEventListener('DOMContentLoaded', () => {
             populateWrappedFilter();
             wrappedYearFilter?.addEventListener('change', renderWrappedContent);
 
+            setLoadingProgress(93, 'Rendering overview and trends...');
             renderUI();
+
+            setLoadingProgress(97, 'Rendering advanced tabs...');
             renderStreaksTab();
             renderDeepDiveTab();
             renderExplorerTab(data);
             podcasts.renderPodcastUI(data);
 
+            setLoadingProgress(100, 'Done! Launching dashboard...');
+
         } catch (err) {
             console.error(err);
             alert(`Error processing file: ${err.message}`);
         } finally {
-            hideLoading();
+            setTimeout(() => hideLoading(), 250);
         }
     });
 
