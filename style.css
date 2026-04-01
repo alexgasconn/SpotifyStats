@@ -1435,7 +1435,8 @@ header {
     border-radius: var(--radius);
     padding: 1.5rem;
     border: 1px solid var(--gray);
-    min-height: 400px;
+    height: 430px;
+    overflow: hidden;
 }
 
 .podcast-top-chart h3 {
@@ -1449,6 +1450,14 @@ header {
 #topShowsChart,
 #topEpisodesChart {
     min-height: 280px;
+}
+
+#topShowsChart,
+#topEpisodesChart {
+    display: block;
+    width: 100% !important;
+    height: 340px !important;
+    max-height: 340px;
 }
 
 .data-section {
@@ -1977,5 +1986,15 @@ header {
 
     .wc-highlight {
         font-size: 1.2rem;
+    }
+
+    .podcast-top-chart {
+        height: 360px;
+    }
+
+    #topShowsChart,
+    #topEpisodesChart {
+        height: 270px !important;
+        max-height: 270px;
     }
 }
