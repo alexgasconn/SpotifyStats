@@ -1,12 +1,25 @@
 // js/store.js — Central data processing & statistics
 
-const MIN_MS_PLAYED = 30000; // 30 seconds
-
 // ─────────────────────────────────────────────
 //  ZIP PROCESSING
 // ─────────────────────────────────────────────
 
-export async function processSpotifyZip(zipFile) {
+// Config is set per-load and used by processEntry via closure
+let _cfg = {
+    minPlayMs: 30000,
+    skipMode: 'both',
+    skipThresholdMs: 30000,
+    includePodcasts: true,
+    includeOffline: true,
+    includeIncognito: true,
+    topN: 10,
+    streakGapDays: 1,
+};
+
+export function getConfig() { return { ..._cfg }; }
+
+export async function processSpotifyZip(zipFile, config = {}) {
+    _cfg = { ..._cfg, ...config };
     const jszip = new JSZip();
     const zip = await jszip.loadAsync(zipFile);
     const historyFiles = [];
@@ -32,11 +45,18 @@ export async function processSpotifyZip(zipFile) {
 
 function processEntry(entry) {
     const msPlayed = entry.ms_played ?? 0;
-    if (msPlayed < MIN_MS_PLAYED) return null;
+    if (msPlayed < _cfg.minPlayMs) return null;
     const ts = new Date(entry.ts);
     if (isNaN(ts)) return null;
 
     const isPodcast = !!(entry.episode_name && entry.episode_show_name);
+    if (isPodcast && !_cfg.includePodcasts) return null;
+
+    const isOffline = !!(entry.offline);
+    if (isOffline && !_cfg.includeOffline) return null;
+
+    const isIncognito = !!(entry.incognito_mode);
+    if (isIncognito && !_cfg.includeIncognito) return null;
 
     const month = ts.getMonth(); // 0-11
     const season = month >= 2 && month <= 4 ? 'spring'
@@ -71,7 +91,13 @@ function processEntry(entry) {
         country: entry.conn_country || 'unknown',
         season,
         timeOfDay,
-        skipped: entry.reason_end && entry.reason_end !== 'trackdone' && entry.reason_end !== 'endplay'
+        skipped: (() => {
+            const byReason = !!(entry.reason_end && entry.reason_end !== 'trackdone' && entry.reason_end !== 'endplay');
+            const byTime = msPlayed < _cfg.skipThresholdMs;
+            if (_cfg.skipMode === 'reason') return byReason;
+            if (_cfg.skipMode === 'time') return byTime;
+            return byReason || byTime; // 'both'
+        })()
     };
 }
 

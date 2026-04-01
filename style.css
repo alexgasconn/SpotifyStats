@@ -55,7 +55,7 @@ body {
     border-radius: 16px;
     text-align: center;
     border: 1px solid var(--gray);
-    max-width: 580px;
+    max-width: 700px;
     width: 100%;
     box-shadow: var(--shadow);
 }
@@ -86,6 +86,137 @@ body {
     font-size: 0.85rem;
     margin-top: 1rem;
     margin-bottom: 0;
+}
+
+/* ── UPLOAD SETTINGS PANEL ── */
+.upload-settings {
+    margin-bottom: 1.75rem;
+    text-align: left;
+}
+
+.settings-toggle {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--gray);
+    color: var(--text-muted);
+    border-radius: 8px;
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.settings-toggle:hover {
+    border-color: var(--green);
+    color: var(--green);
+}
+
+.toggle-arrow {
+    font-size: 1.1rem;
+    transition: transform 0.25s;
+}
+
+.settings-toggle.open .toggle-arrow {
+    transform: rotate(180deg);
+}
+
+.settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding: 1.25rem;
+    background: #161616;
+    border: 1px solid var(--gray);
+    border-radius: 10px;
+}
+
+.setting-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.setting-item label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.setting-item select,
+.setting-item input[type="number"] {
+    background: var(--darker);
+    border: 1px solid var(--gray);
+    color: var(--white);
+    border-radius: 6px;
+    padding: 0.45rem 0.65rem;
+    font-size: 0.95rem;
+    width: 100%;
+    appearance: auto;
+}
+
+.setting-item select:focus,
+.setting-item input[type="number"]:focus {
+    outline: none;
+    border-color: var(--green);
+}
+
+.setting-input-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.setting-input-row input {
+    flex: 1;
+    min-width: 0;
+}
+
+.setting-unit {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.setting-item small {
+    font-size: 0.75rem;
+    color: #666;
+    line-height: 1.4;
+}
+
+.settings-checks {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--gray);
+}
+
+.setting-check {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.setting-check input[type="checkbox"] {
+    accent-color: var(--green);
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+}
+
+.setting-check span {
+    user-select: none;
 }
 
 #upload-button {

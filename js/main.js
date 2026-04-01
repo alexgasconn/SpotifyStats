@@ -34,6 +34,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.spotifyData = { full: [], filtered: [] };
 
+    // ── SETTINGS TOGGLE ─────────────────────────
+    const settingsToggle = document.getElementById('settings-toggle');
+    const settingsGrid = document.getElementById('settings-grid');
+    const cfgSkipMode = document.getElementById('cfg-skip-mode');
+    const cfgSkipThresholdRow = document.getElementById('cfg-skip-threshold-row');
+
+    settingsToggle?.addEventListener('click', () => {
+        const open = settingsGrid.classList.toggle('hidden');
+        settingsToggle.classList.toggle('open', !open);
+    });
+
+    // Show/hide skip threshold row depending on skip mode
+    cfgSkipMode?.addEventListener('change', () => {
+        cfgSkipThresholdRow.style.display = cfgSkipMode.value === 'reason' ? 'none' : '';
+    });
+
+    function readConfig() {
+        return {
+            minPlayMs: (parseInt(document.getElementById('cfg-min-play')?.value) || 30) * 1000,
+            skipMode: document.getElementById('cfg-skip-mode')?.value || 'both',
+            skipThresholdMs: (parseInt(document.getElementById('cfg-skip-threshold')?.value) || 30) * 1000,
+            topN: parseInt(document.getElementById('cfg-top-n')?.value) || 10,
+            streakGapDays: parseInt(document.getElementById('cfg-streak-gap')?.value) || 1,
+            includePodcasts: document.getElementById('cfg-podcasts')?.checked ?? true,
+            includeOffline: document.getElementById('cfg-offline')?.checked ?? true,
+            includeIncognito: document.getElementById('cfg-incognito')?.checked ?? false,
+        };
+    }
+
     // ── UPLOAD ──────────────────────────────────
     uploadButton.addEventListener('click', () => zipInput.click());
 
@@ -43,7 +72,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         showLoading('Unzipping and processing files...');
         try {
-            const data = await processSpotifyZip(file);
+            const config = readConfig();
+            window.spotifyConfig = config;
+            const data = await processSpotifyZip(file, config);
             window.spotifyData.full = data;
             window.spotifyData.filtered = data;
 

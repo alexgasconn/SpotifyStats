@@ -23,6 +23,78 @@
                 <h1>Spotify Stats Analyzer</h1>
                 <p>Export your <strong>"Extended streaming history"</strong> from Spotify account settings,
                     then upload the .zip file here for an exhaustive analysis of your listening habits.</p>
+
+                <!-- ANALYSIS SETTINGS -->
+                <div class="upload-settings">
+                    <button class="settings-toggle" id="settings-toggle">
+                        &#9881; Analysis Settings <span class="toggle-arrow">&#8964;</span>
+                    </button>
+                    <div class="settings-grid hidden" id="settings-grid">
+
+                        <div class="setting-item">
+                            <label for="cfg-min-play">Minimum play time to count</label>
+                            <div class="setting-input-row">
+                                <input type="number" id="cfg-min-play" min="0" max="300" value="30">
+                                <span class="setting-unit">seconds</span>
+                            </div>
+                            <small>Plays shorter than this are ignored entirely.</small>
+                        </div>
+
+                        <div class="setting-item">
+                            <label for="cfg-skip-mode">Skip detection method</label>
+                            <select id="cfg-skip-mode">
+                                <option value="reason">Spotify end reason only</option>
+                                <option value="time">Time threshold only</option>
+                                <option value="both" selected>Both (reason + time)</option>
+                            </select>
+                            <small>How a play is classified as a skip.</small>
+                        </div>
+
+                        <div class="setting-item" id="cfg-skip-threshold-row">
+                            <label for="cfg-skip-threshold">Skip time threshold</label>
+                            <div class="setting-input-row">
+                                <input type="number" id="cfg-skip-threshold" min="1" max="300" value="30">
+                                <span class="setting-unit">seconds</span>
+                            </div>
+                            <small>Plays under this duration count as skips (when time-based).</small>
+                        </div>
+
+                        <div class="setting-item">
+                            <label for="cfg-top-n">Top lists size</label>
+                            <div class="setting-input-row">
+                                <input type="number" id="cfg-top-n" min="3" max="50" value="10">
+                                <span class="setting-unit">items</span>
+                            </div>
+                            <small>How many entries to show in top artists / tracks / albums.</small>
+                        </div>
+
+                        <div class="setting-item">
+                            <label for="cfg-streak-gap">Listening streak gap</label>
+                            <div class="setting-input-row">
+                                <input type="number" id="cfg-streak-gap" min="1" max="30" value="1">
+                                <span class="setting-unit">days</span>
+                            </div>
+                            <small>Max days without listening before a streak breaks.</small>
+                        </div>
+
+                        <div class="settings-checks">
+                            <label class="setting-check">
+                                <input type="checkbox" id="cfg-podcasts" checked>
+                                <span>Include podcasts in stats</span>
+                            </label>
+                            <label class="setting-check">
+                                <input type="checkbox" id="cfg-offline" checked>
+                                <span>Include offline plays</span>
+                            </label>
+                            <label class="setting-check">
+                                <input type="checkbox" id="cfg-incognito">
+                                <span>Include incognito plays</span>
+                            </label>
+                        </div>
+
+                    </div>
+                </div>
+
                 <input type="file" id="zip-input" accept=".zip" class="hidden">
                 <button id="upload-button"><span>&#8679;</span> Upload Spotify ZIP</button>
                 <p class="upload-note">&#128274; Your data never leaves your browser.</p>
