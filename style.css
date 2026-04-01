@@ -88,6 +88,28 @@ body {
     margin-bottom: 0;
 }
 
+.upload-steps {
+    text-align: left;
+    background: #151515;
+    border: 1px solid var(--gray);
+    border-radius: 10px;
+    padding: 0.9rem 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.upload-steps h4 {
+    font-size: 0.85rem;
+    color: var(--green);
+    margin-bottom: 0.5rem;
+}
+
+.upload-steps ol {
+    margin-left: 1rem;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    line-height: 1.45;
+}
+
 /* ── UPLOAD SETTINGS PANEL ── */
 .upload-settings {
     margin-bottom: 1.75rem;
@@ -789,6 +811,63 @@ header {
     color: var(--text-muted);
 }
 
+.wrapped-hero-card {
+    grid-column: 1 / -1;
+    background: linear-gradient(135deg, #123423, #0f1f18 65%, #101010);
+    border-color: rgba(29, 185, 84, 0.35);
+}
+
+.wc-highlight {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.25;
+}
+
+.wc-pill-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.8rem;
+}
+
+.wc-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.25rem 0.7rem;
+    font-size: 0.74rem;
+    font-weight: 700;
+    border: 1px solid transparent;
+}
+
+.wc-pill.up {
+    background: rgba(29, 185, 84, 0.15);
+    color: #7ce9a8;
+    border-color: rgba(29, 185, 84, 0.5);
+}
+
+.wc-pill.down {
+    background: rgba(233, 20, 41, 0.14);
+    color: #ff8f9d;
+    border-color: rgba(233, 20, 41, 0.45);
+}
+
+.wc-pill.neutral {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-muted);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.wc-clickable-list li {
+    transition: background 0.15s ease;
+    border-radius: 5px;
+}
+
+.wc-clickable-list li:hover {
+    background: rgba(29, 185, 84, 0.08);
+}
+
 .wrapped-card .wc-list {
     list-style: none;
     margin-top: 0.75rem;
@@ -1277,7 +1356,18 @@ header {
 
 .word-cloud-container {
     width: 100%;
-    min-height: 400px;
+    min-height: 430px;
+    background: radial-gradient(circle at 30% 20%, rgba(29, 185, 84, 0.12), transparent 40%),
+        radial-gradient(circle at 70% 80%, rgba(124, 233, 168, 0.1), transparent 45%);
+    border: 1px solid var(--gray);
+    border-radius: 10px;
+    overflow: hidden;
+    padding: 0.25rem;
+}
+
+#word-cloud-canvas {
+    width: 100%;
+    height: 430px;
 }
 
 .table-container {
@@ -1352,6 +1442,13 @@ header {
     font-size: 1.1rem;
     font-weight: 700;
     margin-bottom: 1rem;
+}
+
+#podcastTimelineChart,
+#podcastHourlyChart,
+#topShowsChart,
+#topEpisodesChart {
+    min-height: 280px;
 }
 
 .data-section {
@@ -1838,5 +1935,21 @@ header {
 
     .top-n-controls {
         flex-wrap: wrap;
+    }
+
+    .upload-steps {
+        padding: 0.8rem;
+    }
+
+    .upload-steps ol {
+        font-size: 0.78rem;
+    }
+
+    #word-cloud-canvas {
+        height: 320px;
+    }
+
+    .wc-highlight {
+        font-size: 1.2rem;
     }
 }

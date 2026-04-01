@@ -580,11 +580,56 @@ export function renderWrappedContent() {
 
     if (!s) { container.innerHTML = '<p style="color:var(--text-muted);padding:1rem">No data for this year.</p>'; return; }
 
+    const trendPill = (label, val) => {
+        if (val === null || val === undefined) return `<span class="wc-pill neutral">${label}: n/a</span>`;
+        const cls = val >= 0 ? 'up' : 'down';
+        const arrow = val >= 0 ? '▲' : '▼';
+        return `<span class="wc-pill ${cls}">${label}: ${arrow} ${Math.abs(val)}%</span>`;
+    };
+
     container.innerHTML = `
-        <div class="wrapped-card">
-            <div class="wc-label">Total Minutes in ${year}</div>
+        <div class="wrapped-card wrapped-hero-card">
+            <div class="wc-label">Your ${year} Story</div>
             <div class="wc-value">${s.totalMinutes.toLocaleString()}</div>
-            <div class="wc-sub">${Math.round(s.totalMinutes / 60).toLocaleString()} hours · ${s.totalPlays.toLocaleString()} plays</div>
+            <div class="wc-sub">minutes · ${s.totalHours.toLocaleString()} hours · ${s.totalPlays.toLocaleString()} plays</div>
+            <div class="wc-pill-row">
+                ${trendPill('Minutes vs prev year', s.comparePrev.minutesPct)}
+                ${trendPill('Plays vs prev year', s.comparePrev.playsPct)}
+                ${trendPill('Artists vs prev year', s.comparePrev.artistsPct)}
+            </div>
+        </div>
+
+        <div class="wrapped-card">
+            <div class="wc-label">Your Top Song</div>
+            <div class="wc-highlight">${esc(s.topSongMain?.name || '—')}</div>
+            <div class="wc-sub">${esc(s.topSongMain?.artistName || '')} · ${s.topSongMain?.plays || 0} plays</div>
+        </div>
+
+        <div class="wrapped-card">
+            <div class="wc-label">Your Top Artist</div>
+            <div class="wc-highlight">${esc(s.topArtistMain?.name || '—')}</div>
+            <div class="wc-sub">${s.topArtistMain?.minutes || 0} min · ${s.topArtistMain?.plays || 0} plays</div>
+        </div>
+
+        <div class="wrapped-card">
+            <div class="wc-label">Listening Persona</div>
+            <div class="wc-value" style="font-size:2rem">${esc(s.persona)}</div>
+            <div class="wc-sub">Fav hour: ${s.topHour} · Fav weekday: ${s.topWeekday} · Weekend share: ${s.weekendShare}%</div>
+        </div>
+
+        <div class="wrapped-card">
+            <div class="wc-label">Peak Moment</div>
+            <div class="wc-value" style="font-size:2rem">${s.peakMonth}</div>
+            <div class="wc-sub">${s.peakMonthMinutes.toLocaleString()} min in your strongest month</div>
+            <div class="wc-sub" style="margin-top:0.35rem">Best day: ${s.topDay ? `${s.topDay.date} (${s.topDay.minutes} min)` : '—'}</div>
+        </div>
+
+        <div class="wrapped-card">
+            <div class="wc-label">Consistency & Discovery</div>
+            <div class="wc-sub">Longest streak this year: <strong>${s.longestStreak} days</strong></div>
+            <div class="wc-sub">${s.discoveries.tracks}% of your tracks were first-time discoveries</div>
+            <div class="wc-sub">${s.discoveries.artists}% of your artists were new for you</div>
+            <div class="wc-sub">Skip rate: ${s.skipRate}%</div>
         </div>
 
         <div class="wrapped-card">
@@ -593,41 +638,9 @@ export function renderWrappedContent() {
         </div>
 
         <div class="wrapped-card">
-            <div class="wc-label">Unique Tracks</div>
-            <div class="wc-value">${s.uniques.tracks}</div>
-            <div class="wc-sub">${s.discoveries.tracks}% were new discoveries</div>
-        </div>
-
-        <div class="wrapped-card">
-            <div class="wc-label">Unique Artists</div>
-            <div class="wc-value">${s.uniques.artists}</div>
-            <div class="wc-sub">${s.discoveries.artists}% were new</div>
-        </div>
-
-        <div class="wrapped-card">
-            <div class="wc-label">Unique Albums</div>
-            <div class="wc-value">${s.uniques.albums}</div>
-        </div>
-
-        <div class="wrapped-card">
-            <div class="wc-label">Skip Rate</div>
-            <div class="wc-value">${s.skipRate}%</div>
-        </div>
-
-        <div class="wrapped-card">
-            <div class="wc-label">Peak Month</div>
-            <div class="wc-value">${s.peakMonth}</div>
-        </div>
-
-        <div class="wrapped-card">
-            <div class="wc-label">Favourite Hour</div>
-            <div class="wc-value">${s.topHour}</div>
-        </div>
-
-        <div class="wrapped-card">
             <div class="wc-label">Top 10 Tracks of ${year}</div>
-            <ul class="wc-list">
-                ${s.topSong.map((t, i) => `<li>
+            <ul class="wc-list wc-clickable-list">
+                ${s.topSong.map((t, i) => `<li data-detail-type="track" data-detail-name="${t.name.replace(/"/g, '&quot;')}" data-detail-extra="${(t.artistName || '').replace(/"/g, '&quot;')}">
                     <span class="wc-rank">${i + 1}</span>
                     <span style="flex:1;font-weight:600">${esc(t.name)}</span>
                     <span style="color:var(--green);font-weight:700">${t.plays} plays</span>
@@ -637,8 +650,8 @@ export function renderWrappedContent() {
 
         <div class="wrapped-card">
             <div class="wc-label">Top 10 Artists of ${year}</div>
-            <ul class="wc-list">
-                ${s.topArtist.map((a, i) => `<li>
+            <ul class="wc-list wc-clickable-list">
+                ${s.topArtist.map((a, i) => `<li data-detail-type="artist" data-detail-name="${a.name.replace(/"/g, '&quot;')}">
                     <span class="wc-rank">${i + 1}</span>
                     <span style="flex:1;font-weight:600">${esc(a.name)}</span>
                     <span style="color:var(--green);font-weight:700">${a.minutes} min</span>
@@ -648,8 +661,8 @@ export function renderWrappedContent() {
 
         <div class="wrapped-card">
             <div class="wc-label">Top 10 Albums of ${year}</div>
-            <ul class="wc-list">
-                ${s.topAlbum.map((a, i) => `<li>
+            <ul class="wc-list wc-clickable-list">
+                ${s.topAlbum.map((a, i) => `<li data-detail-type="album" data-detail-name="${a.name.replace(/"/g, '&quot;')}" data-detail-extra="${(a.artistName || '').replace(/"/g, '&quot;')}">
                     <span class="wc-rank">${i + 1}</span>
                     <span style="flex:1;font-weight:600">${esc(a.name)}</span>
                     <span style="color:var(--green);font-weight:700">${a.plays} plays</span>
@@ -657,6 +670,13 @@ export function renderWrappedContent() {
             </ul>
         </div>
     `;
+
+    container.querySelectorAll('.wc-clickable-list li[data-detail-type]').forEach(el => {
+        el.style.cursor = 'pointer';
+        el.addEventListener('click', () => {
+            openDetail(el.dataset.detailName, el.dataset.detailType, el.dataset.detailExtra || '', window.spotifyData.full);
+        });
+    });
 
     setTimeout(() => charts.renderWrappedMonthlyChart(s.monthlyMinutes), 50);
 }
@@ -742,18 +762,55 @@ function renderDataTable(data, query = '', sortBy = 'date-desc') {
 function renderWordCloud(data) {
     const canvas = document.getElementById('word-cloud-canvas');
     if (!canvas) return;
+
+    const stop = new Set(['the', 'and', 'feat', 'with', 'from', 'for', 'you', 'your', 'remix', 'version', 'radio', 'edit', 'live']);
     const freq = {};
-    data.filter(d => d.trackName).forEach(d => { freq[d.trackName] = (freq[d.trackName] || 0) + 1; });
+
+    data.filter(d => !d.isPodcast).forEach(d => {
+        if (d.trackName) freq[d.trackName] = (freq[d.trackName] || 0) + 4;
+        if (d.artistName) freq[d.artistName] = (freq[d.artistName] || 0) + 3;
+        if (d.albumName) freq[d.albumName] = (freq[d.albumName] || 0) + 2;
+
+        const words = `${d.trackName || ''} ${d.artistName || ''}`.toLowerCase()
+            .replace(/[^a-z0-9\s]/gi, ' ')
+            .split(/\s+/)
+            .filter(w => w && w.length > 2 && !stop.has(w));
+
+        words.forEach(w => {
+            const token = w.charAt(0).toUpperCase() + w.slice(1);
+            freq[token] = (freq[token] || 0) + 0.8;
+        });
+    });
+
     const list = Object.entries(freq)
-        .sort((a, b) => b[1] - a[1]).slice(0, 120)
-        .map(([text, w]) => [text, Math.log2(w + 1) * 5]);
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 220)
+        .map(([text, w]) => [text, Math.round(Math.pow(w, 0.72) * 9)]);
+
+    const container = document.getElementById('word-cloud-container');
+    if (container) {
+        canvas.width = Math.max(680, container.clientWidth * 2);
+        canvas.height = Math.max(430, container.clientHeight * 2);
+    }
+
     if (list.length > 0) {
         WordCloud(canvas, {
-            list, gridSize: 8, weightFactor: 2.5,
+            list,
+            gridSize: 10,
+            weightFactor: size => Math.max(9, size * 0.95),
             fontFamily: 'CircularSp, sans-serif',
-            color: 'random-light',
+            color: (_, weight) => {
+                if (weight > 40) return '#1DB954';
+                if (weight > 28) return '#7CE9A8';
+                if (weight > 20) return '#B8F6D0';
+                return '#b3b3b3';
+            },
             backgroundColor: 'transparent',
-            shuffle: true
+            rotateRatio: 0.28,
+            minRotation: -Math.PI / 6,
+            maxRotation: Math.PI / 6,
+            drawOutOfBound: false,
+            shuffle: false
         });
     }
 }

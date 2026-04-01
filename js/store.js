@@ -791,12 +791,81 @@ export function calculateWrappedStats(year, fullData) {
     yearData.forEach(d => { hourCounts[d.hour]++; });
     const topHour = hourCounts.indexOf(Math.max(...hourCounts));
 
+    // Top weekday
+    const weekdayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const weekdayCounts = Array(7).fill(0);
+    yearData.forEach(d => { weekdayCounts[d.weekday]++; });
+    const topWeekdayIndex = weekdayCounts.indexOf(Math.max(...weekdayCounts));
+
+    // Top day (minutes and plays)
+    const dayMap = {};
+    yearData.forEach(d => {
+        if (!dayMap[d.date]) dayMap[d.date] = { minutes: 0, plays: 0 };
+        dayMap[d.date].minutes += d.durationMin;
+        dayMap[d.date].plays += 1;
+    });
+    const topDayEntry = Object.entries(dayMap).sort((a, b) => b[1].minutes - a[1].minutes)[0] || null;
+
+    // Longest daily streak inside selected year
+    const uniqueDates = [...new Set(yearData.map(d => d.date))].sort();
+    let longestStreak = uniqueDates.length ? 1 : 0;
+    let current = uniqueDates.length ? 1 : 0;
+    for (let i = 1; i < uniqueDates.length; i++) {
+        const diff = (new Date(uniqueDates[i]) - new Date(uniqueDates[i - 1])) / 86400000;
+        if (diff === 1) {
+            current += 1;
+            if (current > longestStreak) longestStreak = current;
+        } else {
+            current = 1;
+        }
+    }
+
+    // Compare with previous year
+    const prevYearData = fullData.filter(d => d.year === (year - 1) && !d.isPodcast && d.trackName);
+    const prevMinutes = prevYearData.reduce((s, d) => s + d.durationMin, 0);
+    const prevPlays = prevYearData.length;
+    const prevArtistsCount = new Set(prevYearData.map(d => d.artistName).filter(Boolean)).size;
+    const currentMinutes = yearData.reduce((s, d) => s + d.durationMin, 0);
+    const currentPlays = yearData.length;
+    const currentArtists = uniqueArtists.size;
+
+    const deltaPct = (curr, prev) => {
+        if (!prev) return null;
+        return +((((curr - prev) / prev) * 100).toFixed(1));
+    };
+
+    // Time persona / aura
+    const buckets = { morning: 0, afternoon: 0, evening: 0, night: 0 };
+    yearData.forEach(d => { buckets[d.timeOfDay] = (buckets[d.timeOfDay] || 0) + d.durationMin; });
+    const dominantTime = Object.entries(buckets).sort((a, b) => b[1] - a[1])[0]?.[0] || 'evening';
+    const personaMap = {
+        morning: 'Early Energy',
+        afternoon: 'Daytime Flow',
+        evening: 'Sunset Mood',
+        night: 'Night Drive'
+    };
+
+    // Weekend share
+    let weekendMinutes = 0;
+    yearData.forEach(d => {
+        if (d.weekday >= 5) weekendMinutes += d.durationMin;
+    });
+    const weekendShare = currentMinutes > 0 ? +((weekendMinutes / currentMinutes) * 100).toFixed(1) : 0;
+
+    const topSong = calculateTopItems(yearData, 'trackName', 'plays', 10);
+    const topArtist = calculateTopItems(yearData, 'artistName', 'plays', 10);
+    const topAlbum = calculateTopItems(yearData, 'albumName', 'plays', 10);
+
     return {
-        totalMinutes: Math.round(yearData.reduce((s, d) => s + d.durationMin, 0)),
-        totalPlays: yearData.length,
-        topSong: calculateTopItems(yearData, 'trackName', 'plays', 10),
-        topArtist: calculateTopItems(yearData, 'artistName', 'plays', 10),
-        topAlbum: calculateTopItems(yearData, 'albumName', 'plays', 10),
+        totalMinutes: Math.round(currentMinutes),
+        totalPlays: currentPlays,
+        totalHours: Math.round(currentMinutes / 60),
+        topSong,
+        topArtist,
+        topAlbum,
+        topSongMain: topSong[0] || null,
+        topArtistMain: topArtist[0] || null,
+        topAlbumMain: topAlbum[0] || null,
         monthlyMinutes: monthlyMinutes.map(m => Math.round(m)),
         uniques: { tracks: uniqueTracks.size, artists: uniqueArtists.size, albums: uniqueAlbums.size },
         discoveries: {
@@ -805,6 +874,23 @@ export function calculateWrappedStats(year, fullData) {
         },
         skipRate: ((skipped / yearData.length) * 100).toFixed(1),
         peakMonth: monthNames[peakMonth],
-        topHour: `${topHour}:00`
+        peakMonthMinutes: Math.round(monthlyMinutes[peakMonth] || 0),
+        topHour: `${topHour}:00`,
+        topWeekday: weekdayNames[topWeekdayIndex],
+        topDay: topDayEntry ? {
+            date: topDayEntry[0],
+            minutes: Math.round(topDayEntry[1].minutes),
+            plays: topDayEntry[1].plays
+        } : null,
+        longestStreak,
+        persona: personaMap[dominantTime] || 'Music Lover',
+        timeBuckets: buckets,
+        weekendShare,
+        comparePrev: {
+            available: prevYearData.length > 0,
+            minutesPct: deltaPct(currentMinutes, prevMinutes),
+            playsPct: deltaPct(currentPlays, prevPlays),
+            artistsPct: deltaPct(currentArtists, prevArtistsCount)
+        }
     };
 }

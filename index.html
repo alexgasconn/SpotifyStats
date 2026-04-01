@@ -23,6 +23,16 @@
                 <h1>Spotify Stats Analyzer</h1>
                 <p>Export your <strong>"Extended streaming history"</strong> from Spotify account settings,
                     then upload the .zip file here for an exhaustive analysis of your listening habits.</p>
+                <div class="upload-steps">
+                    <h4>How to get your full Spotify history (ZIP)</h4>
+                    <ol>
+                        <li>Open your Spotify account privacy page: <strong>Privacy settings</strong>.</li>
+                        <li>Go to <strong>Download your data</strong>.</li>
+                        <li>Request <strong>Extended streaming history</strong> (not only the recent account data).</li>
+                        <li>Wait for Spotify's email and download the ZIP file.</li>
+                        <li>Upload that ZIP here for full-year and multi-year analysis.</li>
+                    </ol>
+                </div>
 
                 <!-- ANALYSIS SETTINGS -->
                 <div class="upload-settings">
@@ -370,6 +380,10 @@
                         <h2>Podcast Stats</h2>
                         <div class="stats-grid" id="podcastStatsGrid"></div>
                     </section>
+                    <section class="data-section">
+                        <h2>Podcast Insights</h2>
+                        <div id="podcastInsightsGrid" class="wrapped-grid"></div>
+                    </section>
                     <div class="charts-grid">
                         <div class="podcast-top-chart full-width">
                             <h3>Top Podcast Shows</h3>
@@ -383,6 +397,10 @@
                             <h3>Podcast Timeline</h3>
                             <div id="podcastTimelineControls" class="timeline-controls"></div>
                             <canvas id="podcastTimelineChart"></canvas>
+                        </div>
+                        <div class="chart-container full-width">
+                            <h3>Podcast Listening by Hour</h3>
+                            <canvas id="podcastHourlyChart"></canvas>
                         </div>
                     </div>
                 </div>

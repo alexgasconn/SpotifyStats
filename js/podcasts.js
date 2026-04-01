@@ -25,89 +25,146 @@ const truncateString = (str, len) => {
 
 // --- DATA ANALYSIS ---
 export function analyzePodcasts(fullData) {
-    console.log('[Podcasts] Total entries received:', fullData.length);
-
-    const rawPodcastData = fullData.filter(d => {
-        return d.episodeName && d.episodeShowName; // Simplified check
-    });
+    const rawPodcastData = fullData.filter(d => d.isPodcast || (d.episodeName && d.episodeShowName));
 
     if (rawPodcastData.length === 0) {
-        return { topShows: [], topEpisodes: [], podcastData: [], hourlyDistribution: [] };
+        return {
+            topShows: [], topEpisodes: [], podcastData: [], hourlyDistribution: [],
+            weekdayDistribution: Array(7).fill(0), repeatEpisodes: [], bingeDays: [],
+            summary: null
+        };
     }
 
     const podcastData = rawPodcastData.map(d => {
-        const tsStr = d.ts || d.endTime || d.timestamp || null;
-        const tsDate = tsStr ? new Date(tsStr) : null;
+        const tsDate = d.ts instanceof Date ? d.ts : new Date(d.ts || d.endTime || d.timestamp || null);
         const isValidDate = tsDate && !isNaN(tsDate.getTime());
-        const durationMin = Number(d.msPlayed ?? d.durationMs ?? 0) / 60000;
+        const durationMin = Number(d.durationMin ?? (d.msPlayed ?? d.durationMs ?? 0) / 60000);
 
         return {
             ...d,
             durationMin,
             year: isValidDate ? tsDate.getFullYear() : null,
             month: isValidDate ? tsDate.getMonth() : null,
-            hour: isValidDate ? tsDate.getHours() : null, // Captured Hour
+            hour: isValidDate ? tsDate.getHours() : null,
+            weekday: isValidDate ? ((tsDate.getDay() + 6) % 7) : null,
             date: isValidDate ? tsDate.toISOString().split('T')[0] : null,
             ts: isValidDate ? tsDate.toISOString() : null
         };
-    }).filter(d => d.durationMin > 1 && d.date); // IMPROVEMENT: Filter out < 1 minute listens (noise)
+    }).filter(d => d.durationMin > 0.5 && d.date);
 
-    console.log('[Podcasts] Valid >1min entries:', podcastData.length);
-
-    // Aggregation Maps
     const showMap = {};
+    const episodeMap = {};
     const hourlyMap = new Array(24).fill(0);
+    const weekdayMap = new Array(7).fill(0);
+    const dayMap = {};
+    const dateSet = new Set();
+
+    let totalMinutes = 0;
+    let skipped = 0;
 
     podcastData.forEach(d => {
         const show = d.episodeShowName || 'Unknown Show';
+        const ep = d.episodeName || 'Unknown Episode';
         const minutes = d.durationMin;
+        const wasSkipped = !!d.skipped;
 
-        // Populate Show Map
+        totalMinutes += minutes;
+        if (wasSkipped) skipped += 1;
+
+        dateSet.add(d.date);
+        dayMap[d.date] = (dayMap[d.date] || 0) + minutes;
+        if (d.hour !== null) hourlyMap[d.hour] += minutes;
+        if (d.weekday !== null) weekdayMap[d.weekday] += minutes;
+
         if (!showMap[show]) {
-            showMap[show] = { minutes: 0, episodes: {}, episodeCount: 0 };
+            showMap[show] = { minutes: 0, plays: 0, skipped: 0, episodes: {} };
         }
         showMap[show].minutes += minutes;
+        showMap[show].plays += 1;
+        if (wasSkipped) showMap[show].skipped += 1;
 
-        const ep = d.episodeName || 'Unknown Episode';
         if (!showMap[show].episodes[ep]) {
-            showMap[show].episodes[ep] = 0;
-            showMap[show].episodeCount++;
+            showMap[show].episodes[ep] = { minutes: 0, plays: 0 };
         }
-        showMap[show].episodes[ep] += minutes;
+        showMap[show].episodes[ep].minutes += minutes;
+        showMap[show].episodes[ep].plays += 1;
 
-        // Populate Hourly Map
-        if (d.hour !== null) {
-            hourlyMap[d.hour] += minutes;
+        const epKey = `${show}|||${ep}`;
+        if (!episodeMap[epKey]) {
+            episodeMap[epKey] = { show, name: ep, minutes: 0, plays: 0, skipped: 0 };
         }
+        episodeMap[epKey].minutes += minutes;
+        episodeMap[epKey].plays += 1;
+        if (wasSkipped) episodeMap[epKey].skipped += 1;
     });
 
-    // Process Top Shows
     const topShows = Object.entries(showMap)
         .map(([name, info]) => ({
             name,
             minutes: info.minutes,
-            episodeCount: info.episodeCount,
+            plays: info.plays,
+            episodeCount: Object.keys(info.episodes).length,
+            completionRate: +((1 - (info.skipped / (info.plays || 1))) * 100).toFixed(1),
             episodes: info.episodes
         }))
         .sort((a, b) => b.minutes - a.minutes)
-        .slice(0, 10);
+        .slice(0, 12);
 
-    // Process Top Episodes
-    const allEpisodes = [];
-    Object.entries(showMap).forEach(([showName, info]) => {
-        Object.entries(info.episodes).forEach(([epName, minutes]) => {
-            allEpisodes.push({
-                show: showName,
-                name: epName,
-                minutes
-            });
-        });
-    });
-    const topEpisodes = allEpisodes
+    const topEpisodes = Object.values(episodeMap)
         .sort((a, b) => b.minutes - a.minutes)
-        .slice(0, 10);
+        .slice(0, 12);
 
-    return { topShows, topEpisodes, podcastData, hourlyDistribution: hourlyMap };
+    const repeatEpisodes = Object.values(episodeMap)
+        .filter(e => e.plays >= 3)
+        .sort((a, b) => b.plays - a.plays)
+        .slice(0, 10)
+        .map(e => ({ ...e, completionRate: +((1 - (e.skipped / e.plays)) * 100).toFixed(1) }));
+
+    const bingeDays = Object.entries(dayMap)
+        .map(([date, minutes]) => ({ date, minutes: Math.round(minutes) }))
+        .sort((a, b) => b.minutes - a.minutes)
+        .slice(0, 8);
+
+    const dates = [...dateSet].sort();
+    let longestStreak = dates.length ? 1 : 0;
+    let currentStreak = dates.length ? 1 : 0;
+    for (let i = 1; i < dates.length; i++) {
+        const diff = (new Date(dates[i]) - new Date(dates[i - 1])) / 86400000;
+        if (diff === 1) {
+            currentStreak += 1;
+            if (currentStreak > longestStreak) longestStreak = currentStreak;
+        } else {
+            currentStreak = 1;
+        }
+    }
+
+    const topHourIdx = hourlyMap.indexOf(Math.max(...hourlyMap));
+    const topWeekdayIdx = weekdayMap.indexOf(Math.max(...weekdayMap));
+    const weekdayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    const summary = {
+        totalMinutes: Math.round(totalMinutes),
+        totalPlays: podcastData.length,
+        uniqueShows: Object.keys(showMap).length,
+        uniqueEpisodes: Object.keys(episodeMap).length,
+        avgMinutes: +(totalMinutes / (podcastData.length || 1)).toFixed(1),
+        completionRate: +((1 - (skipped / (podcastData.length || 1))) * 100).toFixed(1),
+        longestStreak,
+        topHour: `${topHourIdx}:00`,
+        topWeekday: weekdayNames[topWeekdayIdx],
+        topDay: bingeDays[0] || null
+    };
+
+    return {
+        topShows,
+        topEpisodes,
+        podcastData,
+        hourlyDistribution: hourlyMap,
+        weekdayDistribution: weekdayMap,
+        repeatEpisodes,
+        bingeDays,
+        summary
+    };
 }
 
 // --- COMMON STYLES ---
@@ -212,7 +269,7 @@ export function renderPodcastHourlyChart(hourlyData) {
     podcastHourlyChart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: Array.from({length: 24}, (_, i) => i === 0 ? '12am' : i === 12 ? '12pm' : i > 12 ? (i-12)+'pm' : i+'am'),
+            labels: Array.from({ length: 24 }, (_, i) => i === 0 ? '12am' : i === 12 ? '12pm' : i > 12 ? (i - 12) + 'pm' : i + 'am'),
             datasets: [{
                 label: 'Listening Time',
                 data: hourlyData.map(m => Math.round(m)),
@@ -247,9 +304,9 @@ export function renderPodcastTimeByDay(podcastData) {
     const timeMap = {};
     podcastData.forEach(d => {
         let key;
-        switch(currentPodcastTimelineUnit) {
+        switch (currentPodcastTimelineUnit) {
             case 'year': key = d.year ? String(d.year) : null; break;
-            case 'month': key = d.year && d.month !== null ? `${d.year}-${String(d.month+1).padStart(2,'0')}` : null; break;
+            case 'month': key = d.year && d.month !== null ? `${d.year}-${String(d.month + 1).padStart(2, '0')}` : null; break;
             case 'week': key = getStartOfWeek(new Date(d.date)); break;
             case 'day': default: key = d.date; break;
         }
@@ -259,23 +316,23 @@ export function renderPodcastTimeByDay(podcastData) {
     });
 
     const sortedData = Object.entries(timeMap)
-        .sort((a,b) => a[0].localeCompare(b[0]))
+        .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([date, minutes]) => ({ date, minutes: Math.round(minutes) }));
 
     podcastTimelineChart = new Chart(ctx, {
         type: 'line',
-        data: { 
-            labels: sortedData.map(d => formatDateLabel(d.date, currentPodcastTimelineUnit)), 
-            datasets:[{ 
-                data: sortedData.map(d => d.minutes), 
-                borderColor: '#1DB954', 
-                backgroundColor: 'rgba(29, 185, 84, 0.2)', 
-                borderWidth: 2, 
-                fill: true, 
+        data: {
+            labels: sortedData.map(d => formatDateLabel(d.date, currentPodcastTimelineUnit)),
+            datasets: [{
+                data: sortedData.map(d => d.minutes),
+                borderColor: '#1DB954',
+                backgroundColor: 'rgba(29, 185, 84, 0.2)',
+                borderWidth: 2,
+                fill: true,
                 tension: 0.3,
                 pointRadius: 0,
                 pointHitRadius: 10
-            }] 
+            }]
         },
         options: {
             responsive: true,
@@ -288,9 +345,9 @@ export function renderPodcastTimeByDay(podcastData) {
                     callbacks: { label: (c) => formatMinutesToTime(c.raw) }
                 }
             },
-            scales: { 
-                y: { ...whiteTextOptions }, 
-                x: { ...whiteTextOptions, ticks: { ...whiteTextOptions.ticks, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } } 
+            scales: {
+                y: { ...whiteTextOptions },
+                x: { ...whiteTextOptions, ticks: { ...whiteTextOptions.ticks, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } }
             }
         }
     });
@@ -302,41 +359,82 @@ export function renderPodcastStats(podcastDataArray) {
     if (!container) return;
     container.innerHTML = '';
 
-    if (!podcastDataArray || podcastDataArray.length === 0) {
+    const analyzed = analyzePodcasts(podcastDataArray || []);
+    const summary = analyzed.summary;
+
+    if (!summary) {
         container.innerHTML = '<p class="no-data">No podcast activity found.</p>';
         return;
     }
 
-    const totalMinutes = podcastDataArray.reduce((acc, d) => acc + d.durationMin, 0);
-    const uniqueShows = new Set(podcastDataArray.map(d => d.episodeShowName)).size;
-    const uniqueEpisodes = new Set(podcastDataArray.map(d => d.episodeName)).size;
-
     const stats = [
-        { title: 'Total Time', value: formatMinutesToTime(totalMinutes) },
-        { title: 'Shows', value: uniqueShows },
-        { title: 'Episodes', value: uniqueEpisodes }
+        { title: 'Total Time', value: formatMinutesToTime(summary.totalMinutes) },
+        { title: 'Podcast Plays', value: summary.totalPlays.toLocaleString() },
+        { title: 'Unique Shows', value: summary.uniqueShows },
+        { title: 'Unique Episodes', value: summary.uniqueEpisodes },
+        { title: 'Avg per Play', value: `${summary.avgMinutes} min` },
+        { title: 'Completion Rate', value: `${summary.completionRate}%` },
+        { title: 'Longest Streak', value: `${summary.longestStreak} days` },
+        { title: 'Prime Moment', value: `${summary.topWeekday} at ${summary.topHour}` }
     ];
 
     stats.forEach(stat => {
         const div = document.createElement('div');
-        div.className = 'stat-card'; // Ensure you have CSS for this
+        div.className = 'stat-item';
         div.innerHTML = `<h3>${stat.title}</h3><p>${stat.value}</p>`;
         container.appendChild(div);
     });
 }
 
+function renderPodcastInsights(analyzed) {
+    const container = document.getElementById('podcastInsightsGrid');
+    if (!container) return;
+
+    if (!analyzed.summary) {
+        container.innerHTML = '';
+        return;
+    }
+
+    const bingeList = analyzed.bingeDays.map((d, i) => `
+        <li><span class="wc-rank">${i + 1}</span><span style="flex:1">${d.date}</span><span style="color:var(--green);font-weight:700">${d.minutes} min</span></li>
+    `).join('');
+
+    const repeatList = analyzed.repeatEpisodes.map((e, i) => `
+        <li><span class="wc-rank">${i + 1}</span><span style="flex:1">${truncateString(e.name, 42)}<br><small style="color:var(--text-muted)">${truncateString(e.show, 36)}</small></span><span style="color:var(--green);font-weight:700">${e.plays}x</span></li>
+    `).join('');
+
+    const completionList = analyzed.topShows.slice(0, 10).map((s, i) => `
+        <li><span class="wc-rank">${i + 1}</span><span style="flex:1">${truncateString(s.name, 42)}</span><span style="color:var(--green);font-weight:700">${s.completionRate}%</span></li>
+    `).join('');
+
+    container.innerHTML = `
+        <div class="wrapped-card">
+            <div class="wc-label">Top Binge Days</div>
+            <ul class="wc-list">${bingeList || '<li>No data yet</li>'}</ul>
+        </div>
+        <div class="wrapped-card">
+            <div class="wc-label">Most Replayed Episodes</div>
+            <ul class="wc-list">${repeatList || '<li>No repeated episodes yet</li>'}</ul>
+        </div>
+        <div class="wrapped-card">
+            <div class="wc-label">Show Completion Ranking</div>
+            <ul class="wc-list">${completionList || '<li>No data yet</li>'}</ul>
+        </div>
+    `;
+}
+
 // --- UTILS ---
 function getStartOfWeek(date) {
     const d = new Date(date);
-    const day = d.getDay(); 
+    const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
     return new Date(d.setDate(diff)).toISOString().split('T')[0];
 }
 
 function formatDateLabel(dateStr, unit) {
     const date = new Date(dateStr);
-    if(unit === 'year') return dateStr;
-    const opts = unit === 'month' ? {year:'numeric', month:'short'} : {month:'short', day:'numeric'};
+    if (unit === 'year') return dateStr;
+    const opts = unit === 'month' ? { year: 'numeric', month: 'short' } : { month: 'short', day: 'numeric' };
     return date.toLocaleDateString('en-US', opts);
 }
 
@@ -346,7 +444,7 @@ export function setupPodcastTimelineControls(podcastData) {
     if (!container) return;
     container.innerHTML = '';
 
-    ['day','week','month','year'].forEach(unit => {
+    ['day', 'week', 'month', 'year'].forEach(unit => {
         const btn = document.createElement('button');
         btn.textContent = unit.charAt(0).toUpperCase() + unit.slice(1);
         btn.className = `timeline-btn ${unit === currentPodcastTimelineUnit ? 'active' : ''}`;
@@ -363,13 +461,15 @@ export function setupPodcastTimelineControls(podcastData) {
 // In podcasts.js
 export function renderPodcastUI(dataToRender) {
     // Just analyze and render. Do not look for DOM inputs here.
-    const { topShows, topEpisodes, podcastData, hourlyDistribution } = analyzePodcasts(dataToRender);
-    
-    renderPodcastStats(podcastData);
+    const analyzed = analyzePodcasts(dataToRender);
+    const { topShows, topEpisodes, podcastData, hourlyDistribution } = analyzed;
+
+    renderPodcastStats(dataToRender);
     renderTopShowsChart(topShows);
     renderTopEpisodesChart(topEpisodes);
     renderPodcastHourlyChart(hourlyDistribution);
-    
+    renderPodcastInsights(analyzed);
+
     // Pass the filtered data to the timeline controls so they work on the current subset
     setupPodcastTimelineControls(podcastData);
     renderPodcastTimeByDay(podcastData);
