@@ -1,35 +1,44 @@
-// js/main.js
+// js/main.js — Application bootstrap & filter management
 
 import { processSpotifyZip } from './store.js';
-import { showLoading, hideLoading, renderUI, populateWrappedFilter, renderWrappedContent } from './ui.js';
+import { showLoading, hideLoading, renderUI, renderStreaksTab, renderDeepDiveTab, renderExplorerTab, populateWrappedFilter, renderWrappedContent } from './ui.js';
 import { setupGame } from './game.js';
 import * as podcasts from './podcasts.js';
+import { openDetail, closeDetail } from './detail.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    // References
+
+    // ── REFERENCES ──────────────────────────────
     const uploadSection = document.getElementById('upload-section');
     const dashboardSection = document.getElementById('dashboard-section');
     const zipInput = document.getElementById('zip-input');
     const uploadButton = document.getElementById('upload-button');
-    const applyFilterBtn = document.getElementById('apply-filter-btn');
-    const dateFromInput = document.getElementById('date-from');
-    const dateToInput = document.getElementById('date-to');
-    const wrappedYearFilter = document.getElementById('wrapped-year-filter');
 
+    const dateFrom = document.getElementById('date-from');
+    const dateTo = document.getElementById('date-to');
+    const yearFilter = document.getElementById('year-filter');
+    const seasonFilter = document.getElementById('season-filter');
     const artistFilter = document.getElementById('artist-filter');
     const albumFilter = document.getElementById('album-filter');
     const trackFilter = document.getElementById('track-filter');
+    const platformFilter = document.getElementById('platform-filter');
+    const countryFilter = document.getElementById('country-filter');
+    const timeOfDayFilter = document.getElementById('timeofday-filter');
+    const skipFilter = document.getElementById('skip-filter');
 
-    window.spotifyData = {
-        full: [],
-        filtered: []
-    };
+    const applyBtn = document.getElementById('apply-filter-btn');
+    const resetFiltersBtn = document.getElementById('reset-filters-btn');
+    const resetBtn = document.getElementById('reset-btn');
 
-    // --- EVENT HANDLERS ---
+    const wrappedYearFilter = document.getElementById('wrapped-year-filter');
+
+    window.spotifyData = { full: [], filtered: [] };
+
+    // ── UPLOAD ──────────────────────────────────
     uploadButton.addEventListener('click', () => zipInput.click());
 
-    zipInput.addEventListener('change', async (event) => {
-        const file = event.target.files[0];
+    zipInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
         if (!file) return;
 
         showLoading('Unzipping and processing files...');
@@ -41,117 +50,197 @@ document.addEventListener('DOMContentLoaded', () => {
             uploadSection.classList.add('hidden');
             dashboardSection.classList.remove('hidden');
 
-            setupDateFilters(data);
-            populateOtherFilters(data);
-            
+            initDateFilters(data);
+            populateDropdowns(data);
             setupTabNavigation();
             setupGame();
             populateWrappedFilter();
+            wrappedYearFilter?.addEventListener('change', renderWrappedContent);
 
-            wrappedYearFilter.addEventListener('change', renderWrappedContent);
+            renderUI();
+            renderStreaksTab();
+            renderDeepDiveTab();
+            renderExplorerTab(data);
+            podcasts.renderPodcastUI(data);
 
-            // --- FIXED: Render Initial UI ---
-            renderUI(); // Renders Music Charts
-            podcasts.renderPodcastUI(data); // Renders Podcast Charts
-
-        } catch (error) {
-            console.error('Failed to process Spotify data:', error);
-            alert(`Error: ${error.message}`);
+        } catch (err) {
+            console.error(err);
+            alert(`Error processing file: ${err.message}`);
         } finally {
             hideLoading();
         }
     });
 
-    // --- FIXED: Single Filter Function ---
-    // We remove the separate listener for applyFilterBtn and just use the unified function
-    // But if you want a manual button, keep it:
-    applyFilterBtn.addEventListener('click', applyAllFilters);
+    // ── FILTERS ─────────────────────────────────
+    applyBtn.addEventListener('click', applyFilters);
 
-    // Auto-apply filters on change
-    // artistFilter.addEventListener('change', applyAllFilters);
-    // albumFilter.addEventListener('change', applyAllFilters);
-    // trackFilter.addEventListener('change', applyAllFilters);
-    // dateFromInput.addEventListener('change', applyAllFilters); // Add this!
-    // dateToInput.addEventListener('change', applyAllFilters);   // Add this!
+    resetFiltersBtn.addEventListener('click', () => {
+        const data = window.spotifyData.full;
+        initDateFilters(data);
+        yearFilter.value = '';
+        seasonFilter.value = '';
+        artistFilter.value = '';
+        albumFilter.value = '';
+        trackFilter.value = '';
+        platformFilter.value = '';
+        countryFilter.value = '';
+        timeOfDayFilter.value = '';
+        skipFilter.value = '';
+        applyFilters();
+    });
 
+    resetBtn.addEventListener('click', () => {
+        dashboardSection.classList.add('hidden');
+        uploadSection.classList.remove('hidden');
+        window.spotifyData = { full: [], filtered: [] };
+        zipInput.value = '';
+    });
 
+    // ── DETAIL MODAL ────────────────────────────
+    document.getElementById('detail-close-btn')?.addEventListener('click', closeDetail);
+    document.getElementById('detail-modal-backdrop')?.addEventListener('click', closeDetail);
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeDetail();
+    });
+
+    // ── TAB NAVIGATION ──────────────────────────
     function setupTabNavigation() {
-        const tabLinks = document.querySelectorAll('.tab-link');
-        const tabContents = document.querySelectorAll('.tab-content');
-
-        tabLinks.forEach(link => {
+        document.querySelectorAll('.tab-link').forEach(link => {
             link.addEventListener('click', () => {
-                const tabId = link.getAttribute('data-tab');
-                tabLinks.forEach(item => item.classList.remove('active'));
-                tabContents.forEach(item => item.classList.remove('active'));
+                const tabId = link.dataset.tab;
+                document.querySelectorAll('.tab-link').forEach(l => l.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                 link.classList.add('active');
-                document.getElementById(tabId).classList.add('active');
+                document.getElementById(tabId)?.classList.add('active');
+
+                // Lazy render tabs that are expensive
+                if (tabId === 'streaks-tab') renderStreaksTab();
+                if (tabId === 'deepdive-tab') renderDeepDiveTab();
+                if (tabId === 'explorer-tab') renderExplorerTab(window.spotifyData.filtered);
             });
         });
     }
 
-    function setupDateFilters(data) {
-        if (data.length > 0) {
-            // Ensure sorting happens here if not guaranteed by store.js
-            // const sorted = [...data].sort((a,b) => new Date(a.date) - new Date(b.date));
-            const firstDate = data[0].date;
-            const lastDate = data[data.length - 1].date;
-
-            dateFromInput.min = firstDate;
-            dateFromInput.max = lastDate;
-            dateFromInput.value = firstDate;
-            
-            dateToInput.min = firstDate;
-            dateToInput.max = lastDate;
-            dateToInput.value = lastDate;
-        }
+    // ── DATE FILTER INIT ────────────────────────
+    function initDateFilters(data) {
+        if (!data.length) return;
+        const first = data[0].date;
+        const last = data[data.length - 1].date;
+        dateFrom.min = first; dateFrom.max = last; dateFrom.value = first;
+        dateTo.min = first; dateTo.max = last; dateTo.value = last;
     }
 
-    function populateOtherFilters(data) {
-        // Optimization: Use Sets directly
-        const uniqueArtists = [...new Set(data.map(d => d.artistName).filter(Boolean))].sort();
-        const uniqueAlbums = [...new Set(data.map(d => d.albumName).filter(Boolean))].sort();
-        const uniqueTracks = [...new Set(data.map(d => d.trackName).filter(Boolean))].sort();
+    // ── POPULATE DROPDOWNS ──────────────────────
+    function populateDropdowns(data) {
+        const music = data.filter(d => !d.isPodcast && d.trackName);
 
-        artistFilter.innerHTML = '<option value="">All Artists</option>' + uniqueArtists.map(a => `<option value="${a}">${a}</option>`).join('');
-        albumFilter.innerHTML = '<option value="">All Albums</option>' + uniqueAlbums.map(a => `<option value="${a}">${a}</option>`).join('');
-        trackFilter.innerHTML = '<option value="">All Tracks</option>' + uniqueTracks.map(t => `<option value="${t}">${t}</option>`).join('');
+        const years = [...new Set(music.map(d => d.year))].sort((a, b) => b - a);
+        yearFilter.innerHTML = '<option value="">All Years</option>' +
+            years.map(y => `<option value="${y}">${y}</option>`).join('');
+
+        const artists = [...new Set(music.map(d => d.artistName).filter(Boolean))].sort();
+        artistFilter.innerHTML = '<option value="">All Artists</option>' +
+            artists.map(a => `<option value="${escOpt(a)}">${escOpt(a)}</option>`).join('');
+
+        const albums = [...new Set(music.map(d => d.albumName).filter(Boolean))].sort();
+        albumFilter.innerHTML = '<option value="">All Albums</option>' +
+            albums.map(a => `<option value="${escOpt(a)}">${escOpt(a)}</option>`).join('');
+
+        const tracks = [...new Set(music.map(d => d.trackName).filter(Boolean))].sort();
+        trackFilter.innerHTML = '<option value="">All Tracks</option>' +
+            tracks.map(t => `<option value="${escOpt(t)}">${escOpt(t)}</option>`).join('');
+
+        const platforms = [...new Set(data.map(d => d.platform).filter(Boolean))].sort();
+        platformFilter.innerHTML = '<option value="">All Platforms</option>' +
+            platforms.map(p => `<option value="${escOpt(p)}">${escOpt(p)}</option>`).join('');
+
+        const countries = [...new Set(data.map(d => d.country).filter(Boolean))].sort();
+        countryFilter.innerHTML = '<option value="">All Countries</option>' +
+            countries.map(c => `<option value="${escOpt(c)}">${escOpt(c)}</option>`).join('');
     }
 
-    // --- FIXED: applyAllFilters ---
-    function applyAllFilters() {
+    // ── APPLY FILTERS ───────────────────────────
+    function applyFilters() {
         showLoading('Applying filters...');
-        
-        // Use a small timeout to allow the Loading Spinner to render before the heavy loop
+
         setTimeout(() => {
-            const from = dateFromInput.value;
-            const to = dateToInput.value;
-            const selectedArtist = artistFilter.value;
-            const selectedAlbum = albumFilter.value;
-            const selectedTrack = trackFilter.value;
+            const from = dateFrom.value;
+            const to = dateTo.value;
+            const year = yearFilter.value;
+            const season = seasonFilter.value;
+            const artist = artistFilter.value;
+            const album = albumFilter.value;
+            const track = trackFilter.value;
+            const platform = platformFilter.value;
+            const country = countryFilter.value;
+            const timeOfDay = timeOfDayFilter.value;
+            const skipMode = skipFilter.value;
 
             window.spotifyData.filtered = window.spotifyData.full.filter(d => {
-                const date = d.date; // Ensure format matches input (YYYY-MM-DD)
-                
-                // Date Filter
-                if (from && date < from) return false;
-                if (to && date > to) return false;
-                
-                // Metadata Filters
-                if (selectedArtist && d.artistName !== selectedArtist) return false;
-                if (selectedAlbum && d.albumName !== selectedAlbum) return false;
-                if (selectedTrack && d.trackName !== selectedTrack) return false;
-                
+                if (from && d.date < from) return false;
+                if (to && d.date > to) return false;
+                if (year && String(d.year) !== String(year)) return false;
+                if (season && d.season !== season) return false;
+                if (artist && d.artistName !== artist) return false;
+                if (album && d.albumName !== album) return false;
+                if (track && d.trackName !== track) return false;
+                if (platform && d.platform !== platform) return false;
+                if (country && d.country !== country) return false;
+                if (timeOfDay && d.timeOfDay !== timeOfDay) return false;
+                if (skipMode === 'completed' && d.skipped) return false;
+                if (skipMode === 'skipped' && !d.skipped) return false;
                 return true;
             });
 
-            // 1. Render General Music Charts
-            renderUI(); 
+            renderFilterPills({ from, to, year, season, artist, album, track, platform, country, timeOfDay, skipMode });
 
-            // 2. Render Podcast Charts with the NEW filtered data
-            podcasts.renderPodcastUI(window.spotifyData.filtered); 
+            renderUI();
+            renderStreaksTab();
+            renderDeepDiveTab();
+            renderExplorerTab(window.spotifyData.filtered);
+            podcasts.renderPodcastUI(window.spotifyData.filtered);
 
             hideLoading();
-        }, 50); // 50ms delay
+        }, 50);
+    }
+
+    // ── FILTER PILLS ────────────────────────────
+    function renderFilterPills(filters) {
+        const container = document.getElementById('active-filter-pills');
+        if (!container) return;
+        const active = Object.entries(filters).filter(([, v]) => v);
+        if (!active.length) { container.innerHTML = ''; return; }
+
+        const labelMap = {
+            from: 'From', to: 'To', year: 'Year', season: 'Season',
+            artist: 'Artist', album: 'Album', track: 'Track',
+            platform: 'Platform', country: 'Country',
+            timeOfDay: 'Time of Day', skipMode: 'Skip'
+        };
+
+        container.innerHTML = active.map(([k, v]) => `
+            <span class="filter-pill">
+                ${labelMap[k] || k}: <strong>${v}</strong>
+                <button data-key="${k}" title="Remove filter">x</button>
+            </span>
+        `).join('');
+
+        container.querySelectorAll('button[data-key]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const key = btn.dataset.key;
+                const elMap = { from: dateFrom, to: dateTo, year: yearFilter, season: seasonFilter, artist: artistFilter, album: albumFilter, track: trackFilter, platform: platformFilter, country: countryFilter, timeOfDay: timeOfDayFilter, skipMode: skipFilter };
+                const el = elMap[key];
+                if (el) {
+                    if (el.type === 'date') { const data = window.spotifyData.full; initDateFilters(data); }
+                    else el.value = '';
+                }
+                applyFilters();
+            });
+        });
+    }
+
+    function escOpt(str) {
+        return String(str).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 });

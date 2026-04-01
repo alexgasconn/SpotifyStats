@@ -1,279 +1,246 @@
+// js/charts.js — All chart rendering
+
 Chart.register(ChartDataLabels);
 
-let chartInstances = {};
+let instances = {};
 
-function createOrUpdateChart(canvasId, config) {
-    if (chartInstances[canvasId]) { chartInstances[canvasId].destroy(); }
-    const ctx = document.getElementById(canvasId);
-    if (ctx) { chartInstances[canvasId] = new Chart(ctx, config); }
+function make(id, config) {
+    if (instances[id]) instances[id].destroy();
+    const ctx = document.getElementById(id);
+    if (ctx) instances[id] = new Chart(ctx, config);
 }
 
-const chartColors = ['#1DB954', '#17A2B8', '#FFC107', '#FD7E14', '#6F42C1', '#E83E8C'];
+const GREEN = '#1DB954';
+const COLORS = ['#1DB954', '#17A2B8', '#FFC107', '#FD7E14', '#6F42C1', '#E83E8C', '#20C997', '#DC3545', '#0DCAF0', '#FF6384'];
+const GRID = '#282828';
+const TICK = '#b3b3b3';
 
-export function renderDistributionChart(canvasId, data, title, type = 'doughnut', showLabels = false) {
-    const labels = data.map(d => d.value);
-    const values = data.map(d => parseFloat(d.percent));
+const baseScales = {
+    y: { ticks: { color: TICK }, grid: { color: GRID } },
+    x: { ticks: { color: TICK }, grid: { display: false } }
+};
 
-    const config = {
-        type: type,
-        data: {
-            labels: labels,
-            datasets: [{
-                data: values,
-                backgroundColor: chartColors,
-                borderColor: '#121212',
-                borderWidth: type === 'doughnut' ? 2 : 0,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: type === 'doughnut' ? 'right' : 'none',
-                    labels: { color: '#b3b3b3' }
-                },
-                title: {
-                    display: false,
-                    text: title,
-                    color: '#FFFFFF',
-                    font: { size: 16 }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function (context) {
-                            let label = context.label || '';
-                            if (label) label += ': ';
-                            if (context.parsed !== null) {
-                                label += context.parsed.toFixed(2) + '%';
-                            }
-                            return label;
-                        }
-                    }
-                },
-                datalabels: type === 'bar' && showLabels ? {
-                    color: '#fff',
-                    anchor: 'end',
-                    align: 'start',
-                    formatter: (value) => value.toFixed(2) + '%',
-                    font: { weight: 'bold' }
-                } : false
-            },
-            scales: type === 'bar' ? {
-                y: { type: 'logarithmic', ticks: { color: '#b3b3b3' }, grid: { color: '#282828' } },
-                x: { ticks: { color: '#b3b3b3' }, grid: { display: false } }
-            } : {}
-        },
-        plugins: type === 'bar' && showLabels ? [ChartDataLabels] : []
-    };
+const noLegend = { legend: { display: false }, datalabels: false };
 
-    createOrUpdateChart(canvasId, config);
-}
+// ── TIMELINE ──────────────────────────────────────────────────────────────────
 
-
-
-
-export function renderWrappedMonthlyChart(monthlyData) {
-    const config = {
+export function renderTimelineChart(data, unit = 'week') {
+    make('timeline-chart', {
         type: 'bar',
         data: {
-            labels: ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'],
-            datasets: [{ data: monthlyData, backgroundColor: '#1DB954' }]
+            datasets: [{ label: 'Minutes', data, backgroundColor: 'rgba(29,185,84,0.7)', borderColor: GREEN, borderWidth: 1, borderRadius: 2 }]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: { ...noLegend, tooltip: { callbacks: { label: ctx => `${Math.round(ctx.raw.y).toLocaleString()} min` } } },
             scales: {
-                y: { display: false, grid: { display: false } },
-                x: { ticks: { color: '#b3b3b3' }, grid: { display: false } }
-            }
-        }
-    };
-    createOrUpdateChart('wrapped-monthly-chart', config);
-}
-
-// --- GRÁFICOS ---
-
-export function renderTimelineChart(timelineData, unit = 'week') {
-    createOrUpdateChart('timeline-chart', {
-        type: 'bar',
-        data: {
-            datasets: [{
-                label: 'Minutes Listened',
-                data: timelineData,
-                backgroundColor: '#1DB954',
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                datalabels: false
-            },
-            scales: {
-                x: {
-                    type: 'time',
-                    time: { unit: unit },
-                    ticks: { color: '#b3b3b3' },
-                    grid: { color: '#282828' }
-                },
-                y: {
-                    ticks: { color: '#b3b3b3' },
-                    grid: { color: '#282828' },
-                    title: { display: true, text: 'Minutes', color: '#b3b3b3' }
-                }
+                x: { type: 'time', time: { unit }, ticks: { color: TICK }, grid: { color: GRID } },
+                y: { ticks: { color: TICK }, grid: { color: GRID }, title: { display: true, text: 'Minutes', color: TICK } }
             }
         }
     });
 }
 
+// ── TEMPORAL DISTRIBUTIONS ────────────────────────────────────────────────────
 
 export function renderListeningClockChart(hourlyData) {
-    createOrUpdateChart('listening-clock-chart', {
+    make('listening-clock-chart', {
         type: 'polarArea',
         data: {
             labels: Array.from({ length: 24 }, (_, i) => `${i}:00`),
-            datasets: [{
-                data: hourlyData,
-                backgroundColor: hourlyData.map((_, i) => `hsla(141, 76%, ${20 + (i/24)*40}%, 0.7)`)
-            }]
+            datasets: [{ data: hourlyData, backgroundColor: hourlyData.map((_, i) => `hsla(141, 76%, ${20 + (i / 24) * 40}%, 0.75)`) }]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            scales: { r: { ticks: { backdropColor: 'transparent', color: '#b3b3b3' }, grid: { color: '#282828' } } },
-            plugins: { legend: { display: false } }
+            scales: { r: { ticks: { backdropColor: 'transparent', color: TICK }, grid: { color: GRID } } },
+            plugins: { legend: { display: false }, datalabels: false }
         }
     });
 }
 
-export function renderDayOfWeekChart(weekdayData) {
-    createOrUpdateChart('day-of-week-chart', {
+export function renderDayOfWeekChart(data) {
+    make('day-of-week-chart', {
         type: 'bar',
         data: {
-            labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-            datasets: [{ data: weekdayData, backgroundColor: '#1DB954' }]
+            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            datasets: [{ data, backgroundColor: data.map((_, i) => i >= 5 ? '#FFC107' : GREEN), borderRadius: 4 }]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                y: { ticks: { color: '#b3b3b3' }, grid: { color: '#282828' } },
-                x: { ticks: { color: '#b3b3b3' }, grid: { display: false } }
-            }
+            plugins: { ...noLegend, tooltip: { callbacks: { label: ctx => `${Math.round(ctx.raw).toLocaleString()} min` } } },
+            scales: baseScales
         }
     });
 }
 
-export function renderMonthlyListeningChart(monthlyData) {
-    createOrUpdateChart('monthly-listening-chart', {
+export function renderMonthlyChart(data) {
+    make('monthly-listening-chart', {
         type: 'bar',
         data: {
             labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-            datasets: [{ data: monthlyData, backgroundColor: '#1DB954' }]
+            datasets: [{ data, backgroundColor: GREEN, borderRadius: 4 }]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                y: { ticks: { color: '#b3b3b3' }, grid: { color: '#282828' } },
-                x: { ticks: { color: '#b3b3b3' }, grid: { display: false } }
-            }
+            plugins: { ...noLegend, tooltip: { callbacks: { label: ctx => `${Math.round(ctx.raw).toLocaleString()} min` } } },
+            scales: baseScales
         }
     });
 }
 
+export function renderSeasonChart(data) {
+    make('season-chart', {
+        type: 'doughnut',
+        data: {
+            labels: data.map(d => d.label),
+            datasets: [{ data: data.map(d => d.value), backgroundColor: ['#1DB954', '#FFC107', '#FD7E14', '#17A2B8'], borderColor: '#121212', borderWidth: 2 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right', labels: { color: TICK } },
+                datalabels: {
+                    color: '#fff', font: { weight: 'bold', size: 12 },
+                    formatter: (v, ctx) => {
+                        const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                        return total > 0 ? Math.round((v / total) * 100) + '%' : '';
+                    }
+                },
+                tooltip: { callbacks: { label: ctx => `${Math.round(ctx.raw).toLocaleString()} min` } }
+            }
+        },
+        plugins: [ChartDataLabels]
+    });
+}
 
-
-export function renderYearlyListeningChart(yearlyData) {
+export function renderYearlyChart(yearlyData) {
     const labels = yearlyData.map(d => d.year);
     const data = yearlyData.map(d => d.minutes);
-    
-    createOrUpdateChart('yearly-listening-chart', {
-        type: 'line',
+    make('yearly-listening-chart', {
+        type: 'bar',
         data: {
-            labels: labels,
+            labels,
             datasets: [{
-                data: data,
-                borderColor: '#1DB954',
-                backgroundColor: 'rgba(29, 185, 84, 0.2)',
-                fill: true,
-                tension: 0.1
+                data,
+                backgroundColor: data.map((_, i) => `rgba(29,185,84,${0.4 + (i / data.length) * 0.6})`),
+                borderColor: GREEN, borderWidth: 1, borderRadius: 5
             }]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: {
+                ...noLegend,
+                tooltip: { callbacks: { label: ctx => `${Math.round(ctx.raw).toLocaleString()} min` } },
+                datalabels: {
+                    color: '#fff', font: { weight: 'bold', size: 11 },
+                    anchor: 'end', align: 'start',
+                    formatter: v => Math.round(v / 60) + 'h'
+                }
+            },
+            scales: { ...baseScales, y: { ...baseScales.y, title: { display: true, text: 'Minutes', color: TICK } } }
+        },
+        plugins: [ChartDataLabels]
+    });
+}
+
+// ── DISTRIBUTION ──────────────────────────────────────────────────────────────
+
+export function renderDistributionChart(canvasId, data, title) {
+    make(canvasId, {
+        type: 'doughnut',
+        data: {
+            labels: data.map(d => d.value),
+            datasets: [{ data: data.map(d => d.count || parseFloat(d.percent)), backgroundColor: COLORS, borderColor: '#121212', borderWidth: 2 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right', labels: { color: TICK, boxWidth: 12 } },
+                datalabels: {
+                    color: '#fff', font: { weight: 'bold', size: 10 },
+                    formatter: (v, ctx) => {
+                        const t = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                        const pct = Math.round((v / t) * 100);
+                        return pct >= 5 ? pct + '%' : '';
+                    }
+                },
+                title: { display: false }
+            }
+        },
+        plugins: [ChartDataLabels]
+    });
+}
+
+export function renderBarChart(canvasId, data, title) {
+    make(canvasId, {
+        type: 'bar',
+        data: {
+            labels: data.map(d => d.value),
+            datasets: [{ data: data.map(d => d.count || parseFloat(d.percent)), backgroundColor: GREEN, borderRadius: 3 }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true, maintainAspectRatio: false,
+            plugins: { ...noLegend, tooltip: { callbacks: { label: ctx => `${ctx.raw.toLocaleString()} plays` } } },
             scales: {
-                y: { ticks: { color: '#b3b3b3' }, grid: { color: '#282828' } },
-                x: { ticks: { color: '#b3b3b3' }, grid: { display: false } }
+                y: { ticks: { color: TICK }, grid: { display: false } },
+                x: { ticks: { color: TICK }, grid: { color: GRID } }
             }
         }
     });
 }
 
-// 1. Update arguments to match the call: (elementId, data, title)
-export function renderMatrixChart(elementId, matrixData, title) {
+// ── HEATMAP / BUBBLE ──────────────────────────────────────────────────────────
 
-    // 2. IMPORTANT: Bubble charts need {x, y, r} structure.
-    // If your store returns {x, y, count}, map 'count' to 'r' (radius).
-    // We also cap the radius so bubbles don't get too massive.
-    const formattedData = matrixData.map(item => ({
-        x: item.x, 
-        y: item.y,
-        // If your data has 'count', use it. Otherwise assume 'r' exists.
-        // Math.min caps the size, or you can divide by a factor (e.g., item.count / 10)
-        r: item.r || (item.count ? Math.min(item.count / 2, 20) : 5) 
-    }));
-
-    // 3. Use the dynamic 'elementId' passed from the call
-    createOrUpdateChart(elementId, {
+export function renderBubbleChart(canvasId, matrixData) {
+    make(canvasId, {
         type: 'bubble',
         data: {
             datasets: [{
-                label: title, // Use the passed title
-                data: formattedData,
-                backgroundColor: 'rgba(29, 185, 84, 0.6)', // Spotify Green with opacity helps bubbles overlap
-                borderColor: '#1DB954',
+                data: matrixData,
+                backgroundColor: 'rgba(29,185,84,0.55)',
+                borderColor: GREEN,
                 borderWidth: 1
             }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false,
             plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        // Optional: Make tooltips readable
-                        label: function(context) {
-                            return `${context.raw.r * 2} plays`; // Adjust calculation based on how you scaled 'r'
-                        }
-                    }
-                }
+                legend: { display: false }, datalabels: false,
+                tooltip: { callbacks: { label: ctx => `${ctx.raw.count} plays` } }
             },
             scales: {
                 y: {
-                    min: -0.5,
-                    max: 6.5, // 0-6 (Sunday to Saturday)
-                    ticks: { 
-                        color: '#b3b3b3',
-                        stepSize: 1,
-                        // Optional: Map numbers to Day names
-                        callback: (val) => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][val] 
-                    },
-                    grid: { color: '#282828' }
+                    min: -0.5, max: 6.5,
+                    ticks: { color: TICK, stepSize: 1, callback: v => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][v] || '' },
+                    grid: { color: GRID }
                 },
                 x: {
-                    min: -0.5,
-                    max: 23.5, // 0-23 Hours
-                    ticks: { 
-                        color: '#b3b3b3',
-                        stepSize: 1
-                    },
+                    min: -0.5, max: 23.5,
+                    ticks: { color: TICK, stepSize: 1 },
                     grid: { display: false },
-                    title: { display: true, text: 'Hour of Day', color: '#b3b3b3' }
+                    title: { display: true, text: 'Hour of Day', color: TICK }
                 }
+            }
+        }
+    });
+}
+
+// ── WRAPPED ───────────────────────────────────────────────────────────────────
+
+export function renderWrappedMonthlyChart(monthlyData) {
+    make('wrapped-monthly-chart', {
+        type: 'bar',
+        data: {
+            labels: ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'],
+            datasets: [{ data: monthlyData, backgroundColor: GREEN, borderRadius: 3 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, datalabels: false },
+            scales: {
+                y: { display: false, grid: { display: false } },
+                x: { ticks: { color: TICK }, grid: { display: false } }
             }
         }
     });

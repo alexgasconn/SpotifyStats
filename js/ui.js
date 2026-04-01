@@ -1,273 +1,786 @@
-// js/ui.js
+// js/ui.js — All rendering logic
 
 import * as store from './store.js';
 import * as charts from './charts.js';
+import { openDetail } from './detail.js';
 
-// --- ESTADO GLOBAL DE LA UI ---
-let currentTimelineUnit = 'week'; // El valor por defecto es 'week'
+let currentTimelineUnit = 'week';
 
-// --- REFERENCIAS GLOBALES ---
-const kpiGrid = document.getElementById('kpi-grid');
-const advancedKpiGrid = document.getElementById('advanced-kpi-grid');
-const topTracksTable = document.getElementById('top-tracks-table');
-const topArtistsTable = document.getElementById('top-artists-table');
-const topAlbumsTable = document.getElementById('top-albums-table');
-const dataTable = document.getElementById('data-table');
-const wordCloudCanvas = document.getElementById('word-cloud-canvas');
-const wrappedYearFilter = document.getElementById('wrapped-year-filter');
-const wrappedContent = document.getElementById('wrapped-content');
+// KPI state
+let topTracksN = 10;
+let topArtistsN = 10;
+let topAlbumsN = 10;
+let tracksSortBy = 'plays';
+let artistsSortBy = 'plays';
+let albumsSortBy = 'plays';
+
+// ─────────────────────────────────────────────
+//  MAIN ENTRY POINT
+// ─────────────────────────────────────────────
 
 export function renderUI() {
-    showLoading('Calculating stats and rendering UI...');
     const data = window.spotifyData.filtered;
+    const full = window.spotifyData.full;
 
-    // --- Pestaña Overview ---
-    renderGlobalKPIs(data);
-    renderTopItemsList(topTracksTable, store.calculateTopItems(data, 'trackName'));
-    renderTopItemsList(topArtistsTable, store.calculateTopItems(data, 'artistName'));
-    renderTopItemsList(topAlbumsTable, store.calculateTopItems(data, 'albumName'));
-
-    // Llama a las nuevas funciones para el gráfico de línea de tiempo dinámico
+    renderKPIs(data);
+    renderTopLists(data);
     updateTimelineChart();
     setupTimelineControls();
+    setupTopNControls();
 
-    // --- Pestaña Trends ---
-    renderTrendCharts(data);
-
-    // --- Pestaña Wrapped ---
+    renderTrends(data);
     renderWrappedContent();
-
-    // --- Pestaña Explorer ---
-    renderWordCloud(data);
-    renderDataTable(data);
-
-    hideLoading();
 }
 
-// --- FUNCIONES DE RENDERIZADO POR SECCIÓN ---
+// ─────────────────────────────────────────────
+//  KPIs
+// ─────────────────────────────────────────────
 
-function renderGlobalKPIs(data) {
-    const kpis = store.calculateGlobalKPIs(data);
-    kpiGrid.innerHTML = `
-        <div class="kpi-card"><h4>Total Listening Time</h4><p>${kpis.totalDays.toLocaleString()}</p><span class="small-text">days</span></div>
-        <div class="kpi-card"><h4>Unique Tracks</h4><p>${kpis.uniqueTracks.toLocaleString()}</p></div>
-        <div class="kpi-card"><h4>Unique Artists</h4><p>${kpis.uniqueArtists.toLocaleString()}</p></div>
-        <div class="kpi-card"><h4>Minutes per Day</h4><p>${kpis.minutesPerDay.toLocaleString()}</p><span class="small-text">on average</span></div>
+function renderKPIs(data) {
+    const k = store.calculateGlobalKPIs(data);
+    const grid = document.getElementById('kpi-grid');
+    if (!grid) return;
+
+    const fmt = n => Number(n).toLocaleString();
+
+    grid.innerHTML = `
+        <div class="kpi-card">
+            <div class="kpi-icon">⏱</div>
+            <h4>Total Hours</h4>
+            <div class="kpi-value">${fmt(k.totalHours)}</div>
+            <div class="kpi-sub">${fmt(k.totalDays)} full days</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon">▶</div>
+            <h4>Total Plays</h4>
+            <div class="kpi-value">${fmt(k.totalPlays)}</div>
+            <div class="kpi-sub">${fmt(k.totalMinutes)} minutes</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon">🎵</div>
+            <h4>Unique Tracks</h4>
+            <div class="kpi-value">${fmt(k.uniqueTracks)}</div>
+            <div class="kpi-sub">across ${fmt(k.uniqueAlbums)} albums</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon">🎤</div>
+            <h4>Unique Artists</h4>
+            <div class="kpi-value">${fmt(k.uniqueArtists)}</div>
+            <div class="kpi-sub">artists discovered</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon">📅</div>
+            <h4>Active Days</h4>
+            <div class="kpi-value">${fmt(k.activeDays)}</div>
+            <div class="kpi-sub">${fmt(k.avgPerDay)} min/day avg</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon">⏭</div>
+            <h4>Skip Rate</h4>
+            <div class="kpi-value">${k.skipRate}%</div>
+            <div class="kpi-sub">${fmt(k.skipped)} skipped plays</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon">🏆</div>
+            <h4>Best Day Ever</h4>
+            <div class="kpi-value">${fmt(k.maxDayMinutes)}</div>
+            <div class="kpi-sub">min on ${k.maxDay || '—'}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon">📆</div>
+            <h4>Time Span</h4>
+            <div class="kpi-value">${k.years ? k.years.length : '?'}</div>
+            <div class="kpi-sub">years of data</div>
+        </div>
     `;
-    advancedKpiGrid.innerHTML = `
-        <div class="kpi-card"><h4>Active Days</h4><p>${kpis.activeDays.toLocaleString()}</p><span class="small-text">days you listened</span></div>
-        <div class="kpi-card"><h4>Skip Rate</h4><p>${kpis.skipRate}%</p><span class="small-text">of tracks skipped</span></div>
-        <div class="kpi-card"><h4>Musical Diversity</h4><p>${kpis.diversity}</p><span class="small-text">artist discovery score</span></div>
-    `;
 }
 
-function renderTrendCharts(data) {
-    const platformData = store.calculateDistributionPercent(data, 'platform').slice(0, 5);
-    const countryData = store.calculateDistributionPercent(data, 'country').slice(0, 15);
-    const reasonStartData = store.calculateDistributionPercent(data, 'reasonStart').slice(0, 5);
+// ─────────────────────────────────────────────
+//  TOP LISTS
+// ─────────────────────────────────────────────
 
-    charts.renderDistributionChart('platform-chart', platformData, 'Platform Usage');
-    charts.renderDistributionChart('country-chart', countryData, 'Top Countries', 'bar', true);
-    charts.renderDistributionChart('reason-start-chart', reasonStartData, 'Playback Start Reason');
+function renderTopLists(data) {
+    const tracks = store.calculateTopItems(data, 'trackName', tracksSortBy, topTracksN);
+    const artists = store.calculateTopItems(data, 'artistName', artistsSortBy, topArtistsN);
+    const albums = store.calculateTopItems(data, 'albumName', albumsSortBy, topAlbumsN);
 
-    charts.renderListeningClockChart(store.calculateTemporalDistribution(data, 'hour'));
-    charts.renderDayOfWeekChart(store.calculateTemporalDistribution(data, 'weekday'));
-    charts.renderMonthlyListeningChart(store.calculateTemporalDistribution(data, 'month'));
-    charts.renderYearlyListeningChart(store.calculateTemporalDistribution(data, 'year'));
-
-    const weekdayHourData = store.calculateTemporalDistribution(data, 'weekday', 'hour');
-    charts.renderMatrixChart('weekday-hour-chart', weekdayHourData, 'Plays by Weekday and Hour');
+    renderTopListInto('top-tracks-table', tracks, 'track', tracksSortBy);
+    renderTopListInto('top-artists-table', artists, 'artist', artistsSortBy);
+    renderTopListInto('top-albums-table', albums, 'album', albumsSortBy);
 }
 
-function renderTopItemsList(element, items) {
-    element.innerHTML = items.map((item, index) => `
-        <div class="top-item">
-            <span class="rank">${index + 1}</span>
+function renderTopListInto(containerId, items, type, sortBy) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    if (!items.length) { el.innerHTML = '<p style="color:var(--text-muted);padding:1rem">No data</p>'; return; }
+
+    const maxVal = items[0][sortBy] || 1;
+
+    el.innerHTML = items.map((item, i) => {
+        const mainVal = sortBy === 'minutes'
+            ? `${item.minutes.toLocaleString()} min`
+            : `${item.plays.toLocaleString()} plays`;
+        const subVal = sortBy === 'minutes'
+            ? `${item.plays.toLocaleString()} plays`
+            : `${item.minutes.toLocaleString()} min`;
+        const pct = Math.round((item[sortBy] / maxVal) * 100);
+
+        let sub = '';
+        if (type === 'track') sub = item.artistName || '';
+        if (type === 'album') sub = item.artistName || '';
+
+        const nameAttr = item.name.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        const extraAttr = (type !== 'artist' ? (item.artistName || '') : '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+        return `<div class="top-item" 
+                    data-type="${type}" 
+                    data-name="${nameAttr}"
+                    data-extra="${extraAttr}"
+                    title="Click to explore ${item.name}">
+            <span class="rank">${i + 1}</span>
             <div class="item-details">
-                <span class="item-name">${item.name}</span>
+                <div class="item-name">${esc(item.name)}</div>
+                ${sub ? `<div class="item-sub">${esc(sub)}</div>` : ''}
             </div>
-            <div class="metrics">
-                <span class="metric">${item.minutes.toLocaleString()} min</span>
-                <span class="metric">• ${item.plays.toLocaleString()} plays</span>
+            <div class="item-bar-wrap"><div class="item-bar" style="width:${pct}%"></div></div>
+            <div class="item-metrics">
+                <div class="item-metric-main">${mainVal}</div>
+                <div class="item-metric-sub">${subVal}</div>
             </div>
-        </div>
-    `).join('');
+        </div>`;
+    }).join('');
+
+    // Click handlers to open detail modal
+    el.querySelectorAll('.top-item').forEach(row => {
+        row.addEventListener('click', () => {
+            const name = row.dataset.name;
+            const rowType = row.dataset.type;
+            const extra = row.dataset.extra;
+            openDetail(name, rowType, extra, window.spotifyData.full);
+        });
+    });
 }
 
-
-function renderDataTable(data) {
-    const headers = `<thead><tr><th>Time</th><th>Track</th><th>Artist</th><th>Reason End</th></tr></thead>`;
-    const rows = data.slice(-500).reverse().map(d => `<tr><td>${d.ts.toLocaleString()}</td><td>${d.trackName || ''}</td><td>${d.artistName || ''}</td><td>${d.reasonEnd}</td></tr>`).join('');
-    dataTable.innerHTML = `<table class="df-table">${headers}<tbody>${rows}</tbody></table>`;
-}
-
-function renderWordCloud(data) {
-    const list = Object.entries(data.reduce((acc, d) => {
-        if (d.trackName) acc[d.trackName] = (acc[d.trackName] || 0) + 1;
-        return acc;
-    }, {})).sort((a, b) => b[1] - a[1]).slice(0, 100).map(([text, weight]) => [text, Math.log2(weight + 1) * 5]);
-    if (list.length > 0) WordCloud(wordCloudCanvas, { list, gridSize: 8, weightFactor: 2.5, fontFamily: 'CircularSp, sans-serif', color: 'random-light', backgroundColor: 'transparent', shuffle: true });
-}
-
-export function populateWrappedFilter() {
-    const years = [...new Set(window.spotifyData.full.map(d => d.year))].sort((a, b) => b - a);
-    wrappedYearFilter.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
-}
-
-export function renderWrappedContent() {
-    const year = parseInt(wrappedYearFilter.value);
-    const stats = store.calculateWrappedStats(year, window.spotifyData.full);
-
-    if (!stats) {
-        wrappedContent.innerHTML = "<p>No data for this year.</p>";
-        return;
-    }
-
-    wrappedContent.innerHTML = `
-        <div class="wrapped-card">
-            <div class="title">Total Minutes</div>
-            <div class="value">${stats.totalMinutes.toLocaleString()}</div>
-        </div>
-
-        <div class="wrapped-card">
-            <div class="title">Monthly Breakdown</div>
-            <div class="chart-wrapper" style="height: 150px;"><canvas id="wrapped-monthly-chart"></canvas></div>
-        </div>
-
-        <div class="wrapped-card">
-            <div class="title">Unique Tracks</div>
-            <div class="value">${stats.uniques.tracks}</div>
-            <div class="subtitle">${stats.discoveries.tracks}% new</div>
-        </div>
-
-        <div class="wrapped-card">
-            <div class="title">Unique Artists</div>
-            <div class="value">${stats.uniques.artists}</div>
-            <div class="subtitle">${stats.discoveries.artists}% new</div>
-        </div>
-
-        <div class="wrapped-card">
-            <div class="title">Unique Albums</div>
-            <div class="value">${stats.uniques.albums}</div>
-            <div class="subtitle">${stats.discoveries.albums}% new</div>
-        </div>
-
-        <div class="wrapped-card">
-            <div class="title">Skip Rate</div>
-            <div class="value">${stats.skipRate}%</div>
-            <div class="subtitle">of tracks skipped</div>
-        </div>
-
-        <div class="wrapped-card">
-            <div class="title">Top 10 Songs</div>
-            <ul class="list">
-                ${stats.topSong.map((s, i) => `
-                    <li>
-                        <span class="rank">${i + 1}</span>
-                        ${s.name} • ${s.minutes.toLocaleString()} min • ${s.plays.toLocaleString()} plays
-                    </li>
-                `).join('')}
-            </ul>
-        </div>
-
-        <div class="wrapped-card">
-            <div class="title">Top 10 Artists</div>
-            <ul class="list">
-                ${stats.topArtist.map((a, i) => `
-                    <li>
-                        <span class="rank">${i + 1}</span>
-                        ${a.name} • ${a.minutes.toLocaleString()} min • ${a.plays.toLocaleString()} plays
-                    </li>
-                `).join('')}
-            </ul>
-        </div>
-
-        <div class="wrapped-card">
-            <div class="title">Top 10 Albums</div>
-            <ul class="list">
-                ${stats.topAlbum.map((al, i) => `
-                    <li>
-                        <span class="rank">${i + 1}</span>
-                        ${al.name} • ${al.minutes.toLocaleString()} min • ${al.plays.toLocaleString()} plays
-                    </li>
-                `).join('')}
-            </ul>
-        </div>
-    `;
-
-    setTimeout(() => {
-        charts.renderWrappedMonthlyChart(stats.monthlyMinutes);
-    }, 0);
-}
-
-
-// --- NUEVAS FUNCIONES PARA EL GRÁFICO DE LÍNEA DE TIEMPO ---
+// ─────────────────────────────────────────────
+//  TIMELINE
+// ─────────────────────────────────────────────
 
 function updateTimelineChart() {
-    const data = window.spotifyData.filtered;
-    // Llama a la nueva función de agregación en store.js
-    const timelineData = store.calculateAggregatedTimeline(data, currentTimelineUnit);
-    // Renderiza el gráfico pasando la unidad para que el eje X se formatee correctamente
-    charts.renderTimelineChart(timelineData, currentTimelineUnit);
+    const data = store.calculateAggregatedTimeline(window.spotifyData.filtered, currentTimelineUnit);
+    charts.renderTimelineChart(data, currentTimelineUnit);
 }
 
 function setupTimelineControls() {
-    const buttons = document.querySelectorAll('.time-agg-btn');
-
-    // Un truco para evitar añadir listeners duplicados si esta función se llama varias veces
-    buttons.forEach(button => {
-        button.replaceWith(button.cloneNode(true));
+    document.querySelectorAll('.time-agg-btn').forEach(btn => {
+        const clone = btn.cloneNode(true);
+        btn.replaceWith(clone);
     });
-
-    // Vuelve a seleccionar los botones clonados para añadir los nuevos listeners
-    document.querySelectorAll('.time-agg-btn').forEach(button => {
-        button.addEventListener('click', () => {
-            // Actualiza el estado global con la nueva unidad
-            currentTimelineUnit = button.dataset.unit;
-            // Actualiza la clase 'active' en los botones
-            document.querySelectorAll('.time-agg-btn').forEach(btn => btn.classList.remove('active'));
-            button.classList.add('active');
-            // Vuelve a dibujar el gráfico con los datos agregados
+    document.querySelectorAll('.time-agg-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            currentTimelineUnit = btn.dataset.unit;
+            document.querySelectorAll('.time-agg-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
             updateTimelineChart();
         });
     });
 }
 
-// --- FUNCIONES DE CARGA ---
+// ─────────────────────────────────────────────
+//  TOP-N CONTROLS
+// ─────────────────────────────────────────────
+
+function setupTopNControls() {
+    setupTopNFor('top-tracks-table', 'tracks', n => { topTracksN = n; renderTopLists(window.spotifyData.filtered); });
+    setupTopNFor('top-artists-table', 'artists', n => { topArtistsN = n; renderTopLists(window.spotifyData.filtered); });
+    setupTopNFor('top-albums-table', 'albums', n => { topAlbumsN = n; renderTopLists(window.spotifyData.filtered); });
+
+    // Sort-by selects
+    setupSortSelect('tracks-sort-by', v => { tracksSortBy = v; renderTopLists(window.spotifyData.filtered); });
+    setupSortSelect('artists-sort-by', v => { artistsSortBy = v; renderTopLists(window.spotifyData.filtered); });
+    setupSortSelect('albums-sort-by', v => { albumsSortBy = v; renderTopLists(window.spotifyData.filtered); });
+}
+
+function setupTopNFor(tableId, prefix, onChange) {
+    const card = document.getElementById(tableId)?.closest('.chart-container');
+    if (!card) return;
+    card.querySelectorAll('.top-n-btn').forEach(btn => {
+        const clone = btn.cloneNode(true);
+        btn.replaceWith(clone);
+    });
+    card.querySelectorAll('.top-n-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            card.querySelectorAll('.top-n-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            onChange(parseInt(btn.dataset.n));
+        });
+    });
+}
+
+function setupSortSelect(selectId, onChange) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    const clone = sel.cloneNode(true);
+    sel.replaceWith(clone);
+    document.getElementById(selectId).addEventListener('change', e => onChange(e.target.value));
+}
+
+// ─────────────────────────────────────────────
+//  TRENDS TAB
+// ─────────────────────────────────────────────
+
+function renderTrends(data) {
+    const music = data.filter(d => !d.isPodcast && d.trackName);
+
+    charts.renderListeningClockChart(store.calculateTemporalDistribution(data, 'hour'));
+    charts.renderDayOfWeekChart(store.calculateTemporalDistribution(data, 'weekday'));
+    charts.renderMonthlyChart(store.calculateTemporalDistribution(data, 'month'));
+    charts.renderSeasonChart(store.calculateSeasonDistribution(data));
+    charts.renderDistributionChart('reason-start-chart', store.calculateDistributionPercent(data, 'reasonStart').slice(0, 8), 'Start Reason');
+    charts.renderDistributionChart('reason-end-chart', store.calculateDistributionPercent(data, 'reasonEnd').slice(0, 8), 'End Reason');
+    charts.renderDistributionChart('platform-chart', store.calculateDistributionPercent(data, 'platform').slice(0, 6), 'Platform');
+    charts.renderBarChart('country-chart', store.calculateDistributionPercent(data, 'country').slice(0, 15), 'Country');
+    charts.renderYearlyChart(store.calculateTemporalDistribution(data, 'year'));
+    charts.renderBubbleChart('weekday-hour-chart', store.calculateWeekdayHourMatrix(data));
+}
+
+// ─────────────────────────────────────────────
+//  STREAKS TAB
+// ─────────────────────────────────────────────
+
+export function renderStreaksTab() {
+    const data = window.spotifyData.filtered;
+    const container = document.getElementById('streaks-content');
+    if (!container) return;
+
+    const streaks = store.calculateListeningStreaks(data);
+    const artistStreaks = store.calculateArtistDailyStreaks(data);
+    const best = store.calculateBestPeriods(data);
+    const calData = store.buildCalendarData(data);
+
+    const heroHtml = `
+        <div class="streaks-hero">
+            <div class="streak-card">
+                <div class="sc-icon">🔥</div>
+                <div class="sc-value">${streaks.longest}</div>
+                <div class="sc-label">Longest Streak</div>
+                <div class="sc-dates">${streaks.longestStart || ''} → ${streaks.longestEnd || ''}</div>
+            </div>
+            <div class="streak-card">
+                <div class="sc-icon">⚡</div>
+                <div class="sc-value">${streaks.current}</div>
+                <div class="sc-label">Current Streak</div>
+                <div class="sc-dates">${streaks.current > 0 ? 'Keep it up!' : 'Start today!'}</div>
+            </div>
+            <div class="streak-card">
+                <div class="sc-icon">🗓</div>
+                <div class="sc-value">${best.bestDay ? best.bestDay.minutes : 0}</div>
+                <div class="sc-label">Best Day (min)</div>
+                <div class="sc-dates">${best.bestDay ? best.bestDay.date : '—'}</div>
+            </div>
+            <div class="streak-card">
+                <div class="sc-icon">📅</div>
+                <div class="sc-value">${best.bestWeek ? best.bestWeek.minutes : 0}</div>
+                <div class="sc-label">Best Week (min)</div>
+                <div class="sc-dates">${best.bestWeek ? best.bestWeek.date : '—'}</div>
+            </div>
+            <div class="streak-card">
+                <div class="sc-icon">🌟</div>
+                <div class="sc-value">${best.bestMonth ? best.bestMonth.minutes : 0}</div>
+                <div class="sc-label">Best Month (min)</div>
+                <div class="sc-dates">${best.bestMonth ? best.bestMonth.date : '—'}</div>
+            </div>
+            <div class="streak-card">
+                <div class="sc-icon">🏆</div>
+                <div class="sc-value">${best.bestYear ? best.bestYear.minutes : 0}</div>
+                <div class="sc-label">Best Year (min)</div>
+                <div class="sc-dates">${best.bestYear ? best.bestYear.year : '—'}</div>
+            </div>
+        </div>
+    `;
+
+    const calHtml = buildCalendarHeatmap(calData);
+
+    const artistStreakHtml = `
+        <div class="streak-list-grid">
+            <div class="streak-list-card">
+                <h4>🎤 Longest Artist Streaks (consecutive days)</h4>
+                ${artistStreaks.slice(0, 15).map((a, i) => `
+                    <div class="streak-row">
+                        <span class="sr-rank">${i + 1}</span>
+                        <span class="sr-name">${esc(a.artist)}</span>
+                        <span class="sr-val">${a.streak} days</span>
+                        <span class="sr-dates" style="font-size:0.7rem;color:var(--text-muted)">${a.from} → ${a.to}</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = heroHtml + calHtml + artistStreakHtml;
+}
+
+function buildCalendarHeatmap(calData) {
+    // Build a full-year calendar, most recent 52 weeks
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const allDates = Object.keys(calData).sort();
+    if (!allDates.length) return '<p style="color:var(--text-muted)">No data</p>';
+
+    const firstDate = new Date(allDates[0]);
+    const lastDate = new Date(allDates[allDates.length - 1]);
+
+    // Generate week columns from firstDate to lastDate
+    // Adjust to start on Monday
+    const startMonday = new Date(firstDate);
+    startMonday.setDate(firstDate.getDate() - ((firstDate.getDay() + 6) % 7));
+
+    const values = Object.values(calData).filter(v => v > 0);
+    const maxVal = Math.max(...values, 1);
+    const p33 = maxVal * 0.2, p66 = maxVal * 0.4, p80 = maxVal * 0.65, p95 = maxVal * 0.85;
+
+    const weeks = [];
+    let current = new Date(startMonday);
+    const end = new Date(lastDate);
+    end.setDate(end.getDate() + (6 - (end.getDay() + 6) % 7)); // end of last week
+
+    let currentMo = -1;
+    const monthLabels = [];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    while (current <= end) {
+        const weekDays = [];
+        for (let d = 0; d < 7; d++) {
+            const dateStr = current.toISOString().split('T')[0];
+            const mins = calData[dateStr] || 0;
+            let level = 0;
+            if (mins > 0) {
+                if (mins > p95) level = 5;
+                else if (mins > p80) level = 4;
+                else if (mins > p66) level = 3;
+                else if (mins > p33) level = 2;
+                else level = 1;
+            }
+            const tooltip = mins > 0 ? `${dateStr}: ${Math.round(mins)} min` : dateStr;
+            weekDays.push(`<div class="heatmap-cell ${level > 0 ? 'l' + level : ''}" title="${tooltip}"></div>`);
+            current.setDate(current.getDate() + 1);
+        }
+
+        const weekMo = new Date(current.getTime() - 86400000 * 7).getMonth();
+        if (weekMo !== currentMo) {
+            currentMo = weekMo;
+            monthLabels.push(monthNames[weekMo]);
+        } else {
+            monthLabels.push('');
+        }
+
+        weeks.push(`<div class="heatmap-col">${weekDays.join('')}</div>`);
+    }
+
+    const monthRow = monthLabels.map(m => `<span style="min-width:15px;display:inline-block">${m}</span>`).join('');
+
+    return `
+        <div class="heatmap-section">
+            <h3>Listening Calendar</h3>
+            <div class="calendar-heatmap">
+                <div class="heatmap-months">${monthRow}</div>
+                <div class="heatmap-grid">${weeks.join('')}</div>
+                <div class="heatmap-legend">
+                    Less
+                    <div class="heatmap-cell"></div>
+                    <div class="heatmap-cell l1"></div>
+                    <div class="heatmap-cell l2"></div>
+                    <div class="heatmap-cell l3"></div>
+                    <div class="heatmap-cell l4"></div>
+                    <div class="heatmap-cell l5"></div>
+                    More
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ─────────────────────────────────────────────
+//  DEEP DIVE TAB
+// ─────────────────────────────────────────────
+
+export function renderDeepDiveTab() {
+    const data = window.spotifyData.filtered;
+    const container = document.getElementById('deepdive-content');
+    if (!container) return;
+
+    const ins = store.calculateDeepInsights(data);
+
+    const timeLabels = { morning: '🌅 Morning Person', afternoon: '☀️ Afternoon Listener', evening: '🌆 Evening Listener', night: '🌙 Night Owl' };
+    const timeDesc = { morning: 'Most of your listening happens in the morning (6–12).', afternoon: 'Most of your listening happens in the afternoon (12–18).', evening: 'Most of your listening happens in the evening (18–midnight).', night: 'You listen mostly late at night (midnight–6).' };
+
+    const totalTime = Object.values(ins.timeMap).reduce((a, b) => a + b, 0) || 1;
+
+    container.innerHTML = `<div class="deepdive-grid">
+
+        <!-- Personality -->
+        <div class="insight-card">
+            <h4><span class="ic-icon">🧠</span> Your Listening Personality</h4>
+            <div class="personality-tag">${timeLabels[ins.dominantTime] || 'Music Lover'}</div>
+            <p class="insight-desc">${timeDesc[ins.dominantTime] || ''}</p>
+            <div style="margin-top:1rem">
+                ${Object.entries(ins.timeMap).map(([t, min]) => `
+                    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;font-size:0.82rem">
+                        <span style="min-width:90px;color:var(--text-muted)">${t}</span>
+                        <div style="flex:1;background:var(--gray);border-radius:3px;height:6px;overflow:hidden">
+                            <div style="width:${Math.round((min / totalTime) * 100)}%;height:100%;background:var(--green);border-radius:3px"></div>
+                        </div>
+                        <span style="min-width:40px;text-align:right;font-weight:700">${Math.round(min / 60)}h</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+
+        <!-- Loyal artists -->
+        <div class="insight-card">
+            <h4><span class="ic-icon">💚</span> Most Loyal Artists</h4>
+            <p class="insight-desc">Artists you've listened to across the most different years.</p>
+            <ul class="insight-list">
+                ${ins.loyalArtists.slice(0, 10).map((a, i) => `
+                    <li data-detail-type="artist" data-detail-name="${a.artist.replace(/"/g, '&quot;')}">
+                        <span class="il-rank">${i + 1}</span>
+                        <span class="il-name">${esc(a.artist)}</span>
+                        <span class="il-val">${a.years} years</span>
+                    </li>
+                `).join('')}
+            </ul>
+        </div>
+
+        <!-- Hidden gems -->
+        <div class="insight-card">
+            <h4><span class="ic-icon">💎</span> Hidden Gems</h4>
+            <p class="insight-desc">Tracks you play often in short bursts — your real favourites.</p>
+            <ul class="insight-list">
+                ${ins.hiddenGems.slice(0, 10).map((t, i) => `
+                    <li data-detail-type="track" data-detail-name="${t.name.replace(/"/g, '&quot;')}" data-detail-extra="${(t.artist || '').replace(/"/g, '&quot;')}">
+                        <span class="il-rank">${i + 1}</span>
+                        <span class="il-name">${esc(t.name)}</span>
+                        <span class="il-val">${t.plays} plays</span>
+                    </li>
+                `).join('')}
+            </ul>
+        </div>
+
+        <!-- Most abandoned -->
+        <div class="insight-card">
+            <h4><span class="ic-icon">⏭</span> Most Skipped Tracks</h4>
+            <p class="insight-desc">You keep playing these but rarely finish them.</p>
+            <ul class="insight-list">
+                ${ins.abandonedTracks.slice(0, 10).map((t, i) => `
+                    <li data-detail-type="track" data-detail-name="${t.name.replace(/"/g, '&quot;')}" data-detail-extra="${(t.artist || '').replace(/"/g, '&quot;')}">
+                        <span class="il-rank">${i + 1}</span>
+                        <span class="il-name">${esc(t.name)}</span>
+                        <span class="il-val">${t.skipRate}% skipped</span>
+                    </li>
+                `).join('')}
+            </ul>
+        </div>
+
+        <!-- Replay kings -->
+        <div class="insight-card">
+            <h4><span class="ic-icon">🔁</span> Replay Kings</h4>
+            <p class="insight-desc">Songs you played 3+ times in a single day.</p>
+            <ul class="insight-list">
+                ${ins.replayKings.slice(0, 10).map((r, i) => `
+                    <li data-detail-type="track" data-detail-name="${r.track.replace(/"/g, '&quot;')}" data-detail-extra="${(r.artist || '').replace(/"/g, '&quot;')}">
+                        <span class="il-rank">${i + 1}</span>
+                        <span class="il-name">${esc(r.track)}</span>
+                        <span class="il-val">${r.count}x on ${r.date}</span>
+                    </li>
+                `).join('')}
+            </ul>
+        </div>
+
+        <!-- One-hit wonders -->
+        <div class="insight-card">
+            <h4><span class="ic-icon">🎯</span> One-Track Artists</h4>
+            <p class="insight-desc">Artists where you've only heard one track.</p>
+            <ul class="insight-list">
+                ${ins.oneHitWonders.slice(0, 10).map((o, i) => `
+                    <li>
+                        <span class="il-rank">${i + 1}</span>
+                        <span class="il-name">${esc(o.artist)}</span>
+                        <span class="il-val" style="font-size:0.75rem;color:var(--text-muted)">${esc(o.track)}</span>
+                    </li>
+                `).join('')}
+            </ul>
+        </div>
+
+        <!-- Most played days -->
+        <div class="insight-card">
+            <h4><span class="ic-icon">🎉</span> Biggest Listening Days</h4>
+            <p class="insight-desc">The days with the most track plays ever.</p>
+            <ul class="insight-list">
+                ${ins.topPlayDays.map((d, i) => `
+                    <li>
+                        <span class="il-rank">${i + 1}</span>
+                        <span class="il-name">${d.date}</span>
+                        <span class="il-val">${d.plays} plays</span>
+                    </li>
+                `).join('')}
+            </ul>
+        </div>
+
+        <!-- Artist diversity over time -->
+        <div class="insight-card" style="grid-column:1/-1">
+            <h4><span class="ic-icon">📊</span> Artist Diversity Over Time</h4>
+            <p class="insight-desc">How many unique artists you listened to each year.</p>
+            <div style="margin-top:1rem">
+                ${(() => {
+            const max = Math.max(...ins.diversityByYear.map(d => d.uniqueArtists), 1);
+            return ins.diversityByYear.map(d => `
+                        <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.6rem;font-size:0.85rem">
+                            <span style="min-width:45px;font-weight:700;color:var(--text-muted)">${d.year}</span>
+                            <div style="flex:1;background:var(--gray);border-radius:3px;height:8px;overflow:hidden">
+                                <div style="width:${Math.round((d.uniqueArtists / max) * 100)}%;height:100%;background:#17A2B8;border-radius:3px"></div>
+                            </div>
+                            <span style="min-width:80px;font-weight:700">${d.uniqueArtists} artists</span>
+                        </div>
+                    `).join('');
+        })()}
+            </div>
+        </div>
+
+    </div>`;
+
+    // Wire up click-to-detail
+    container.querySelectorAll('[data-detail-type]').forEach(el => {
+        el.style.cursor = 'pointer';
+        el.addEventListener('click', () => {
+            const type = el.dataset.detailType;
+            const name = el.dataset.detailName;
+            const extra = el.dataset.detailExtra || '';
+            openDetail(name, type, extra, window.spotifyData.full);
+        });
+    });
+}
+
+// ─────────────────────────────────────────────
+//  WRAPPED
+// ─────────────────────────────────────────────
+
+export function populateWrappedFilter() {
+    const years = [...new Set(window.spotifyData.full.map(d => d.year))].sort((a, b) => b - a);
+    const sel = document.getElementById('wrapped-year-filter');
+    if (sel) sel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+}
+
+export function renderWrappedContent() {
+    const sel = document.getElementById('wrapped-year-filter');
+    if (!sel) return;
+    const year = parseInt(sel.value);
+    const s = store.calculateWrappedStats(year, window.spotifyData.full);
+    const container = document.getElementById('wrapped-content');
+    if (!container) return;
+
+    if (!s) { container.innerHTML = '<p style="color:var(--text-muted);padding:1rem">No data for this year.</p>'; return; }
+
+    container.innerHTML = `
+        <div class="wrapped-card">
+            <div class="wc-label">Total Minutes in ${year}</div>
+            <div class="wc-value">${s.totalMinutes.toLocaleString()}</div>
+            <div class="wc-sub">${Math.round(s.totalMinutes / 60).toLocaleString()} hours · ${s.totalPlays.toLocaleString()} plays</div>
+        </div>
+
+        <div class="wrapped-card">
+            <div class="wc-label">Monthly Breakdown</div>
+            <div style="position:relative;height:180px;margin-top:0.5rem"><canvas id="wrapped-monthly-chart"></canvas></div>
+        </div>
+
+        <div class="wrapped-card">
+            <div class="wc-label">Unique Tracks</div>
+            <div class="wc-value">${s.uniques.tracks}</div>
+            <div class="wc-sub">${s.discoveries.tracks}% were new discoveries</div>
+        </div>
+
+        <div class="wrapped-card">
+            <div class="wc-label">Unique Artists</div>
+            <div class="wc-value">${s.uniques.artists}</div>
+            <div class="wc-sub">${s.discoveries.artists}% were new</div>
+        </div>
+
+        <div class="wrapped-card">
+            <div class="wc-label">Unique Albums</div>
+            <div class="wc-value">${s.uniques.albums}</div>
+        </div>
+
+        <div class="wrapped-card">
+            <div class="wc-label">Skip Rate</div>
+            <div class="wc-value">${s.skipRate}%</div>
+        </div>
+
+        <div class="wrapped-card">
+            <div class="wc-label">Peak Month</div>
+            <div class="wc-value">${s.peakMonth}</div>
+        </div>
+
+        <div class="wrapped-card">
+            <div class="wc-label">Favourite Hour</div>
+            <div class="wc-value">${s.topHour}</div>
+        </div>
+
+        <div class="wrapped-card">
+            <div class="wc-label">Top 10 Tracks of ${year}</div>
+            <ul class="wc-list">
+                ${s.topSong.map((t, i) => `<li>
+                    <span class="wc-rank">${i + 1}</span>
+                    <span style="flex:1;font-weight:600">${esc(t.name)}</span>
+                    <span style="color:var(--green);font-weight:700">${t.plays} plays</span>
+                </li>`).join('')}
+            </ul>
+        </div>
+
+        <div class="wrapped-card">
+            <div class="wc-label">Top 10 Artists of ${year}</div>
+            <ul class="wc-list">
+                ${s.topArtist.map((a, i) => `<li>
+                    <span class="wc-rank">${i + 1}</span>
+                    <span style="flex:1;font-weight:600">${esc(a.name)}</span>
+                    <span style="color:var(--green);font-weight:700">${a.minutes} min</span>
+                </li>`).join('')}
+            </ul>
+        </div>
+
+        <div class="wrapped-card">
+            <div class="wc-label">Top 10 Albums of ${year}</div>
+            <ul class="wc-list">
+                ${s.topAlbum.map((a, i) => `<li>
+                    <span class="wc-rank">${i + 1}</span>
+                    <span style="flex:1;font-weight:600">${esc(a.name)}</span>
+                    <span style="color:var(--green);font-weight:700">${a.plays} plays</span>
+                </li>`).join('')}
+            </ul>
+        </div>
+    `;
+
+    setTimeout(() => charts.renderWrappedMonthlyChart(s.monthlyMinutes), 50);
+}
+
+// ─────────────────────────────────────────────
+//  EXPLORER TAB
+// ─────────────────────────────────────────────
+
+let explorerData = [];
+
+export function renderExplorerTab(data) {
+    explorerData = [...data].filter(d => !d.isPodcast && d.trackName);
+
+    renderWordCloud(data);
+    renderDataTable(explorerData, '');
+
+    // Search
+    const searchInput = document.getElementById('table-search');
+    if (searchInput) {
+        const clone = searchInput.cloneNode(true);
+        searchInput.replaceWith(clone);
+        document.getElementById('table-search').addEventListener('input', e => {
+            renderDataTable(explorerData, e.target.value);
+        });
+    }
+
+    // Sort
+    const sortSel = document.getElementById('table-sort');
+    if (sortSel) {
+        const clone = sortSel.cloneNode(true);
+        sortSel.replaceWith(clone);
+        document.getElementById('table-sort').addEventListener('change', e => {
+            const q = document.getElementById('table-search')?.value || '';
+            renderDataTable(explorerData, q, e.target.value);
+        });
+    }
+}
+
+function renderDataTable(data, query = '', sortBy = 'date-desc') {
+    const tableEl = document.getElementById('data-table');
+    const countEl = document.getElementById('table-row-count');
+    if (!tableEl) return;
+
+    let filtered = data;
+    if (query) {
+        const q = query.toLowerCase();
+        filtered = data.filter(d =>
+            (d.trackName && d.trackName.toLowerCase().includes(q)) ||
+            (d.artistName && d.artistName.toLowerCase().includes(q)) ||
+            (d.albumName && d.albumName.toLowerCase().includes(q))
+        );
+    }
+
+    if (sortBy === 'date-asc') filtered = [...filtered].sort((a, b) => a.ts - b.ts);
+    else if (sortBy === 'minutes-desc') filtered = [...filtered].sort((a, b) => b.durationMin - a.durationMin);
+    else filtered = [...filtered].sort((a, b) => b.ts - a.ts);
+
+    if (countEl) countEl.textContent = `${filtered.length.toLocaleString()} rows`;
+
+    const LIMIT = 500;
+    const slice = filtered.slice(0, LIMIT);
+
+    const headers = `<thead><tr><th>Date & Time</th><th>Track</th><th>Artist</th><th>Album</th><th>Min</th><th>Platform</th><th>End</th></tr></thead>`;
+    const rows = slice.map(d => `<tr>
+        <td>${d.ts.toLocaleString()}</td>
+        <td class="td-track">${esc(d.trackName || '')}</td>
+        <td>${esc(d.artistName || '')}</td>
+        <td>${esc(d.albumName || '')}</td>
+        <td class="td-mins">${Math.round(d.durationMin * 10) / 10}</td>
+        <td>${esc(d.platform || '')}</td>
+        <td>${esc(d.reasonEnd || '')}</td>
+    </tr>`).join('');
+
+    tableEl.innerHTML = `${headers}<tbody>${rows}</tbody>`;
+    if (filtered.length > LIMIT) {
+        const note = document.createElement('p');
+        note.style.cssText = 'color:var(--text-muted);font-size:0.8rem;padding:0.5rem';
+        note.textContent = `Showing first ${LIMIT} of ${filtered.length.toLocaleString()} results.`;
+        tableEl.after(note);
+    }
+}
+
+function renderWordCloud(data) {
+    const canvas = document.getElementById('word-cloud-canvas');
+    if (!canvas) return;
+    const freq = {};
+    data.filter(d => d.trackName).forEach(d => { freq[d.trackName] = (freq[d.trackName] || 0) + 1; });
+    const list = Object.entries(freq)
+        .sort((a, b) => b[1] - a[1]).slice(0, 120)
+        .map(([text, w]) => [text, Math.log2(w + 1) * 5]);
+    if (list.length > 0) {
+        WordCloud(canvas, {
+            list, gridSize: 8, weightFactor: 2.5,
+            fontFamily: 'CircularSp, sans-serif',
+            color: 'random-light',
+            backgroundColor: 'transparent',
+            shuffle: true
+        });
+    }
+}
+
+// ─────────────────────────────────────────────
+//  LOADING
+// ─────────────────────────────────────────────
 
 export function showLoading(message) {
-    document.getElementById('loading-message').textContent = message;
-    document.getElementById('loading-overlay').classList.remove('hidden');
+    const el = document.getElementById('loading-message');
+    if (el) el.textContent = message;
+    document.getElementById('loading-overlay')?.classList.remove('hidden');
 }
 
 export function hideLoading() {
-    document.getElementById('loading-overlay').classList.add('hidden');
+    document.getElementById('loading-overlay')?.classList.add('hidden');
 }
 
-// --- CÁLCULOS EN STORE.JS ---
+// ─────────────────────────────────────────────
+//  UTILS
+// ─────────────────────────────────────────────
 
-export function calculateTopItems(data, key, metric = 'plays', topN = 20) {
-    const grouped = data.reduce((acc, d) => {
-        const itemKey = (key === 'albumName')
-            ? `${d.albumName} - ${d.artistName}`
-            : d[key];
-        if (!itemKey) return acc;
-
-        if (!acc[itemKey]) {
-            acc[itemKey] = { plays: 0, minutes: 0, artist: d.artistName };
-        }
-
-        acc[itemKey].plays++;
-        acc[itemKey].minutes += d.durationMin;
-        return acc;
-    }, {});
-
-    return Object.entries(grouped)
-        .map(([name, values]) => ({
-            name,
-            ...values,
-            minutes: Math.round(values.minutes),
-        }))
-        .sort((a, b) => b[metric] - a[metric])
-        .slice(0, topN);
+function esc(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }

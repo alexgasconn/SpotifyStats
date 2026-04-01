@@ -6,74 +6,140 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spotify Stats - Advanced Analyzer</title>
     <link rel="stylesheet" href="style.css">
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.1.1/wordcloud2.min.js"></script>
-
-
 </head>
 
 <body>
     <div class="container">
+
+        <!-- UPLOAD -->
         <div id="upload-section">
             <div class="upload-box">
+                <div class="upload-logo">&#127925;</div>
                 <h1>Spotify Stats Analyzer</h1>
-                <p>Export your "Extended streaming history" from your Spotify account settings, and upload the .zip file
-                    here to analyze your listening habits.</p>
+                <p>Export your <strong>"Extended streaming history"</strong> from Spotify account settings,
+                    then upload the .zip file here for an exhaustive analysis of your listening habits.</p>
                 <input type="file" id="zip-input" accept=".zip" class="hidden">
-                <button id="upload-button"><span>⬆️</span> Upload Spotify ZIP</button>
+                <button id="upload-button"><span>&#8679;</span> Upload Spotify ZIP</button>
+                <p class="upload-note">&#128274; Your data never leaves your browser.</p>
             </div>
         </div>
 
+        <!-- DASHBOARD -->
         <div id="dashboard-section" class="hidden">
             <header>
-                <h1>Your Listening Analysis</h1>
-                <div class="global-controls">
-                    <div class="filter-controls">
-                        <label for="date-from">From:</label>
-                        <input type="date" id="date-from">
-                        <label for="date-to">To:</label>
-                        <input type="date" id="date-to">
-
-                        <label for="artist-filter">Artist:</label>
-                        <select id="artist-filter">
-                            <option value="">All Artists</option>
-                        </select>
-                        <label for="album-filter">Album:</label>
-                        <select id="album-filter">
-                            <option value="">All Albums</option>
-                        </select>
-                        <label for="track-filter">Track:</label>
-                        <select id="track-filter">
-                            <option value="">All Tracks</option>
-                        </select>
-
-
-
-                        <button id="apply-filter-btn">Apply</button>
-                    </div>
+                <div class="header-top">
+                    <h1>&#127925; Spotify Stats</h1>
+                    <button id="reset-btn" class="secondary-btn">&#8617; New File</button>
                 </div>
+
+                <!-- FILTERS PANEL -->
+                <div class="filters-panel">
+                    <div class="filters-row">
+                        <div class="filter-group">
+                            <label>From</label>
+                            <input type="date" id="date-from">
+                        </div>
+                        <div class="filter-group">
+                            <label>To</label>
+                            <input type="date" id="date-to">
+                        </div>
+                        <div class="filter-group">
+                            <label>Year</label>
+                            <select id="year-filter">
+                                <option value="">All Years</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Season</label>
+                            <select id="season-filter">
+                                <option value="">All Seasons</option>
+                                <option value="spring">Spring (Mar-May)</option>
+                                <option value="summer">Summer (Jun-Aug)</option>
+                                <option value="autumn">Autumn (Sep-Nov)</option>
+                                <option value="winter">Winter (Dec-Feb)</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Artist</label>
+                            <select id="artist-filter">
+                                <option value="">All Artists</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Album</label>
+                            <select id="album-filter">
+                                <option value="">All Albums</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Track</label>
+                            <select id="track-filter">
+                                <option value="">All Tracks</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Platform</label>
+                            <select id="platform-filter">
+                                <option value="">All Platforms</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Country</label>
+                            <select id="country-filter">
+                                <option value="">All Countries</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Time of Day</label>
+                            <select id="timeofday-filter">
+                                <option value="">All Day</option>
+                                <option value="morning">Morning (06-12)</option>
+                                <option value="afternoon">Afternoon (12-18)</option>
+                                <option value="evening">Evening (18-00)</option>
+                                <option value="night">Night (00-06)</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Skipped</label>
+                            <select id="skip-filter">
+                                <option value="">All Plays</option>
+                                <option value="completed">Completed only</option>
+                                <option value="skipped">Skipped only</option>
+                            </select>
+                        </div>
+                        <div class="filter-actions">
+                            <button id="apply-filter-btn">Apply</button>
+                            <button id="reset-filters-btn" class="secondary-btn">Reset</button>
+                        </div>
+                    </div>
+                    <div id="active-filter-pills" class="filter-pills"></div>
+                </div>
+
+                <!-- TABS -->
                 <nav class="tab-nav">
-                    <button class="tab-link active" data-tab="overview-tab">📊 Overview</button>
-                    <button class="tab-link" data-tab="trends-tab">📈 Trends</button>
-                    <button class="tab-link" data-tab="wrapped-tab">🎉 Your Wrapped</button>
-                    <button class="tab-link" data-tab="game-tab">🎮 The Game</button>
-                    <button class="tab-link" data-tab="explorer-tab">🔍 Data Explorer</button>
-                    <button class="tab-link" data-tab="podcast-tab">🎙️ Podcasts</button>
+                    <button class="tab-link active" data-tab="overview-tab">&#128202; Overview</button>
+                    <button class="tab-link" data-tab="trends-tab">&#128200; Trends</button>
+                    <button class="tab-link" data-tab="streaks-tab">&#128293; Streaks</button>
+                    <button class="tab-link" data-tab="deepdive-tab">&#128300; Deep Dive</button>
+                    <button class="tab-link" data-tab="wrapped-tab">&#127881; Wrapped</button>
+                    <button class="tab-link" data-tab="game-tab">&#127918; Game</button>
+                    <button class="tab-link" data-tab="explorer-tab">&#128269; Explorer</button>
+                    <button class="tab-link" data-tab="podcast-tab">&#127897; Podcasts</button>
                 </nav>
             </header>
 
             <main>
-                <!-- PESTAÑA 1: OVERVIEW -->
+                <!-- OVERVIEW -->
                 <div id="overview-tab" class="tab-content active">
                     <div id="kpi-grid" class="summary-grid"></div>
-                    <div id="advanced-kpi-grid" class="summary-grid"></div>
                     <div class="charts-grid">
                         <div class="chart-container full-width">
-                            <h3>Listening Timeline (Minutes per Day)</h3>
+                            <h3>Listening Timeline</h3>
                             <div class="time-agg-controls">
                                 <button class="time-agg-btn" data-unit="day">Daily</button>
                                 <button class="time-agg-btn active" data-unit="week">Weekly</button>
@@ -83,23 +149,74 @@
                             <div class="chart-wrapper"><canvas id="timeline-chart"></canvas></div>
                         </div>
                         <div class="chart-container">
-                            <h3>Top 5 Tracks</h3>
+                            <h3>Top Tracks <span class="click-hint">click to explore</span></h3>
+                            <div class="top-n-controls">
+                                <button class="top-n-btn active" data-n="10">Top 10</button>
+                                <button class="top-n-btn" data-n="25">Top 25</button>
+                                <button class="top-n-btn" data-n="50">Top 50</button>
+                                <select id="tracks-sort-by" class="mini-select">
+                                    <option value="plays">by Plays</option>
+                                    <option value="minutes">by Minutes</option>
+                                </select>
+                            </div>
                             <div id="top-tracks-table" class="top-items-table"></div>
                         </div>
                         <div class="chart-container">
-                            <h3>Top 5 Artists</h3>
+                            <h3>Top Artists <span class="click-hint">click to explore</span></h3>
+                            <div class="top-n-controls">
+                                <button class="top-n-btn active" data-n="10">Top 10</button>
+                                <button class="top-n-btn" data-n="25">Top 25</button>
+                                <button class="top-n-btn" data-n="50">Top 50</button>
+                                <select id="artists-sort-by" class="mini-select">
+                                    <option value="plays">by Plays</option>
+                                    <option value="minutes">by Minutes</option>
+                                </select>
+                            </div>
                             <div id="top-artists-table" class="top-items-table"></div>
                         </div>
                         <div class="chart-container">
-                            <h3>Top 5 Albums</h3>
+                            <h3>Top Albums <span class="click-hint">click to explore</span></h3>
+                            <div class="top-n-controls">
+                                <button class="top-n-btn active" data-n="10">Top 10</button>
+                                <button class="top-n-btn" data-n="25">Top 25</button>
+                                <button class="top-n-btn" data-n="50">Top 50</button>
+                                <select id="albums-sort-by" class="mini-select">
+                                    <option value="plays">by Plays</option>
+                                    <option value="minutes">by Minutes</option>
+                                </select>
+                            </div>
                             <div id="top-albums-table" class="top-items-table"></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- PESTAÑA 2: TRENDS -->
+                <!-- TRENDS -->
                 <div id="trends-tab" class="tab-content">
                     <div class="charts-grid">
+                        <div class="chart-container">
+                            <h3>Listening Clock (Hour of Day)</h3>
+                            <div class="chart-wrapper"><canvas id="listening-clock-chart"></canvas></div>
+                        </div>
+                        <div class="chart-container">
+                            <h3>Day of Week</h3>
+                            <div class="chart-wrapper"><canvas id="day-of-week-chart"></canvas></div>
+                        </div>
+                        <div class="chart-container">
+                            <h3>Listening by Month</h3>
+                            <div class="chart-wrapper"><canvas id="monthly-listening-chart"></canvas></div>
+                        </div>
+                        <div class="chart-container">
+                            <h3>Listening by Season</h3>
+                            <div class="chart-wrapper"><canvas id="season-chart"></canvas></div>
+                        </div>
+                        <div class="chart-container">
+                            <h3>How Songs Start</h3>
+                            <div class="chart-wrapper"><canvas id="reason-start-chart"></canvas></div>
+                        </div>
+                        <div class="chart-container">
+                            <h3>How Songs End</h3>
+                            <div class="chart-wrapper"><canvas id="reason-end-chart"></canvas></div>
+                        </div>
                         <div class="chart-container">
                             <h3>Listening by Platform</h3>
                             <div class="chart-wrapper"><canvas id="platform-chart"></canvas></div>
@@ -108,101 +225,115 @@
                             <h3>Listening by Country</h3>
                             <div class="chart-wrapper"><canvas id="country-chart"></canvas></div>
                         </div>
-                        <div class="chart-container">
-                            <h3>How You Start a Song</h3>
-                            <div class="chart-wrapper"><canvas id="reason-start-chart"></canvas></div>
+                        <div class="chart-container full-width">
+                            <h3>Yearly Evolution</h3>
+                            <div class="chart-wrapper" style="height:280px"><canvas
+                                    id="yearly-listening-chart"></canvas></div>
                         </div>
-                        <div class="chart-container">
-                            <h3>Listening Clock (Hour of Day)</h3>
-                            <div class="chart-wrapper"><canvas id="listening-clock-chart"></canvas></div>
-                        </div>
-                        <div class="chart-container">
-                            <h3>Listening by Day of Week</h3>
-                            <div class="chart-wrapper"><canvas id="day-of-week-chart"></canvas></div>
-                        </div>
-                        <div class="chart-container">
-                            <h3>Listening by Month</h3>
-                            <div class="chart-wrapper"><canvas id="monthly-listening-chart"></canvas></div>
-                        </div>
-                        <div class="chart-container">
-                            <h3>Listening by Weekday and Hour</h3>
+                        <div class="chart-container full-width">
+                            <h3>Heatmap: Weekday x Hour</h3>
                             <div class="chart-wrapper"><canvas id="weekday-hour-chart"></canvas></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- PESTAÑA 3: YOUR WRAPPED -->
+                <!-- STREAKS -->
+                <div id="streaks-tab" class="tab-content">
+                    <div id="streaks-content"></div>
+                </div>
+
+                <!-- DEEP DIVE -->
+                <div id="deepdive-tab" class="tab-content">
+                    <div id="deepdive-content"></div>
+                </div>
+
+                <!-- WRAPPED -->
                 <div id="wrapped-tab" class="tab-content">
                     <div class="wrapped-header">
                         <h2>Your Listening Wrapped</h2>
                         <div class="filter-controls">
-                            <label for="wrapped-year-filter">Select Year:</label>
+                            <label for="wrapped-year-filter">Year:</label>
                             <select id="wrapped-year-filter"></select>
                         </div>
                     </div>
                     <div id="wrapped-content" class="wrapped-grid"></div>
                 </div>
 
-                <!-- PESTAÑA 4: THE GAME -->
+                <!-- GAME -->
                 <div id="game-tab" class="tab-content">
                     <div id="game-container" class="game-container"></div>
                 </div>
 
-                <!-- PESTAÑA 5: DATA EXPLORER -->
+                <!-- EXPLORER -->
                 <div id="explorer-tab" class="tab-content">
                     <div class="charts-grid">
                         <div class="chart-container">
-                            <h3>Track Name Word Cloud</h3>
+                            <h3>Track Word Cloud</h3>
                             <div id="word-cloud-container" class="word-cloud-container">
                                 <canvas id="word-cloud-canvas"></canvas>
                             </div>
                         </div>
                         <div class="chart-container full-width">
                             <h3>Full Streaming History</h3>
+                            <div class="explorer-controls">
+                                <input type="text" id="table-search" placeholder="Search tracks, artists, albums..."
+                                    class="search-input">
+                                <select id="table-sort">
+                                    <option value="date-desc">Newest first</option>
+                                    <option value="date-asc">Oldest first</option>
+                                    <option value="minutes-desc">Longest plays</option>
+                                </select>
+                                <span id="table-row-count" class="row-count"></span>
+                            </div>
                             <div class="table-container">
                                 <table id="data-table" class="df-table"></table>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- PODCASTS -->
+                <div id="podcast-tab" class="tab-content">
+                    <section id="podcastStats" class="data-section">
+                        <h2>Podcast Stats</h2>
+                        <div class="stats-grid" id="podcastStatsGrid"></div>
+                    </section>
+                    <div class="charts-grid">
+                        <div class="podcast-top-chart full-width">
+                            <h3>Top Podcast Shows</h3>
+                            <canvas id="topShowsChart"></canvas>
+                        </div>
+                        <div class="podcast-top-chart full-width">
+                            <h3>Top Podcast Episodes</h3>
+                            <canvas id="topEpisodesChart"></canvas>
+                        </div>
+                        <div class="chart-container full-width">
+                            <h3>Podcast Timeline</h3>
+                            <div id="podcastTimelineControls" class="timeline-controls"></div>
+                            <canvas id="podcastTimelineChart"></canvas>
+                        </div>
+                    </div>
+                </div>
             </main>
         </div>
 
-        <!-- PESTAÑA 6: PODCASTS -->
-        <div id="podcast-tab" class="tab-content">
-
-            <!-- Overall Podcast Stats Section -->
-            <section id="podcastStats" class="data-section">
-                <h2>Overall Podcast Stats!</h2>
-                <div class="stats-grid" id="podcastStatsGrid">
-                    <!-- Stats will be rendered here -->
+        <!-- DETAIL MODAL -->
+        <div id="detail-modal" class="detail-modal hidden">
+            <div class="detail-modal-backdrop" id="detail-modal-backdrop"></div>
+            <div class="detail-modal-panel">
+                <div class="detail-modal-header">
+                    <button id="detail-close-btn" class="detail-close-btn">x Close</button>
                 </div>
-            </section>
-
-            <!-- Charts Grid Section -->
-            <div class="charts-grid">
-                <div class="podcast-top-chart full-width">
-                    <h3>Top Podcast Shows</h3>
-                    <canvas id="topShowsChart"></canvas>
-                </div>
-
-                <div class="podcast-top-chart full-width">
-                    <h3>Top Podcast Episodes</h3>
-                    <canvas id="topEpisodesChart"></canvas>
-                </div>
-
-                <div class="chart-container full-width">
-                    <h3>Podcast Listening Timeline</h3>
-                    <!-- Add the timeline controls here! -->
-                    <div id="podcastTimelineControls" class="timeline-controls"></div>
-                    <canvas id="podcastTimelineChart"></canvas>
-                </div>
+                <div id="detail-modal-body" class="detail-modal-body"></div>
             </div>
         </div>
 
+        <!-- LOADING -->
         <div id="loading-overlay" class="hidden">
-            <div class="spinner"></div>
-            <p id="loading-message">Processing your data...</p>
+            <div class="loading-content">
+                <div class="spinner"></div>
+                <p id="loading-message">Processing your data...</p>
+            </div>
         </div>
     </div>
 
