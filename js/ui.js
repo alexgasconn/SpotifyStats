@@ -631,7 +631,7 @@ export function renderF1Tab() {
                 <div style="max-height:520px;overflow:auto">
                     <table class="f1-standings">
                         <thead>
-                            <tr><th>#</th><th>Name</th><th>Wins</th><th>Podiums</th><th>Points</th></tr>
+                            <tr><th>#</th><th>Name</th><th>Wins</th><th>Podiums</th><th>⚡</th><th>Points</th></tr>
                         </thead>
                         <tbody>
                             ${stats.standings.map((r, i) => `
@@ -640,6 +640,7 @@ export function renderF1Tab() {
                                     <td>${esc(r.name)}${r.subtitle ? `<div style="font-size:0.72rem;color:var(--text-muted)">${esc(r.subtitle)}</div>` : ''}</td>
                                     <td>${r.weeksWon}</td>
                                     <td>${r.podiums}</td>
+                                    <td>${r.fastestLaps || 0}</td>
                                     <td><strong>${r.points}</strong></td>
                                 </tr>
                             `).join('')}
@@ -656,7 +657,7 @@ export function renderF1Tab() {
         return `<div class="f1-week-item">
                             <div class="wk">Week of ${w.weekStart}</div>
                             <div class="podium">
-                                ${p[0] ? `<span>🥇 ${esc(p[0].name)} (${p[0].points} pts)</span>` : ''}
+                                ${p[0] ? `<span>🥇 ${esc(p[0].name)} (${p[0].points} pts)${p[0].fastestLap ? ' ⚡' : ''}</span>` : ''}
                                 ${p[1] ? `<span>🥈 ${esc(p[1].name)} (${p[1].points} pts)</span>` : ''}
                                 ${p[2] ? `<span>🥉 ${esc(p[2].name)} (${p[2].points} pts)</span>` : ''}
                             </div>

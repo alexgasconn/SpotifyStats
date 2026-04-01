@@ -1358,9 +1358,53 @@ header {
     letter-spacing: 0.5px;
 }
 
+.f1-standings tbody tr {
+    position: relative;
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    transform: translateX(0);
+}
+
 .f1-standings td:last-child,
 .f1-standings th:last-child {
     text-align: right;
+}
+
+.f1-standings tbody tr:hover {
+    background-color: rgba(29, 185, 84, 0.15) !important;
+    transform: translateX(4px);
+}
+
+.f1-standings tbody tr:nth-child(1) {
+    background: linear-gradient(90deg, rgba(255, 215, 0, 0.12) 0%, rgba(255, 215, 0, 0.04) 100%);
+    border-left: 3px solid #FFD700;
+    box-shadow: inset 0 0 10px rgba(255, 215, 0, 0.1);
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.f1-standings tbody tr:nth-child(1) td:first-child::before {
+    content: '🥇 ';
+}
+
+.f1-standings tbody tr:nth-child(2) {
+    background: linear-gradient(90deg, rgba(192, 192, 192, 0.12) 0%, rgba(192, 192, 192, 0.04) 100%);
+    border-left: 3px solid #C0C0C0;
+    box-shadow: inset 0 0 10px rgba(192, 192, 192, 0.1);
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.f1-standings tbody tr:nth-child(2) td:first-child::before {
+    content: '🥈 ';
+}
+
+.f1-standings tbody tr:nth-child(3) {
+    background: linear-gradient(90deg, rgba(205, 127, 50, 0.12) 0%, rgba(205, 127, 50, 0.04) 100%);
+    border-left: 3px solid #CD7F32;
+    box-shadow: inset 0 0 10px rgba(205, 127, 50, 0.1);
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.f1-standings tbody tr:nth-child(3) td:first-child::before {
+    content: '🥉 ';
 }
 
 .f1-week-list {

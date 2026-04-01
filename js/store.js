@@ -619,26 +619,45 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
             .map(([key, minutes]) => ({ key, minutes }))
             .sort((a, b) => b.minutes - a.minutes);
 
+        // Fastest lap: whoever has the most minutes in a single week
+        const fastestLapKey = ranking.length > 0 ? ranking[0].key : null;
+        const fastestLapMinutes = ranking.length > 0 ? ranking[0].minutes : 0;
+
         const topWeek = ranking.slice(0, 10).map((r, idx) => {
             const pts = F1_POINTS[idx] || 0;
-            if (!yearStandingMap[year][r.key]) {
-                yearStandingMap[year][r.key] = { points: 0, weeksWon: 0, podiums: 0, minutes: 0 };
+            let bonusPoints = 0;
+
+            // Fastest lap bonus: +1 point
+            if (r.key === fastestLapKey && idx === 0) {
+                bonusPoints = 1;
             }
-            yearStandingMap[year][r.key].points += pts;
+
+            const totalPoints = pts + bonusPoints;
+
+            if (!yearStandingMap[year][r.key]) {
+                yearStandingMap[year][r.key] = { points: 0, weeksWon: 0, podiums: 0, minutes: 0, fastestLaps: 0 };
+            }
+            yearStandingMap[year][r.key].points += totalPoints;
             yearStandingMap[year][r.key].minutes += r.minutes;
-            if (idx === 0) yearStandingMap[year][r.key].weeksWon += 1;
+            if (idx === 0) {
+                yearStandingMap[year][r.key].weeksWon += 1;
+                if (bonusPoints > 0) yearStandingMap[year][r.key].fastestLaps += 1;
+            }
             if (idx < 3) yearStandingMap[year][r.key].podiums += 1;
 
             return {
                 rank: idx + 1,
                 key: r.key,
-                points: pts,
+                points: totalPoints,
+                basePoints: pts,
+                bonusPoints: bonusPoints,
                 minutes: Math.round(r.minutes),
+                fastestLap: r.key === fastestLapKey,
                 ...getLabel(r.key)
             };
         });
 
-        weeklyByYear[year].push({ weekStart, topWeek });
+        weeklyByYear[year].push({ weekStart, topWeek, fastestLapKey, fastestLapMinutes });
     });
 
     const standingsByYear = {};
@@ -650,6 +669,7 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
                 points: val.points,
                 weeksWon: val.weeksWon,
                 podiums: val.podiums,
+                fastestLaps: val.fastestLaps || 0,
                 minutes: Math.round(val.minutes)
             }))
             .sort((a, b) => b.points - a.points);
