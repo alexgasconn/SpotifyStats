@@ -648,7 +648,7 @@ export function renderF1Tab() {
             <summary>How this F1 mode works</summary>
             <div>
                 Weekly ranking gives F1 points (25-18-15-12-10-8-6-4-2-1) to the top 10 by listening minutes.<br>
-                Fastest lap gives +1 extra point to the weekly #1.<br>
+                Fastest lap gives +1 extra point to the entry with the biggest single listening session in that week (if it is in Top 10).<br>
                 Wins = weekly P1 finishes, Podiums = weekly Top 3 finishes, Streak = best consecutive weeks in Top 10.
             </div>
         </details>

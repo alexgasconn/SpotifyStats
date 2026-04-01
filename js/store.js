@@ -600,8 +600,9 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
         const key = getKey(d);
         if (!key) return;
         if (!weekMap[wk]) weekMap[wk] = {};
-        if (!weekMap[wk][key]) weekMap[wk][key] = 0;
-        weekMap[wk][key] += d.durationMin;
+        if (!weekMap[wk][key]) weekMap[wk][key] = { totalMinutes: 0, bestSessionMinutes: 0 };
+        weekMap[wk][key].totalMinutes += d.durationMin;
+        weekMap[wk][key].bestSessionMinutes = Math.max(weekMap[wk][key].bestSessionMinutes, d.durationMin);
     });
 
     const years = [...new Set(music.map(d => d.year))].sort((a, b) => a - b);
@@ -616,19 +617,24 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
         if (!weeklyByYear[year]) weeklyByYear[year] = [];
 
         const ranking = Object.entries(values)
-            .map(([key, minutes]) => ({ key, minutes }))
+            .map(([key, agg]) => ({ key, minutes: agg.totalMinutes, bestSessionMinutes: agg.bestSessionMinutes }))
             .sort((a, b) => b.minutes - a.minutes);
 
-        // Fastest lap: whoever has the most minutes in a single week
-        const fastestLapKey = ranking.length > 0 ? ranking[0].key : null;
-        const fastestLapMinutes = ranking.length > 0 ? ranking[0].minutes : 0;
+        // Fastest lap: biggest single listening session in the week (not total weekly winner).
+        const fastestCandidate = ranking.reduce((best, row) => {
+            if (!best || row.bestSessionMinutes > best.bestSessionMinutes) return row;
+            return best;
+        }, null);
+        const topWeekKeys = new Set(ranking.slice(0, 10).map(r => r.key));
+        const fastestLapKey = fastestCandidate && topWeekKeys.has(fastestCandidate.key) ? fastestCandidate.key : null;
+        const fastestLapMinutes = fastestCandidate ? fastestCandidate.bestSessionMinutes : 0;
 
         const topWeek = ranking.slice(0, 10).map((r, idx) => {
             const pts = F1_POINTS[idx] || 0;
             let bonusPoints = 0;
 
             // Fastest lap bonus: +1 point
-            if (r.key === fastestLapKey && idx === 0) {
+            if (r.key === fastestLapKey) {
                 bonusPoints = 1;
             }
 
@@ -639,10 +645,8 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
             }
             yearStandingMap[year][r.key].points += totalPoints;
             yearStandingMap[year][r.key].minutes += r.minutes;
-            if (idx === 0) {
-                yearStandingMap[year][r.key].weeksWon += 1;
-                if (bonusPoints > 0) yearStandingMap[year][r.key].fastestLaps += 1;
-            }
+            if (idx === 0) yearStandingMap[year][r.key].weeksWon += 1;
+            if (bonusPoints > 0) yearStandingMap[year][r.key].fastestLaps += 1;
             if (idx < 3) yearStandingMap[year][r.key].podiums += 1;
 
             return {
