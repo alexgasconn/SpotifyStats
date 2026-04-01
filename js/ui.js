@@ -572,7 +572,7 @@ export function renderF1Tab() {
     const container = document.getElementById('f1-content');
     if (!container) return;
 
-    const stats = store.calculateF1Championship(window.spotifyData.filtered, f1Mode, f1Year, 20);
+    const stats = store.calculateF1Championship(window.spotifyData.filtered, f1Mode, f1Year, 25);
     if (!stats) {
         container.innerHTML = '<p style="color:var(--text-muted);padding:1rem">No data available for F1 championship.</p>';
         return;
@@ -583,108 +583,110 @@ export function renderF1Tab() {
     const leader = stats.standings[0];
     const second = stats.standings[1];
     const gap = leader && second ? leader.points - second.points : 0;
+    const totalMinutes = stats.standings.reduce((s, r) => s + r.minutes, 0);
+
+    // Selector de semana
+    const weeks = stats.weekly.slice().reverse().map((w, idx) => ({
+        weekStart: w.weekStart,
+        label: `Week ${stats.weekly.length - idx}`,
+        idx: stats.weekly.length - idx - 1
+    }));
 
     container.innerHTML = `
         <div class="f1-controls">
             <div>
-                <label for="f1-mode">Championship</label><br>
+                <label for="f1-mode">Championship</label>
                 <select id="f1-mode">
-                    <option value="artists" ${stats.mode === 'artists' ? 'selected' : ''}>Artists Championship</option>
-                    <option value="tracks" ${stats.mode === 'tracks' ? 'selected' : ''}>Tracks Championship</option>
-                    <option value="albums" ${stats.mode === 'albums' ? 'selected' : ''}>Albums Championship</option>
+                    <option value="artists" ${stats.mode === 'artists' ? 'selected' : ''}>Artists</option>
+                    <option value="tracks" ${stats.mode === 'tracks' ? 'selected' : ''}>Tracks</option>
+                    <option value="albums" ${stats.mode === 'albums' ? 'selected' : ''}>Albums</option>
                 </select>
             </div>
             <div>
-                <label for="f1-year">Season (Year)</label><br>
+                <label for="f1-year">Season</label>
                 <select id="f1-year">
                     ${stats.years.map(y => `<option value="${y}" ${y === stats.selectedYear ? 'selected' : ''}>${y}</option>`).join('')}
+                </select>
+            </div>
+            <div>
+                <label for="f1-week">View Week</label>
+                <select id="f1-week">
+                    <option value="-1">Latest</option>
+                    ${weeks.map(w => `<option value="${w.idx}">${w.label} (${w.weekStart})</option>`).join('')}
                 </select>
             </div>
         </div>
 
         <div class="f1-hero">
             <div class="f1-pill">
-                <div class="k">Current Leader</div>
+                <div class="k">🏆 Leader</div>
                 <div class="v">${leader ? esc(leader.name) : '—'}</div>
                 <div class="k">${leader?.points || 0} pts</div>
             </div>
             <div class="f1-pill">
-                <div class="k">Points Gap to P2</div>
+                <div class="k">📊 Gap to P2</div>
                 <div class="v">${gap}</div>
-                <div class="k">championship points</div>
+                <div class="k">${leader?.weeksWon || 0} wins · ${leader?.fastestLaps || 0} ⚡</div>
             </div>
             <div class="f1-pill">
-                <div class="k">Season Winner Projection</div>
-                <div class="v">${leader ? esc(leader.name) : '—'}</div>
-                <div class="k">based on current standings</div>
+                <div class="k">📈 Total Minutes</div>
+                <div class="v">${Math.round(totalMinutes)}</div>
+                <div class="k">${Math.round(totalMinutes / stats.standings.length)} avg</div>
             </div>
         </div>
 
         <div class="f1-grid">
             <div class="f1-card" style="grid-column:1/-1">
-                <h3>Evolution by Month (Cumulative F1 Points)</h3>
+                <h3>📅 Evolution by Month</h3>
                 <div style="height:310px"><canvas id="f1-evolution-chart"></canvas></div>
             </div>
 
-            <div class="f1-card">
-                <h3>${stats.selectedYear} Standings</h3>
-                <div style="max-height:520px;overflow:auto">
-                    <table class="f1-standings">
+            <div class="f1-card" style="grid-column:1/-1">
+                <h3>🏁 ${stats.selectedYear} Final Standings</h3>
+                <div style="overflow:auto;">
+                    <table class="f1-standings f1-standings-detailed">
                         <thead>
-                            <tr><th>#</th><th>Name</th><th>Wins</th><th>Podiums</th><th>⚡</th><th>Points</th></tr>
+                            <tr><th>#</th><th>Name</th><th>Wins</th><th>Podiums</th><th>⚡ FL</th><th>Minutes</th><th>Points</th></tr>
                         </thead>
                         <tbody>
-                            ${stats.standings.map((r, i) => `
-                                <tr>
-                                    <td>${i + 1}</td>
-                                    <td>${esc(r.name)}${r.subtitle ? `<div style="font-size:0.72rem;color:var(--text-muted)">${esc(r.subtitle)}</div>` : ''}</td>
-                                    <td>${r.weeksWon}</td>
+                            ${stats.standings.slice(0, 15).map((r, i) => {
+        const pctMin = ((r.minutes / totalMinutes) * 100).toFixed(1);
+        return `<tr>
+                                    <td><strong>${i + 1}</strong></td>
+                                    <td>${esc(r.name)}${r.subtitle ? `<div style="font-size:0.7rem;color:var(--text-muted)">${esc(r.subtitle)}</div>` : ''}</td>
+                                    <td><strong>${r.weeksWon}</strong></td>
                                     <td>${r.podiums}</td>
                                     <td>${r.fastestLaps || 0}</td>
-                                    <td><strong>${r.points}</strong></td>
-                                </tr>
-                            `).join('')}
+                                    <td>${Math.round(r.minutes)}<span style="color:var(--text-muted);font-size:0.8rem"> (${pctMin}%)</span></td>
+                                    <td><strong style="color:var(--green)">${r.points}</strong></td>
+                                </tr>`;
+    }).join('')}
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <div class="f1-card">
-                <h3>Weekly Podiums (${stats.selectedYear})</h3>
-                <div class="f1-week-list">
-                    ${stats.weekly.slice().reverse().map(w => {
-        const p = w.topWeek.slice(0, 3);
-        return `<div class="f1-week-item">
-                            <div class="wk">Week of ${w.weekStart}</div>
-                            <div class="podium">
-                                ${p[0] ? `<span>🥇 ${esc(p[0].name)} (${p[0].points} pts)${p[0].fastestLap ? ' ⚡' : ''}</span>` : ''}
-                                ${p[1] ? `<span>🥈 ${esc(p[1].name)} (${p[1].points} pts)</span>` : ''}
-                                ${p[2] ? `<span>🥉 ${esc(p[2].name)} (${p[2].points} pts)</span>` : ''}
-                            </div>
-                        </div>`;
-    }).join('')}
+            <div class="f1-card" style="grid-column:1/-1">
+                <h3>📋 Top 10 By Week</h3>
+                <div id="f1-week-details" style="overflow:auto;">
+                    <!-- Populated by JS -->
                 </div>
             </div>
 
             <div class="f1-card" style="grid-column:1/-1">
-                <h3>World Champions by Year</h3>
+                <h3>🏆 Champions History</h3>
                 <table class="f1-standings">
-                    <thead><tr><th>Year</th><th>Champion</th><th>Wins</th><th>Points</th></tr></thead>
+                    <thead><tr><th>Year</th><th>Champion</th><th>Wins</th><th>⚡</th><th>Points</th></tr></thead>
                     <tbody>
-                        ${stats.winners.map(w => `
-                            <tr>
-                                <td>${w.year}</td>
-                                <td>${esc(w.winner.name)}${w.winner.subtitle ? ` <span style="color:var(--text-muted)">· ${esc(w.winner.subtitle)}</span>` : ''}</td>
-                                <td>${w.winner.weeksWon}</td>
-                                <td><strong>${w.winner.points}</strong></td>
-                            </tr>
-                        `).join('')}
+                        ${stats.winners.map(w => `<tr><td><strong>${w.year}</strong></td><td>${esc(w.winner.name)}${w.winner.subtitle ? `<div style="font-size:0.7rem;color:var(--text-muted);">${esc(w.winner.subtitle)}</div>` : ''}</td><td>${w.winner.weeksWon}</td><td>${w.winner.fastestLaps || 0}</td><td><strong>${w.winner.points}</strong></td></tr>`).join('')}
                     </tbody>
                 </table>
             </div>
         </div>
     `;
 
+    // Render first week by default
+    renderF1WeekDetails(stats, -1);
     charts.renderF1EvolutionChart(stats.evolution.labels, stats.evolution.series);
 
     document.getElementById('f1-mode')?.addEventListener('change', (e) => {
@@ -696,6 +698,50 @@ export function renderF1Tab() {
         f1Year = parseInt(e.target.value, 10);
         renderF1Tab();
     });
+
+    document.getElementById('f1-week')?.addEventListener('change', (e) => {
+        const weekIdx = parseInt(e.target.value, 10);
+        renderF1WeekDetails(stats, weekIdx);
+    });
+}
+
+function renderF1WeekDetails(stats, weekIdx) {
+    const container = document.getElementById('f1-week-details');
+    if (!container) return;
+
+    const targetWeek = weekIdx === -1 ? stats.weekly[stats.weekly.length - 1] : stats.weekly[weekIdx];
+    if (!targetWeek) return;
+
+    const table = `
+        <table class="f1-standings f1-standings-week">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Name</th>
+                    <th>Minutes</th>
+                    <th>Base Pts</th>
+                    <th>Bonus</th>
+                    <th>Total Pts</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${targetWeek.topWeek.slice(0, 10).map((r, idx) => `
+                    <tr>
+                        <td><strong>${r.rank}</strong></td>
+                        <td>${r.fastestLap ? '⚡ ' : ''}${esc(r.name)}${r.subtitle ? `<div style="font-size:0.7rem;color:var(--text-muted)">${esc(r.subtitle)}</div>` : ''}</td>
+                        <td>${r.minutes}</td>
+                        <td>${r.basePoints}</td>
+                        <td class="${r.bonusPoints > 0 ? 'f1-bonus' : ''}">${r.bonusPoints > 0 ? '+' + r.bonusPoints : '—'}</td>
+                        <td><strong style="color:var(--green)">${r.points}</strong></td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+        <div style="padding:0.5rem;text-align:center;font-size:0.75rem;color:var(--text-muted)">
+            Week of ${targetWeek.weekStart}
+        </div>
+    `;
+    container.innerHTML = table;
 }
 
 // ─────────────────────────────────────────────

@@ -1268,27 +1268,46 @@ header {
 /* ── F1 CHAMPIONSHIP ── */
 .f1-controls {
     display: flex;
-    gap: 0.8rem;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
     flex-wrap: wrap;
-    align-items: center;
-    margin-bottom: 1rem;
+}
+
+.f1-controls>div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
 }
 
 .f1-controls label {
-    font-size: 0.78rem;
-    color: var(--text-muted);
+    font-size: 0.75rem;
+    color: var(--green);
+    font-weight: 600;
     text-transform: uppercase;
-    font-weight: 700;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.6px;
 }
 
 .f1-controls select {
+    padding: 0.6rem 0.8rem;
     background: var(--gray);
     color: var(--text);
-    border: 1px solid var(--gray-light);
-    border-radius: 6px;
-    padding: 0.4rem 0.7rem;
-    font-size: 0.85rem;
+    border: 1px solid rgba(29, 185, 84, 0.3);
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 160px;
+}
+
+.f1-controls select:hover {
+    border-color: var(--green);
+    background: rgba(29, 185, 84, 0.1);
+}
+
+.f1-controls select:focus {
+    outline: none;
+    border-color: var(--green);
+    box-shadow: 0 0 0 2px rgba(29, 185, 84, 0.2);
 }
 
 .f1-grid {
@@ -1344,18 +1363,29 @@ header {
     font-size: 0.84rem;
 }
 
+.f1-standings-detailed {
+    font-size: 0.8rem;
+}
+
+.f1-standings-week {
+    font-size: 0.82rem;
+}
+
 .f1-standings th,
 .f1-standings td {
-    padding: 0.5rem 0.4rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 0.6rem 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     text-align: left;
 }
 
 .f1-standings th {
-    color: var(--text-muted);
-    font-size: 0.72rem;
+    color: var(--green);
+    font-size: 0.7rem;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.6px;
+    background-color: rgba(29, 185, 84, 0.08);
+    border-bottom: 2px solid rgba(29, 185, 84, 0.3);
 }
 
 .f1-standings tbody tr {
@@ -1370,14 +1400,19 @@ header {
 }
 
 .f1-standings tbody tr:hover {
-    background-color: rgba(29, 185, 84, 0.15) !important;
-    transform: translateX(4px);
+    background-color: rgba(29, 185, 84, 0.2) !important;
+    transform: translateX(6px);
+}
+
+.f1-bonus {
+    color: var(--green-light) !important;
+    font-weight: 600;
 }
 
 .f1-standings tbody tr:nth-child(1) {
-    background: linear-gradient(90deg, rgba(255, 215, 0, 0.12) 0%, rgba(255, 215, 0, 0.04) 100%);
-    border-left: 3px solid #FFD700;
-    box-shadow: inset 0 0 10px rgba(255, 215, 0, 0.1);
+    background: linear-gradient(90deg, rgba(255, 215, 0, 0.15) 0%, rgba(255, 215, 0, 0.05) 100%);
+    border-left: 4px solid #FFD700;
+    box-shadow: inset 0 0 12px rgba(255, 215, 0, 0.12);
     transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
@@ -1386,9 +1421,9 @@ header {
 }
 
 .f1-standings tbody tr:nth-child(2) {
-    background: linear-gradient(90deg, rgba(192, 192, 192, 0.12) 0%, rgba(192, 192, 192, 0.04) 100%);
-    border-left: 3px solid #C0C0C0;
-    box-shadow: inset 0 0 10px rgba(192, 192, 192, 0.1);
+    background: linear-gradient(90deg, rgba(192, 192, 192, 0.15) 0%, rgba(192, 192, 192, 0.05) 100%);
+    border-left: 4px solid #C0C0C0;
+    box-shadow: inset 0 0 12px rgba(192, 192, 192, 0.12);
     transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
@@ -1397,14 +1432,27 @@ header {
 }
 
 .f1-standings tbody tr:nth-child(3) {
-    background: linear-gradient(90deg, rgba(205, 127, 50, 0.12) 0%, rgba(205, 127, 50, 0.04) 100%);
-    border-left: 3px solid #CD7F32;
-    box-shadow: inset 0 0 10px rgba(205, 127, 50, 0.1);
+    background: linear-gradient(90deg, rgba(205, 127, 50, 0.15) 0%, rgba(205, 127, 50, 0.05) 100%);
+    border-left: 4px solid #CD7F32;
+    box-shadow: inset 0 0 12px rgba(205, 127, 50, 0.12);
     transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .f1-standings tbody tr:nth-child(3) td:first-child::before {
     content: '🥉 ';
+}
+
+.f1-standings-week tbody tr {
+    transition: all 0.3s ease;
+}
+
+.f1-standings-week tbody tr:hover {
+    background-color: rgba(29, 185, 84, 0.2) !important;
+}
+
+.f1-standings-week tbody tr:nth-child(-n+3) td:first-child {
+    color: var(--green);
+    font-weight: 700;
 }
 
 .f1-week-list {
