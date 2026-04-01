@@ -649,7 +649,7 @@ export function renderF1Tab() {
             <div>
                 Weekly ranking gives F1 points (25-18-15-12-10-8-6-4-2-1) to the top 10 by listening minutes.<br>
                 Fastest lap gives +1 extra point to the weekly #1.<br>
-                Wins = weekly P1 finishes, Podiums = weekly Top 3 finishes, Streak = best consecutive weeks winning.
+                Wins = weekly P1 finishes, Podiums = weekly Top 3 finishes, Streak = best consecutive weeks in Top 10.
             </div>
         </details>
 
@@ -687,7 +687,7 @@ export function renderF1Tab() {
                                 <th class="f1-sortable-th" data-f1-table="standings" data-sort-key="name">Name${sortMark(f1StandingsSort, 'name')}</th>
                                 <th class="f1-sortable-th" data-f1-table="standings" data-sort-key="weeksWon">Wins${sortMark(f1StandingsSort, 'weeksWon')}</th>
                                 <th class="f1-sortable-th" data-f1-table="standings" data-sort-key="podiums">Podiums${sortMark(f1StandingsSort, 'podiums')}</th>
-                                <th class="f1-sortable-th" data-f1-table="standings" data-sort-key="bestWinStreak">Racha${sortMark(f1StandingsSort, 'bestWinStreak')}</th>
+                                <th class="f1-sortable-th" data-f1-table="standings" data-sort-key="bestWinStreak">Racha Top 10${sortMark(f1StandingsSort, 'bestWinStreak')}</th>
                                 <th class="f1-sortable-th" data-f1-table="standings" data-sort-key="fastestLaps">⚡ FL${sortMark(f1StandingsSort, 'fastestLaps')}</th>
                                 <th class="f1-sortable-th" data-f1-table="standings" data-sort-key="minutes">Minutes${sortMark(f1StandingsSort, 'minutes')}</th>
                                 <th class="f1-sortable-th" data-f1-table="standings" data-sort-key="points">Points${sortMark(f1StandingsSort, 'points')}</th>
@@ -737,7 +737,7 @@ export function renderF1Tab() {
                             <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="bronzes">Bronces${sortMark(f1AllTimeSort, 'bronzes')}</th>
                             <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="totalWins">Wins${sortMark(f1AllTimeSort, 'totalWins')}</th>
                             <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="totalPodiums">Podiums${sortMark(f1AllTimeSort, 'totalPodiums')}</th>
-                            <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="bestWinStreak">Racha${sortMark(f1AllTimeSort, 'bestWinStreak')}</th>
+                            <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="bestWinStreak">Racha Top 10${sortMark(f1AllTimeSort, 'bestWinStreak')}</th>
                             <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="totalFastestLaps">⚡${sortMark(f1AllTimeSort, 'totalFastestLaps')}</th>
                             <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="totalPoints">Points${sortMark(f1AllTimeSort, 'totalPoints')}</th>
                         </tr>
@@ -758,7 +758,7 @@ export function renderF1Tab() {
                             <th class="f1-sortable-th" data-f1-table="yearly" data-sort-key="name">Name${sortMark(f1YearlySort, 'name')}</th>
                             <th class="f1-sortable-th" data-f1-table="yearly" data-sort-key="weeksWon">Wins${sortMark(f1YearlySort, 'weeksWon')}</th>
                             <th class="f1-sortable-th" data-f1-table="yearly" data-sort-key="podiums">Podiums${sortMark(f1YearlySort, 'podiums')}</th>
-                            <th class="f1-sortable-th" data-f1-table="yearly" data-sort-key="bestWinStreak">Racha${sortMark(f1YearlySort, 'bestWinStreak')}</th>
+                            <th class="f1-sortable-th" data-f1-table="yearly" data-sort-key="bestWinStreak">Racha Top 10${sortMark(f1YearlySort, 'bestWinStreak')}</th>
                             <th class="f1-sortable-th" data-f1-table="yearly" data-sort-key="fastestLaps">⚡${sortMark(f1YearlySort, 'fastestLaps')}</th>
                             <th class="f1-sortable-th" data-f1-table="yearly" data-sort-key="points">Points${sortMark(f1YearlySort, 'points')}</th>
                         </tr>

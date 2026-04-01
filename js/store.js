@@ -666,25 +666,25 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
         const streakMap = {};
         yearKeys.forEach(key => {
             streakMap[key] = {
-                currentWin: 0,
-                bestWin: 0,
+                currentTop10: 0,
+                bestTop10: 0,
                 currentPodium: 0,
                 bestPodium: 0
             };
         });
 
         weeks.forEach(week => {
-            const winnerKey = week.topWeek[0]?.key || null;
+            const top10Keys = new Set(week.topWeek.map(r => r.key));
             const podiumKeys = new Set(week.topWeek.slice(0, 3).map(r => r.key));
 
             yearKeys.forEach(key => {
                 const s = streakMap[key];
-                if (key === winnerKey) {
-                    s.currentWin += 1;
+                if (top10Keys.has(key)) {
+                    s.currentTop10 += 1;
                 } else {
-                    s.currentWin = 0;
+                    s.currentTop10 = 0;
                 }
-                s.bestWin = Math.max(s.bestWin, s.currentWin);
+                s.bestTop10 = Math.max(s.bestTop10, s.currentTop10);
 
                 if (podiumKeys.has(key)) {
                     s.currentPodium += 1;
@@ -708,7 +708,8 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
                 weeksWon: val.weeksWon,
                 podiums: val.podiums,
                 fastestLaps: val.fastestLaps || 0,
-                bestWinStreak: yearStreaks[y]?.[key]?.bestWin || 0,
+                // Kept name for UI compatibility: now means best consecutive Top 10 weeks.
+                bestWinStreak: yearStreaks[y]?.[key]?.bestTop10 || 0,
                 bestPodiumStreak: yearStreaks[y]?.[key]?.bestPodium || 0,
                 minutes: Math.round(val.minutes)
             }))
