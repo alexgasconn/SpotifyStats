@@ -25,6 +25,8 @@ const truncateString = (str, len) => {
     return str.length > len ? str.substring(0, len) + '...' : str;
 };
 
+const escapeAttr = (str) => String(str || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
 const formatLocalDate = (dateObj) => {
     const year = dateObj.getFullYear();
     const month = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -420,11 +422,11 @@ function renderPodcastInsights(analyzed) {
     `).join('');
 
     const repeatList = analyzed.repeatEpisodes.map((e, i) => `
-        <li><span class="wc-rank">${i + 1}</span><span style="flex:1">${truncateString(e.name, 42)}<br><small style="color:var(--text-muted)">${truncateString(e.show, 36)}</small></span><span style="color:var(--green);font-weight:700">${e.plays}x</span></li>
+        <li data-podcast-show="${escapeAttr(e.show)}"><span class="wc-rank">${i + 1}</span><span style="flex:1">${truncateString(e.name, 42)}<br><small style="color:var(--text-muted)">${truncateString(e.show, 36)}</small></span><span style="color:var(--green);font-weight:700">${e.plays}x</span></li>
     `).join('');
 
     const completionList = analyzed.topShows.slice(0, 10).map((s, i) => `
-        <li><span class="wc-rank">${i + 1}</span><span style="flex:1">${truncateString(s.name, 42)}</span><span style="color:var(--green);font-weight:700">${s.completionRate}%</span></li>
+        <li data-podcast-show="${escapeAttr(s.name)}"><span class="wc-rank">${i + 1}</span><span style="flex:1">${truncateString(s.name, 42)}</span><span style="color:var(--green);font-weight:700">${s.completionRate}%</span></li>
     `).join('');
 
     container.innerHTML = `
@@ -434,13 +436,21 @@ function renderPodcastInsights(analyzed) {
         </div>
         <div class="wrapped-card">
             <div class="wc-label">Most Replayed Episodes</div>
-            <ul class="wc-list">${repeatList || '<li>No repeated episodes yet</li>'}</ul>
+            <ul class="wc-list wc-clickable-list">${repeatList || '<li>No repeated episodes yet</li>'}</ul>
         </div>
         <div class="wrapped-card">
             <div class="wc-label">Show Completion Ranking</div>
-            <ul class="wc-list">${completionList || '<li>No data yet</li>'}</ul>
+            <ul class="wc-list wc-clickable-list">${completionList || '<li>No data yet</li>'}</ul>
         </div>
     `;
+
+    container.querySelectorAll('[data-podcast-show]').forEach(el => {
+        el.style.cursor = 'pointer';
+        el.addEventListener('click', () => {
+            const showName = el.getAttribute('data-podcast-show');
+            if (showName) openDetail(showName, 'podcast', '', window.spotifyData.full);
+        });
+    });
 }
 
 // --- UTILS ---
