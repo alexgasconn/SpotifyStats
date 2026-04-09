@@ -1336,8 +1336,9 @@ export function renderViewerTab() {
                 <div class="viewer-control">
                     <label for="viewer-metric">Metric</label>
                     <select id="viewer-metric">
-                        <option value="minutes" ${viewerState.metric === 'minutes' ? 'selected' : ''}>Accumulated Minutes</option>
-                        <option value="plays" ${viewerState.metric === 'plays' ? 'selected' : ''}>Accumulated Plays</option>
+                        <option value="minutes" ${viewerState.metric === 'minutes' ? 'selected' : ''}>Minutes</option>
+                        <option value="plays" ${viewerState.metric === 'plays' ? 'selected' : ''}>Plays</option>
+                        <option value="points" ${viewerState.metric === 'points' ? 'selected' : ''}>Points (F1)</option>
                     </select>
                 </div>
                 <div class="viewer-control">
@@ -1447,7 +1448,11 @@ export function renderViewerTab() {
     };
 
     const getYAxisTitle = () => {
-        const unit = viewerState.metric === 'plays' ? 'Plays' : 'Minutes';
+        const unit = viewerState.metric === 'plays'
+            ? 'Plays'
+            : viewerState.metric === 'points'
+                ? 'Points'
+                : 'Minutes';
         if (viewerState.valueMode === 'accum') return `${unit} (accum)`;
         if (viewerState.valueMode === 'rolling') return `${unit} (rolling mean)`;
         if (viewerState.valueMode === 'period') return `${unit} (per period)`;
@@ -1512,7 +1517,11 @@ export function renderViewerTab() {
         const maxStep = viewerSeries.labels.length;
         const upto = full ? maxStep : Math.max(1, Math.min(stepCount, maxStep));
         const labels = viewerSeries.labels.slice(0, upto);
-        const unit = viewerState.metric === 'plays' ? 'plays' : 'min';
+        const unit = viewerState.metric === 'plays'
+            ? 'plays'
+            : viewerState.metric === 'points'
+                ? 'pts'
+                : 'min';
         const pct = Math.round((upto / maxStep) * 100);
         const currentBucket = labels[labels.length - 1] || '-';
 

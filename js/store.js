@@ -481,27 +481,64 @@ export function calculateViewerAccumulatedSeries(data, options = {}) {
     };
 
     const bucketMap = {};
-    const totals = {};
-
     music.forEach(d => {
         const b = bucketOf(d);
         const key = parseKey(d);
-        const val = metric === 'plays' ? 1 : d.durationMin;
 
         if (!bucketMap[b]) bucketMap[b] = {};
-        bucketMap[b][key] = (bucketMap[b][key] || 0) + val;
+        if (!bucketMap[b][key]) bucketMap[b][key] = { minutes: 0, plays: 0 };
 
-        totals[key] = (totals[key] || 0) + val;
+        bucketMap[b][key].minutes += d.durationMin;
+        bucketMap[b][key].plays += 1;
     });
 
-    const rankedKeys = Object.entries(totals)
+    const buckets = Object.keys(bucketMap).sort((a, b) => new Date(a) - new Date(b));
+
+    const metricTotals = {};
+    const periodMetricByBucket = {};
+
+    if (metric === 'points') {
+        // Per bucket, assign F1 points by minutes ranking (Top 10): 25..1.
+        const pointsScale = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
+
+        buckets.forEach(bucket => {
+            const rows = Object.entries(bucketMap[bucket] || {})
+                .map(([key, v]) => ({ key, minutes: v.minutes || 0, plays: v.plays || 0 }))
+                .sort((a, b) => {
+                    if (b.minutes !== a.minutes) return b.minutes - a.minutes;
+                    if (b.plays !== a.plays) return b.plays - a.plays;
+                    return a.key.localeCompare(b.key);
+                });
+
+            const ptsMap = {};
+            rows.slice(0, 10).forEach((row, idx) => {
+                ptsMap[row.key] = pointsScale[idx] || 0;
+            });
+
+            periodMetricByBucket[bucket] = ptsMap;
+
+            Object.entries(ptsMap).forEach(([key, pts]) => {
+                metricTotals[key] = (metricTotals[key] || 0) + pts;
+            });
+        });
+    } else {
+        buckets.forEach(bucket => {
+            const vals = {};
+            Object.entries(bucketMap[bucket] || {}).forEach(([key, v]) => {
+                const metricVal = metric === 'plays' ? (v.plays || 0) : (v.minutes || 0);
+                vals[key] = metricVal;
+                metricTotals[key] = (metricTotals[key] || 0) + metricVal;
+            });
+            periodMetricByBucket[bucket] = vals;
+        });
+    }
+
+    const rankedKeys = Object.entries(metricTotals)
         .sort((a, b) => b[1] - a[1])
         .slice(0, Math.max(1, topX))
         .map(([k]) => k);
 
     if (!rankedKeys.length) return { labels: [], entities: [], seriesByKey: {}, totalsByKey: {} };
-
-    const buckets = Object.keys(bucketMap).sort((a, b) => new Date(a) - new Date(b));
 
     const formatLabel = (bucket) => {
         if (granularity === 'year') return String(bucket).slice(0, 4);
@@ -517,7 +554,7 @@ export function calculateViewerAccumulatedSeries(data, options = {}) {
     const entities = rankedKeys.map(key => ({ key, ...parseLabel(key) }));
 
     rankedKeys.forEach(key => {
-        periodSeriesByKey[key] = buckets.map(b => bucketMap[b]?.[key] || 0);
+        periodSeriesByKey[key] = buckets.map(b => periodMetricByBucket[b]?.[key] || 0);
     });
 
     const w = Math.max(1, parseInt(rollingWindow, 10) || 1);
@@ -528,22 +565,28 @@ export function calculateViewerAccumulatedSeries(data, options = {}) {
             let cumulative = 0;
             seriesByKey[key] = raw.map(v => {
                 cumulative += v;
-                return metric === 'plays' ? cumulative : Math.round(cumulative);
+                if (metric === 'plays' || metric === 'points') return cumulative;
+                return Math.round(cumulative);
             });
         } else if (valueMode === 'rolling') {
             seriesByKey[key] = raw.map((_, idx) => {
                 const start = Math.max(0, idx - w + 1);
                 const windowVals = raw.slice(start, idx + 1);
                 const avg = windowVals.reduce((s, v) => s + v, 0) / (windowVals.length || 1);
-                return metric === 'plays' ? +avg.toFixed(2) : +avg.toFixed(1);
+                if (metric === 'plays' || metric === 'points') return +avg.toFixed(2);
+                return +avg.toFixed(1);
             });
         } else {
             // 'period' and 'simple' both show raw values for each bucket.
-            seriesByKey[key] = raw.map(v => (metric === 'plays' ? v : Math.round(v)));
+            seriesByKey[key] = raw.map(v => {
+                if (metric === 'plays' || metric === 'points') return v;
+                return Math.round(v);
+            });
         }
 
         const finalVal = seriesByKey[key][seriesByKey[key].length - 1] || 0;
-        totalsByKey[key] = metric === 'plays' ? finalVal : Math.round(finalVal);
+        if (metric === 'plays' || metric === 'points') totalsByKey[key] = finalVal;
+        else totalsByKey[key] = Math.round(finalVal);
     });
 
     return {
