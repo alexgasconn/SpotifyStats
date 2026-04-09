@@ -1,5 +1,7 @@
 // js/podcasts.js
 
+import { openDetail } from './detail.js';
+
 Chart.register(ChartDataLabels);
 
 // Chart Instances
@@ -7,10 +9,8 @@ let topShowsChart = null;
 let topEpisodesChart = null;
 let podcastTimelineChart = null;
 let podcastHourlyChart = null; // NEW
-let podcastSkipTrendChart = null;
 
 let currentPodcastTimelineUnit = 'week';
-let currentPodcastSkipTrendUnit = 'week';
 
 // --- HELPERS (Refactored for reusability) ---
 const formatMinutesToTime = (totalMinutes) => {
@@ -191,7 +191,7 @@ const whiteTextOptions = {
 
 // --- CHART RENDERERS ---
 
-export function renderTopShowsChart(topShows) {
+export function renderTopShowsChart(topShows, fullData) {
     const canvas = document.getElementById('topShowsChart');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -214,6 +214,11 @@ export function renderTopShowsChart(topShows) {
             indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
+            onClick: (_evt, elements) => {
+                if (!elements?.length) return;
+                const show = topShows[elements[0].index];
+                if (show?.name) openDetail(show.name, 'podcast', '', fullData);
+            },
             plugins: {
                 legend: { display: false },
                 tooltip: {
@@ -231,7 +236,7 @@ export function renderTopShowsChart(topShows) {
     });
 }
 
-export function renderTopEpisodesChart(topEpisodes) {
+export function renderTopEpisodesChart(topEpisodes, fullData) {
     const canvas = document.getElementById('topEpisodesChart');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -254,6 +259,11 @@ export function renderTopEpisodesChart(topEpisodes) {
             indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
+            onClick: (_evt, elements) => {
+                if (!elements?.length) return;
+                const episode = topEpisodes[elements[0].index];
+                if (episode?.show) openDetail(episode.show, 'podcast', '', fullData);
+            },
             plugins: {
                 legend: { display: false },
                 tooltip: {
@@ -357,87 +367,6 @@ export function renderPodcastTimeByDay(podcastData) {
             },
             scales: {
                 y: { ...whiteTextOptions },
-                x: { ...whiteTextOptions, ticks: { ...whiteTextOptions.ticks, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } }
-            }
-        }
-    });
-}
-
-function buildSkipRateTimeline(podcastData, unit) {
-    const timelineMap = {};
-
-    podcastData.forEach(d => {
-        let key;
-        switch (unit) {
-            case 'year': key = d.year ? String(d.year) : null; break;
-            case 'month': key = d.year && d.month !== null ? `${d.year}-${String(d.month + 1).padStart(2, '0')}` : null; break;
-            case 'week': key = getStartOfWeek(d.date); break;
-            case 'day': default: key = d.date; break;
-        }
-
-        if (!key) return;
-        if (!timelineMap[key]) timelineMap[key] = { plays: 0, skipped: 0 };
-        timelineMap[key].plays += 1;
-        if (d.skipped) timelineMap[key].skipped += 1;
-    });
-
-    return Object.entries(timelineMap)
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([bucket, values]) => ({
-            bucket,
-            plays: values.plays,
-            skipRate: +((values.skipped / (values.plays || 1)) * 100).toFixed(1)
-        }));
-}
-
-export function renderPodcastSkipTrendChart(podcastData) {
-    const canvas = document.getElementById('podcastSkipTrendChart');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (podcastSkipTrendChart) podcastSkipTrendChart.destroy();
-
-    const trend = buildSkipRateTimeline(podcastData, currentPodcastSkipTrendUnit);
-
-    podcastSkipTrendChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: trend.map(d => formatDateLabel(d.bucket, currentPodcastSkipTrendUnit)),
-            datasets: [{
-                label: 'Skip Rate %',
-                data: trend.map(d => d.skipRate),
-                borderColor: '#FFC107',
-                backgroundColor: 'rgba(255, 193, 7, 0.2)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.25,
-                pointRadius: 2,
-                pointHoverRadius: 5
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: (ctx) => {
-                            const idx = ctx.dataIndex;
-                            return `${ctx.raw}% skip (${trend[idx].plays} plays)`;
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    ...whiteTextOptions,
-                    min: 0,
-                    max: 100,
-                    ticks: {
-                        ...whiteTextOptions.ticks,
-                        callback: (value) => `${value}%`
-                    }
-                },
                 x: { ...whiteTextOptions, ticks: { ...whiteTextOptions.ticks, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } }
             }
         }
@@ -555,25 +484,6 @@ export function setupPodcastTimelineControls(podcastData) {
     });
 }
 
-export function setupPodcastSkipTrendControls(podcastData) {
-    const container = document.getElementById('podcastSkipTrendControls');
-    if (!container) return;
-    container.innerHTML = '';
-
-    ['day', 'week', 'month', 'year'].forEach(unit => {
-        const btn = document.createElement('button');
-        btn.textContent = unit.charAt(0).toUpperCase() + unit.slice(1);
-        btn.className = `timeline-btn ${unit === currentPodcastSkipTrendUnit ? 'active' : ''}`;
-        btn.onclick = () => {
-            currentPodcastSkipTrendUnit = unit;
-            container.querySelectorAll('.timeline-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            renderPodcastSkipTrendChart(podcastData);
-        };
-        container.appendChild(btn);
-    });
-}
-
 // In podcasts.js
 export function renderPodcastUI(dataToRender) {
     // Just analyze and render. Do not look for DOM inputs here.
@@ -581,14 +491,12 @@ export function renderPodcastUI(dataToRender) {
     const { topShows, topEpisodes, podcastData, hourlyDistribution } = analyzed;
 
     renderPodcastStats(dataToRender);
-    renderTopShowsChart(topShows);
-    renderTopEpisodesChart(topEpisodes);
+    renderTopShowsChart(topShows, window.spotifyData.full);
+    renderTopEpisodesChart(topEpisodes, window.spotifyData.full);
     renderPodcastHourlyChart(hourlyDistribution);
     renderPodcastInsights(analyzed);
 
     // Pass the filtered data to the timeline controls so they work on the current subset
     setupPodcastTimelineControls(podcastData);
-    setupPodcastSkipTrendControls(podcastData);
     renderPodcastTimeByDay(podcastData);
-    renderPodcastSkipTrendChart(podcastData);
 }

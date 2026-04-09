@@ -278,6 +278,44 @@ export function calculateAggregatedTimeline(data, unit = 'week') {
         .sort((a, b) => new Date(a.x) - new Date(b.x));
 }
 
+export function calculateSkipRateTrend(data, unit = 'week') {
+    if (!data || !data.length) return [];
+
+    const map = {};
+
+    data.forEach(d => {
+        let key;
+        switch (unit) {
+            case 'year':
+                key = `${d.year}-01-01`;
+                break;
+            case 'month':
+                key = `${d.year}-${String(d.month + 1).padStart(2, '0')}-01`;
+                break;
+            case 'week':
+                key = getStartOfWeek(d.ts);
+                break;
+            case 'day':
+            default:
+                key = d.date;
+                break;
+        }
+
+        if (!map[key]) map[key] = { plays: 0, skipped: 0 };
+        map[key].plays += 1;
+        if (d.skipped) map[key].skipped += 1;
+    });
+
+    return Object.entries(map)
+        .sort((a, b) => new Date(a[0]) - new Date(b[0]))
+        .map(([x, v]) => ({
+            x,
+            y: +((v.skipped / (v.plays || 1)) * 100).toFixed(1),
+            plays: v.plays,
+            skipped: v.skipped
+        }));
+}
+
 export function calculateTemporalDistribution(data, groupBy) {
     const groups = {
         hour: Array(24).fill(0),
@@ -1043,6 +1081,79 @@ export function calculateAlbumDetail(albumName, artistName, fullData) {
         byHour,
         byWeekday,
         trackList
+    };
+}
+
+export function calculatePodcastDetail(showName, fullData) {
+    const d = fullData.filter(e => e.isPodcast && e.episodeShowName === showName);
+    if (!d.length) return null;
+
+    const totalPlays = d.length;
+    const totalMinutes = d.reduce((s, e) => s + e.durationMin, 0);
+    const skipped = d.filter(e => e.skipped).length;
+    const skipRate = ((skipped / totalPlays) * 100).toFixed(1);
+    const uniqueEpisodes = new Set(d.map(e => e.episodeName).filter(Boolean)).size;
+
+    const sorted = [...d].sort((a, b) => a.ts - b.ts);
+    const firstPlay = sorted[0].ts;
+    const lastPlay = sorted[sorted.length - 1].ts;
+
+    const episodeMap = {};
+    d.forEach(e => {
+        const ep = e.episodeName || 'Unknown Episode';
+        if (!episodeMap[ep]) episodeMap[ep] = { plays: 0, minutes: 0, skipped: 0 };
+        episodeMap[ep].plays++;
+        episodeMap[ep].minutes += e.durationMin;
+        if (e.skipped) episodeMap[ep].skipped++;
+    });
+
+    const topEpisodes = Object.entries(episodeMap)
+        .map(([name, v]) => ({
+            name,
+            plays: v.plays,
+            minutes: Math.round(v.minutes),
+            skipRate: +((v.skipped / v.plays) * 100).toFixed(1)
+        }))
+        .sort((a, b) => b.minutes - a.minutes)
+        .slice(0, 15);
+
+    const byYear = {};
+    d.forEach(e => { byYear[e.year] = (byYear[e.year] || 0) + e.durationMin; });
+    const yearBreakdown = Object.entries(byYear)
+        .sort((a, b) => a[0] - b[0])
+        .map(([year, minutes]) => ({ year: Number(year), minutes: Math.round(minutes) }));
+
+    const byHour = Array(24).fill(0);
+    d.forEach(e => { byHour[e.hour]++; });
+
+    const byWeekday = Array(7).fill(0);
+    d.forEach(e => { byWeekday[e.weekday]++; });
+
+    const byMonth = {};
+    d.forEach(e => {
+        const k = `${e.year}-${String(e.month + 1).padStart(2, '0')}`;
+        byMonth[k] = (byMonth[k] || 0) + e.durationMin;
+    });
+    const monthlyTimeline = Object.entries(byMonth)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([m, mins]) => ({ month: m, minutes: Math.round(mins) }));
+
+    return {
+        type: 'podcast',
+        name: showName,
+        subtitle: `${uniqueEpisodes} episodes listened`,
+        totalPlays,
+        totalMinutes: Math.round(totalMinutes),
+        skipRate,
+        firstPlay: firstPlay.toLocaleDateString(),
+        lastPlay: lastPlay.toLocaleDateString(),
+        uniqueEpisodes,
+        avgMinPerPlay: Math.round((totalMinutes / totalPlays) * 10) / 10,
+        yearBreakdown,
+        byHour,
+        byWeekday,
+        monthlyTimeline,
+        topEpisodes
     };
 }
 

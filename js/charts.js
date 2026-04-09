@@ -143,6 +143,57 @@ export function renderYearlyChart(yearlyData) {
     });
 }
 
+export function renderSkipRateTrendChart(data, unit = 'week') {
+    make('global-skip-trend-chart', {
+        type: 'line',
+        data: {
+            datasets: [{
+                label: 'Skip Rate %',
+                data,
+                parsing: { xAxisKey: 'x', yAxisKey: 'y' },
+                borderColor: '#FFC107',
+                backgroundColor: 'rgba(255, 193, 7, 0.20)',
+                pointRadius: 2,
+                pointHoverRadius: 5,
+                borderWidth: 2,
+                tension: 0.25,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                datalabels: false,
+                tooltip: {
+                    callbacks: {
+                        label: ctx => {
+                            const raw = ctx.raw || {};
+                            return `${raw.y}% skip (${raw.skipped || 0}/${raw.plays || 0} plays)`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: { unit },
+                    ticks: { color: TICK },
+                    grid: { color: GRID }
+                },
+                y: {
+                    min: 0,
+                    max: 100,
+                    ticks: { color: TICK, callback: v => `${v}%` },
+                    grid: { color: GRID },
+                    title: { display: true, text: 'Skip Rate', color: TICK }
+                }
+            }
+        }
+    });
+}
+
 // ── DISTRIBUTION ──────────────────────────────────────────────────────────────
 
 export function renderDistributionChart(canvasId, data, title) {

@@ -18,6 +18,8 @@ export function openDetail(name, type, extra, fullData) {
         stats = store.calculateArtistDetail(name, fullData);
     } else if (type === 'album') {
         stats = store.calculateAlbumDetail(name, extra, fullData);
+    } else if (type === 'podcast') {
+        stats = store.calculatePodcastDetail(name, fullData);
     }
     if (!stats) return;
 
@@ -35,7 +37,7 @@ export function openDetail(name, type, extra, fullData) {
 }
 
 function buildDetailHTML(s) {
-    const iconMap = { track: '🎵', artist: '🎤', album: '💿' };
+    const iconMap = { track: '🎵', artist: '🎤', album: '💿', podcast: '🎙️' };
     const icon = iconMap[s.type] || '🎶';
 
     let kpiHtml = `
@@ -151,6 +153,22 @@ function buildDetailHTML(s) {
         `;
     }
 
+    if (s.type === 'podcast') {
+        extraHtml += `
+            <div class="detail-section-title">Top Episodes</div>
+            <ul class="detail-list">
+                ${s.topEpisodes.map((e, i) => `
+                    <li class="detail-list-item">
+                        <span class="dli-rank">${i + 1}</span>
+                        <span class="dli-name">${esc(e.name)}</span>
+                        <span class="dli-val">${e.plays} plays</span>
+                        <span class="dli-sub">${e.minutes} min · skip ${e.skipRate}%</span>
+                    </li>
+                `).join('')}
+            </ul>
+        `;
+    }
+
     return `
         <div class="detail-hero">
             <div class="detail-hero-icon ${s.type === 'album' ? 'detail-hero-album-icon' : ''}">${icon}</div>
@@ -208,7 +226,7 @@ function renderDetailCharts(s) {
 
     // Timeline chart
     if (s.monthlyTimeline && s.monthlyTimeline.length > 0) {
-        const valKey = s.type === 'artist' || s.type === 'album' ? 'minutes' : 'plays';
+        const valKey = s.type === 'artist' || s.type === 'album' || s.type === 'podcast' ? 'minutes' : 'plays';
         const labels = s.monthlyTimeline.map(m => m.month);
         const values = s.monthlyTimeline.map(m => m[valKey]);
 

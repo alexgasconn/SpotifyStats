@@ -1804,7 +1804,6 @@ header {
 }
 
 #podcastTimelineChart,
-#podcastSkipTrendChart,
 #podcastHourlyChart,
 #topShowsChart,
 #topEpisodesChart {
@@ -1830,11 +1829,16 @@ header {
 }
 
 #podcastTimelineChart,
-#podcastSkipTrendChart {
+#global-skip-trend-chart {
     display: block;
     width: 100% !important;
     height: 340px !important;
     max-height: 340px;
+}
+
+#topShowsChart,
+#topEpisodesChart {
+    cursor: pointer;
 }
 
 .data-section {
@@ -2399,7 +2403,7 @@ header {
     }
 
     #podcastTimelineChart,
-    #podcastSkipTrendChart {
+    #global-skip-trend-chart {
         height: 260px !important;
         max-height: 260px;
     }
