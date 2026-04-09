@@ -28,6 +28,9 @@ let albumsSortBy = 'plays';
 // Compare tab state
 let compareArtistA = '';
 let compareArtistB = '';
+let compareRaceMetric = 'minutes';
+let compareStrictMode = false;
+let compareWeights = {};
 
 // Viewer state
 let viewerChartInstance = null;
@@ -656,14 +659,25 @@ export function renderCompareTab() {
         return;
     }
 
-    const cmp = store.calculateArtistComparison(data, compareArtistA, compareArtistB);
+    const cmp = store.calculateArtistComparison(data, compareArtistA, compareArtistB, {
+        strictWinnerMode: compareStrictMode,
+        weights: compareWeights
+    });
     if (!cmp) {
         container.innerHTML = '<p style="color:var(--text-muted);padding:1rem">Comparison could not be generated with current filters.</p>';
         return;
     }
 
+    if (!Object.keys(compareWeights).length) {
+        cmp.scorecard.forEach(row => {
+            compareWeights[row.key] = row.weight;
+        });
+    }
+
     const winnerLabel = cmp.winner === 'A' ? cmp.artistA : cmp.winner === 'B' ? cmp.artistB : 'Tie';
     const winnerClass = cmp.winner === 'A' ? 'compare-winner-a' : cmp.winner === 'B' ? 'compare-winner-b' : 'compare-winner-tie';
+    const weightedWinnerLabel = cmp.weightedWinner === 'A' ? cmp.artistA : cmp.weightedWinner === 'B' ? cmp.artistB : 'Tie';
+    const weightedWinnerClass = cmp.weightedWinner === 'A' ? 'compare-winner-a' : cmp.weightedWinner === 'B' ? 'compare-winner-b' : 'compare-winner-tie';
 
     const optionHtml = artists
         .slice(0, 300)
@@ -673,24 +687,23 @@ export function renderCompareTab() {
     const scoreRows = cmp.scorecard.map(row => {
         const aVal = typeof row.a === 'number' ? row.a.toLocaleString() : row.a;
         const bVal = typeof row.b === 'number' ? row.b.toLocaleString() : row.b;
-        let verdict = 'Draw';
-        let cls = 'compare-row-draw';
-        if (row.a !== row.b) {
-            if (row.higherWins) {
-                verdict = row.a > row.b ? cmp.artistA : cmp.artistB;
-                cls = row.a > row.b ? 'compare-row-win-a' : 'compare-row-win-b';
-            } else {
-                verdict = row.a < row.b ? cmp.artistA : cmp.artistB;
-                cls = row.a < row.b ? 'compare-row-win-a' : 'compare-row-win-b';
-            }
-        }
+        const verdict = row.winner === 'A' ? cmp.artistA : row.winner === 'B' ? cmp.artistB : 'Draw';
+        const cls = row.winner === 'A' ? 'compare-row-win-a' : row.winner === 'B' ? 'compare-row-win-b' : 'compare-row-draw';
         return `<tr class="${cls}">
             <td>${esc(row.label)}</td>
             <td>${aVal}</td>
             <td>${bVal}</td>
+            <td>${row.weight}</td>
             <td>${esc(verdict)}</td>
         </tr>`;
     }).join('');
+
+    const weightRows = cmp.scorecard.map(row => `
+        <div class="compare-weight-row">
+            <span>${esc(row.label)}</span>
+            <input type="number" min="0" step="0.25" data-weight-key="${row.key}" value="${Number(compareWeights[row.key] ?? row.weight)}">
+        </div>
+    `).join('');
 
     const weeklyRows = cmp.duel.weekly
         .slice()
@@ -714,12 +727,29 @@ export function renderCompareTab() {
                     <label for="compare-artist-b">Artist B</label>
                     <select id="compare-artist-b">${optionHtml}</select>
                 </div>
+                <div class="compare-control">
+                    <label for="compare-race-metric">Race metric</label>
+                    <select id="compare-race-metric">
+                        <option value="minutes" ${compareRaceMetric === 'minutes' ? 'selected' : ''}>Minutes</option>
+                        <option value="plays" ${compareRaceMetric === 'plays' ? 'selected' : ''}>Plays</option>
+                        <option value="points" ${compareRaceMetric === 'points' ? 'selected' : ''}>Points</option>
+                    </select>
+                </div>
+                <label class="compare-toggle-check">
+                    <input id="compare-strict-mode" type="checkbox" ${compareStrictMode ? 'checked' : ''}>
+                    Strict winner mode: lower repetition wins
+                </label>
                 <button id="compare-swap-btn" class="secondary-btn">Swap</button>
             </div>
             <div class="compare-hero ${winnerClass}">
                 <div class="compare-hero-title">Exhaustive Head-to-Head Winner</div>
                 <div class="compare-hero-value">${esc(winnerLabel)}</div>
                 <div class="compare-hero-sub">${cmp.winsByMetrics.A} metrics won by ${esc(cmp.artistA)} · ${cmp.winsByMetrics.B} by ${esc(cmp.artistB)} · ${cmp.winsByMetrics.draws} draws</div>
+            </div>
+            <div class="compare-hero ${weightedWinnerClass}">
+                <div class="compare-hero-title">Weighted Winner</div>
+                <div class="compare-hero-value">${esc(weightedWinnerLabel)}</div>
+                <div class="compare-hero-sub">Weighted score: ${cmp.artistA} ${cmp.winsByMetrics.weightedA} · ${cmp.artistB} ${cmp.winsByMetrics.weightedB} (draw weight ${cmp.winsByMetrics.weightedDraw})</div>
             </div>
         </div>
 
@@ -732,6 +762,13 @@ export function renderCompareTab() {
             <div class="chart-container full-width">
                 <h3>Cumulative Listening Race</h3>
                 <div class="chart-wrapper"><canvas id="compare-race-chart"></canvas></div>
+            </div>
+            <div class="chart-container full-width">
+                <h3>Metric Weights</h3>
+                <div class="compare-weight-grid">${weightRows}</div>
+                <div class="compare-weight-actions">
+                    <button id="compare-reset-weights" class="secondary-btn">Reset to defaults</button>
+                </div>
             </div>
             <div class="chart-container">
                 <h3>Monthly Trend (Minutes)</h3>
@@ -779,7 +816,7 @@ export function renderCompareTab() {
                 <h3>Metric-by-Metric Verdict</h3>
                 <div style="overflow:auto">
                     <table class="compare-table">
-                        <thead><tr><th>Metric</th><th>${esc(cmp.artistA)}</th><th>${esc(cmp.artistB)}</th><th>Winner</th></tr></thead>
+                        <thead><tr><th>Metric</th><th>${esc(cmp.artistA)}</th><th>${esc(cmp.artistB)}</th><th>Weight</th><th>Winner</th></tr></thead>
                         <tbody>${scoreRows}</tbody>
                     </table>
                 </div>
@@ -798,10 +835,15 @@ export function renderCompareTab() {
 
     const selA = container.querySelector('#compare-artist-a');
     const selB = container.querySelector('#compare-artist-b');
+    const selRace = container.querySelector('#compare-race-metric');
+    const strictCheck = container.querySelector('#compare-strict-mode');
     const swapBtn = container.querySelector('#compare-swap-btn');
+    const resetWeightsBtn = container.querySelector('#compare-reset-weights');
 
     if (selA) selA.value = compareArtistA;
     if (selB) selB.value = compareArtistB;
+    if (selRace) selRace.value = compareRaceMetric;
+    if (strictCheck) strictCheck.checked = compareStrictMode;
 
     selA?.addEventListener('change', (e) => {
         compareArtistA = e.target.value;
@@ -826,7 +868,40 @@ export function renderCompareTab() {
         renderCompareTab();
     });
 
-    charts.renderCompareRaceChart('compare-race-chart', cmp.raceLabels, cmp.raceA, cmp.raceB, cmp.artistA, cmp.artistB);
+    selRace?.addEventListener('change', (e) => {
+        compareRaceMetric = e.target.value;
+        renderCompareTab();
+    });
+
+    strictCheck?.addEventListener('change', (e) => {
+        compareStrictMode = !!e.target.checked;
+        renderCompareTab();
+    });
+
+    container.querySelectorAll('[data-weight-key]').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const key = e.target.dataset.weightKey;
+            const val = Math.max(0, Number(e.target.value || 0));
+            compareWeights[key] = +val.toFixed(2);
+            renderCompareTab();
+        });
+    });
+
+    resetWeightsBtn?.addEventListener('click', () => {
+        compareWeights = {};
+        renderCompareTab();
+    });
+
+    const raceData = cmp.raceSeries?.[compareRaceMetric] || cmp.raceSeries?.minutes;
+    charts.renderCompareRaceChart(
+        'compare-race-chart',
+        raceData?.labels || cmp.raceLabels,
+        raceData?.a || cmp.raceA,
+        raceData?.b || cmp.raceB,
+        cmp.artistA,
+        cmp.artistB,
+        raceData?.yTitle || 'Cumulative Minutes'
+    );
     charts.renderCompareGroupedBar('compare-monthly-chart', cmp.monthlyLabels, cmp.monthlyA, cmp.monthlyB, cmp.artistA, cmp.artistB, 'Minutes');
     charts.renderCompareGroupedBar(
         'compare-hour-chart',

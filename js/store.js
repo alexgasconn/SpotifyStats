@@ -854,10 +854,13 @@ export function calculateDeepInsights(data) {
 //  ARTIST VS ARTIST (COMPARE TAB)
 // ─────────────────────────────────────────────
 
-export function calculateArtistComparison(data, artistA, artistB) {
+export function calculateArtistComparison(data, artistA, artistB, options = {}) {
     const cleanA = String(artistA || '').trim();
     const cleanB = String(artistB || '').trim();
     if (!cleanA || !cleanB || cleanA === cleanB) return null;
+
+    const strictWinnerMode = !!options.strictWinnerMode;
+    const customWeights = options.weights || {};
 
     const music = (data || []).filter(d => !d.isPodcast && d.trackName);
     const aRows = music.filter(d => d.artistName === cleanA);
@@ -1021,16 +1024,24 @@ export function calculateArtistComparison(data, artistA, artistB) {
     // Cumulative race by date
     const dayMinutesA = A.dayMinutesRaw;
     const dayMinutesB = B.dayMinutesRaw;
+    const dayPlaysA = A.dayPlaysRaw;
+    const dayPlaysB = B.dayPlaysRaw;
 
     let accumA = 0;
     let accumB = 0;
     const raceLabels = [];
     const raceA = [];
     const raceB = [];
+    const racePlaysA = [];
+    const racePlaysB = [];
+    let accumPlaysA = 0;
+    let accumPlaysB = 0;
 
     allDates.forEach((date, idx) => {
         accumA += dayMinutesA[date] || 0;
         accumB += dayMinutesB[date] || 0;
+        accumPlaysA += dayPlaysA[date] || 0;
+        accumPlaysB += dayPlaysB[date] || 0;
 
         // Keep series readable for long histories.
         const keepStep = allDates.length > 260 ? Math.ceil(allDates.length / 260) : 1;
@@ -1039,6 +1050,8 @@ export function calculateArtistComparison(data, artistA, artistB) {
             raceLabels.push(date);
             raceA.push(Math.round(accumA));
             raceB.push(Math.round(accumB));
+            racePlaysA.push(Math.round(accumPlaysA));
+            racePlaysB.push(Math.round(accumPlaysB));
         }
     });
 
@@ -1050,6 +1063,8 @@ export function calculateArtistComparison(data, artistA, artistB) {
     const trimmedRaceLabels = raceLabels.slice(raceStart);
     const trimmedRaceA = raceA.slice(raceStart);
     const trimmedRaceB = raceB.slice(raceStart);
+    const trimmedRacePlaysA = racePlaysA.slice(raceStart);
+    const trimmedRacePlaysB = racePlaysB.slice(raceStart);
 
     // Week-based duel points and wins
     const byWeekA = {};
@@ -1094,6 +1109,17 @@ export function calculateArtistComparison(data, artistA, artistB) {
         };
     });
 
+    const pointsRace = { labels: [], a: [], b: [] };
+    let cumPtsA = 0;
+    let cumPtsB = 0;
+    weeklyDuel.forEach((w, idx) => {
+        cumPtsA += w.winner === 'A' ? 3 : w.winner === 'tie' ? 1 : 0;
+        cumPtsB += w.winner === 'B' ? 3 : w.winner === 'tie' ? 1 : 0;
+        pointsRace.labels.push(w.week);
+        pointsRace.a.push(cumPtsA);
+        pointsRace.b.push(cumPtsB);
+    });
+
     // Device comparison matrix
     const allPlatforms = [...new Set([...Object.keys(A.platformMinutes), ...Object.keys(B.platformMinutes)])]
         .sort((x, y) => ((B.platformMinutes[y] || 0) + (A.platformMinutes[y] || 0)) - ((B.platformMinutes[x] || 0) + (A.platformMinutes[x] || 0)));
@@ -1120,6 +1146,28 @@ export function calculateArtistComparison(data, artistA, artistB) {
         B: quantilesFromSorted(B.dailyMinutesSorted)
     };
 
+    const defaultWeights = {
+        totalMinutes: 3,
+        plays: 2,
+        uniqueTracks: 1.5,
+        uniqueAlbums: 0.6,
+        activeDays: 1.5,
+        duelPoints: 3,
+        weeklyWins: 2,
+        longestStreak: 2,
+        currentStreak: 1.5,
+        bestDayMinutes: 1,
+        bestWeekMinutes: 1,
+        bestMonthMinutes: 1,
+        avgPlaysPerActiveDay: 1,
+        avgMinPerActiveDay: 1.5,
+        skipRate: 5,
+        varietyTrackPct: 2,
+        varietyAlbumPct: 1,
+        repeatSameDay: strictWinnerMode ? 2 : 1,
+        repeatSameDayEvents: strictWinnerMode ? 2 : 1,
+    };
+
     const scorecard = [
         { key: 'totalMinutes', label: 'Total minutes', a: A.totalMinutes, b: B.totalMinutes, higherWins: true },
         { key: 'plays', label: 'Total plays', a: A.plays, b: B.plays, higherWins: true },
@@ -1138,26 +1186,65 @@ export function calculateArtistComparison(data, artistA, artistB) {
         { key: 'skipRate', label: 'Skip rate (lower better)', a: A.skipRate, b: B.skipRate, higherWins: false },
         { key: 'varietyTrackPct', label: 'Track variety %', a: A.varietyTrackPct, b: B.varietyTrackPct, higherWins: true },
         { key: 'varietyAlbumPct', label: 'Album variety %', a: A.varietyAlbumPct, b: B.varietyAlbumPct, higherWins: true },
-        { key: 'repeatSameDay', label: 'Same-day repetition count', a: A.repeatedSameDayCount, b: B.repeatedSameDayCount, higherWins: true },
-        { key: 'repeatSameDayEvents', label: 'Repeated-track day events', a: A.repeatedSameDayEvents, b: B.repeatedSameDayEvents, higherWins: true }
-    ];
+        {
+            key: 'repeatSameDay',
+            label: strictWinnerMode ? 'Same-day repetition count (lower better)' : 'Same-day repetition count',
+            a: A.repeatedSameDayCount,
+            b: B.repeatedSameDayCount,
+            higherWins: !strictWinnerMode
+        },
+        {
+            key: 'repeatSameDayEvents',
+            label: strictWinnerMode ? 'Repeated-track day events (lower better)' : 'Repeated-track day events',
+            a: A.repeatedSameDayEvents,
+            b: B.repeatedSameDayEvents,
+            higherWins: !strictWinnerMode
+        }
+    ].map(row => ({
+        ...row,
+        weight: Math.max(0, Number(customWeights[row.key] ?? defaultWeights[row.key] ?? 1))
+    }));
 
     let scoreA = 0;
     let scoreB = 0;
     let draws = 0;
+    let weightedA = 0;
+    let weightedB = 0;
+    let weightedDraw = 0;
+
     scorecard.forEach(row => {
         if (row.a === row.b) {
             draws += 1;
+            row.winner = 'draw';
+            weightedDraw += row.weight;
+            weightedA += row.weight / 2;
+            weightedB += row.weight / 2;
             return;
         }
         if (row.higherWins) {
-            if (row.a > row.b) scoreA += 1;
-            else scoreB += 1;
+            if (row.a > row.b) {
+                scoreA += 1;
+                row.winner = 'A';
+                weightedA += row.weight;
+            } else {
+                scoreB += 1;
+                row.winner = 'B';
+                weightedB += row.weight;
+            }
         } else {
-            if (row.a < row.b) scoreA += 1;
-            else scoreB += 1;
+            if (row.a < row.b) {
+                scoreA += 1;
+                row.winner = 'A';
+                weightedA += row.weight;
+            } else {
+                scoreB += 1;
+                row.winner = 'B';
+                weightedB += row.weight;
+            }
         }
     });
+
+    const weightedWinner = weightedA === weightedB ? 'tie' : (weightedA > weightedB ? 'A' : 'B');
 
     return {
         artistA: cleanA,
@@ -1170,6 +1257,26 @@ export function calculateArtistComparison(data, artistA, artistB) {
         raceLabels: trimmedRaceLabels,
         raceA: trimmedRaceA,
         raceB: trimmedRaceB,
+        raceSeries: {
+            minutes: {
+                labels: trimmedRaceLabels,
+                a: trimmedRaceA,
+                b: trimmedRaceB,
+                yTitle: 'Cumulative Minutes'
+            },
+            plays: {
+                labels: trimmedRaceLabels,
+                a: trimmedRacePlaysA,
+                b: trimmedRacePlaysB,
+                yTitle: 'Cumulative Plays'
+            },
+            points: {
+                labels: pointsRace.labels,
+                a: pointsRace.a,
+                b: pointsRace.b,
+                yTitle: 'Cumulative Duel Points'
+            }
+        },
         duel: {
             pointsA: duelPointsA,
             pointsB: duelPointsB,
@@ -1189,8 +1296,17 @@ export function calculateArtistComparison(data, artistA, artistB) {
         },
         sessionDistribution,
         scorecard,
+        strictWinnerMode,
         winner: scoreA === scoreB ? 'tie' : (scoreA > scoreB ? 'A' : 'B'),
-        winsByMetrics: { A: scoreA, B: scoreB, draws }
+        weightedWinner,
+        winsByMetrics: {
+            A: scoreA,
+            B: scoreB,
+            draws,
+            weightedA: +weightedA.toFixed(2),
+            weightedB: +weightedB.toFixed(2),
+            weightedDraw: +weightedDraw.toFixed(2)
+        }
     };
 }
 

@@ -366,7 +366,7 @@ export function renderWrappedMonthlyChart(monthlyData) {
 
 // ── ARTIST COMPARE ───────────────────────────────────────────────────────────
 
-export function renderCompareRaceChart(canvasId, labels, seriesA, seriesB, artistA, artistB) {
+export function renderCompareRaceChart(canvasId, labels, seriesA, seriesB, artistA, artistB, yTitle = 'Cumulative Minutes') {
     make(canvasId, {
         type: 'line',
         data: {
@@ -411,7 +411,7 @@ export function renderCompareRaceChart(canvasId, labels, seriesA, seriesB, artis
                 y: {
                     ticks: { color: TICK },
                     grid: { color: GRID },
-                    title: { display: true, text: 'Cumulative Minutes', color: TICK }
+                    title: { display: true, text: yTitle, color: TICK }
                 }
             }
         }

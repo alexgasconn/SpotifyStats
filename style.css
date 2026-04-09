@@ -2700,6 +2700,23 @@ header {
     border-color: var(--green);
 }
 
+.compare-toggle-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-muted);
+    font-size: 0.84rem;
+    padding: 0.45rem 0.7rem;
+    border-radius: 7px;
+    border: 1px solid var(--gray-light);
+    background: #151515;
+    height: 38px;
+}
+
+.compare-toggle-check input {
+    accent-color: var(--green);
+}
+
 .compare-hero {
     border-radius: 12px;
     padding: 1rem 1.2rem;
@@ -2832,6 +2849,41 @@ header {
     background: rgba(29, 185, 84, 0.08);
 }
 
+.compare-weight-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 0.55rem 0.9rem;
+}
+
+.compare-weight-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.45rem 0.55rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 7px;
+    background: #151515;
+}
+
+.compare-weight-row span {
+    color: var(--text-muted);
+    font-size: 0.79rem;
+}
+
+.compare-weight-row input {
+    width: 92px;
+    background: var(--gray);
+    border: 1px solid rgba(29, 185, 84, 0.25);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 0.34rem 0.45rem;
+}
+
+.compare-weight-actions {
+    margin-top: 0.75rem;
+}
+
 .compare-row-win-a {
     background: rgba(29, 185, 84, 0.1);
 }
@@ -2908,6 +2960,12 @@ header {
 
     .compare-control {
         min-width: 0;
+    }
+
+    .compare-toggle-check {
+        width: 100%;
+        justify-content: center;
+        height: auto;
     }
 
     .compare-kpi-list {
