@@ -716,6 +716,41 @@ export function renderCompareTab() {
             <td>${w.winner === 'A' ? esc(cmp.artistA) : w.winner === 'B' ? esc(cmp.artistB) : 'Tie'}</td>
         </tr>`).join('');
 
+    const platformMatrixRows = cmp.platformRows.map(row => {
+        const rowTotal = (row.aMinutes || 0) + (row.bMinutes || 0) || 1;
+        const aPct = +(((row.aMinutes || 0) / rowTotal) * 100).toFixed(1);
+        const bPct = +(((row.bMinutes || 0) / rowTotal) * 100).toFixed(1);
+        return `
+            <tr>
+                <td>${esc(row.platform)}</td>
+                <td>
+                    <div class="compare-matrix-cell">
+                        <div class="compare-matrix-bar compare-matrix-bar-a" style="width:${aPct}%"></div>
+                        <span>${row.aMinutes} min (${aPct}%)</span>
+                    </div>
+                </td>
+                <td>
+                    <div class="compare-matrix-cell">
+                        <div class="compare-matrix-bar compare-matrix-bar-b" style="width:${bPct}%"></div>
+                        <span>${row.bMinutes} min (${bPct}%)</span>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    const sessionRows = [
+        ['P10', cmp.sessionDistribution.A.q10, cmp.sessionDistribution.B.q10],
+        ['P25', cmp.sessionDistribution.A.q25, cmp.sessionDistribution.B.q25],
+        ['Median (P50)', cmp.sessionDistribution.A.q50, cmp.sessionDistribution.B.q50],
+        ['P75', cmp.sessionDistribution.A.q75, cmp.sessionDistribution.B.q75],
+        ['P90', cmp.sessionDistribution.A.q90, cmp.sessionDistribution.B.q90],
+    ].map(([label, a, b]) => {
+        const cls = a === b ? 'compare-row-draw' : a > b ? 'compare-row-win-a' : 'compare-row-win-b';
+        const who = a === b ? 'Draw' : a > b ? cmp.artistA : cmp.artistB;
+        return `<tr class="${cls}"><td>${label}</td><td>${a} min</td><td>${b} min</td><td>${esc(who)}</td></tr>`;
+    }).join('');
+
     container.innerHTML = `
         <div class="compare-header">
             <div class="compare-selectors">
@@ -739,6 +774,7 @@ export function renderCompareTab() {
                     <input id="compare-strict-mode" type="checkbox" ${compareStrictMode ? 'checked' : ''}>
                     Strict winner mode: lower repetition wins
                 </label>
+                <button id="compare-random-btn" class="secondary-btn">Random Similar (Top 50)</button>
                 <button id="compare-swap-btn" class="secondary-btn">Swap</button>
             </div>
             <div class="compare-hero ${winnerClass}">
@@ -756,6 +792,16 @@ export function renderCompareTab() {
         <div class="compare-kpi-grid">
             ${buildCompareKpiCard(cmp.artistA, cmp.summaryA, cmp.duel.pointsA, cmp.duel.winsA)}
             ${buildCompareKpiCard(cmp.artistB, cmp.summaryB, cmp.duel.pointsB, cmp.duel.winsB)}
+        </div>
+
+        <div class="chart-container full-width compare-verdict-priority">
+            <h3>Metric-by-Metric Verdict</h3>
+            <div style="overflow:auto">
+                <table class="compare-table">
+                    <thead><tr><th>Metric</th><th>${esc(cmp.artistA)}</th><th>${esc(cmp.artistB)}</th><th>Weight</th><th>Winner</th></tr></thead>
+                    <tbody>${scoreRows}</tbody>
+                </table>
+            </div>
         </div>
 
         <div class="charts-grid">
@@ -787,22 +833,49 @@ export function renderCompareTab() {
                 <div class="chart-wrapper"><canvas id="compare-daypart-chart"></canvas></div>
             </div>
             <div class="chart-container full-width">
-                <h3>Device / Platform Comparison</h3>
-                <div class="chart-wrapper"><canvas id="compare-platform-chart"></canvas></div>
+                <h3>Device / Platform Matrix (Top 2)</h3>
+                <div style="overflow:auto">
+                    <table class="compare-table compare-matrix-table">
+                        <thead><tr><th>Platform</th><th>${esc(cmp.artistA)}</th><th>${esc(cmp.artistB)}</th></tr></thead>
+                        <tbody>${platformMatrixRows || '<tr><td colspan="3">No platform data</td></tr>'}</tbody>
+                    </table>
+                </div>
             </div>
             <div class="chart-container">
-                <h3>Session Distribution (Violin-like)</h3>
-                <div class="chart-wrapper"><canvas id="compare-session-chart"></canvas></div>
+                <h3>Session Distribution (Simple Percentiles)</h3>
+                <div style="overflow:auto">
+                    <table class="compare-table">
+                        <thead><tr><th>Percentile</th><th>${esc(cmp.artistA)}</th><th>${esc(cmp.artistB)}</th><th>Higher Session Size</th></tr></thead>
+                        <tbody>${sessionRows}</tbody>
+                    </table>
+                </div>
             </div>
             <div class="chart-container">
                 <h3>Catalog Overlap</h3>
-                <div class="compare-overlap-grid">
-                    <div class="compare-overlap-card"><span>Shared tracks</span><strong>${cmp.overlap.sharedTracks}</strong></div>
-                    <div class="compare-overlap-card"><span>Shared albums</span><strong>${cmp.overlap.sharedAlbums}</strong></div>
-                    <div class="compare-overlap-card"><span>Only ${esc(cmp.artistA)} tracks</span><strong>${cmp.overlap.onlyATracks}</strong></div>
-                    <div class="compare-overlap-card"><span>Only ${esc(cmp.artistB)} tracks</span><strong>${cmp.overlap.onlyBTracks}</strong></div>
-                    <div class="compare-overlap-card"><span>Only ${esc(cmp.artistA)} albums</span><strong>${cmp.overlap.onlyAAlbums}</strong></div>
-                    <div class="compare-overlap-card"><span>Only ${esc(cmp.artistB)} albums</span><strong>${cmp.overlap.onlyBAlbums}</strong></div>
+                <div class="compare-overlap-v2">
+                    <div class="compare-overlap-title">Tracks similarity (Jaccard): <strong>${cmp.overlap.trackJaccardPct}%</strong></div>
+                    <div class="compare-overlap-bar">
+                        <div class="a" style="width:${Math.max(1, (cmp.overlap.onlyATracks / (cmp.overlap.onlyATracks + cmp.overlap.sharedTracks + cmp.overlap.onlyBTracks || 1)) * 100)}%"></div>
+                        <div class="shared" style="width:${Math.max(1, (cmp.overlap.sharedTracks / (cmp.overlap.onlyATracks + cmp.overlap.sharedTracks + cmp.overlap.onlyBTracks || 1)) * 100)}%"></div>
+                        <div class="b" style="width:${Math.max(1, (cmp.overlap.onlyBTracks / (cmp.overlap.onlyATracks + cmp.overlap.sharedTracks + cmp.overlap.onlyBTracks || 1)) * 100)}%"></div>
+                    </div>
+                    <div class="compare-overlap-legend">
+                        <span class="a">Only ${esc(cmp.artistA)}: ${cmp.overlap.onlyATracks}</span>
+                        <span class="shared">Shared: ${cmp.overlap.sharedTracks}</span>
+                        <span class="b">Only ${esc(cmp.artistB)}: ${cmp.overlap.onlyBTracks}</span>
+                    </div>
+
+                    <div class="compare-overlap-title" style="margin-top:0.9rem">Albums similarity (Jaccard): <strong>${cmp.overlap.albumJaccardPct}%</strong></div>
+                    <div class="compare-overlap-bar">
+                        <div class="a" style="width:${Math.max(1, (cmp.overlap.onlyAAlbums / (cmp.overlap.onlyAAlbums + cmp.overlap.sharedAlbums + cmp.overlap.onlyBAlbums || 1)) * 100)}%"></div>
+                        <div class="shared" style="width:${Math.max(1, (cmp.overlap.sharedAlbums / (cmp.overlap.onlyAAlbums + cmp.overlap.sharedAlbums + cmp.overlap.onlyBAlbums || 1)) * 100)}%"></div>
+                        <div class="b" style="width:${Math.max(1, (cmp.overlap.onlyBAlbums / (cmp.overlap.onlyAAlbums + cmp.overlap.sharedAlbums + cmp.overlap.onlyBAlbums || 1)) * 100)}%"></div>
+                    </div>
+                    <div class="compare-overlap-legend">
+                        <span class="a">Only ${esc(cmp.artistA)}: ${cmp.overlap.onlyAAlbums}</span>
+                        <span class="shared">Shared: ${cmp.overlap.sharedAlbums}</span>
+                        <span class="b">Only ${esc(cmp.artistB)}: ${cmp.overlap.onlyBAlbums}</span>
+                    </div>
                 </div>
             </div>
             <div class="chart-container full-width">
@@ -810,15 +883,6 @@ export function renderCompareTab() {
                 <div class="compare-streak-grid">
                     ${buildStreakCard(cmp.artistA, cmp.summaryA, 'A', cmp.summaryB)}
                     ${buildStreakCard(cmp.artistB, cmp.summaryB, 'B', cmp.summaryA)}
-                </div>
-            </div>
-            <div class="chart-container full-width">
-                <h3>Metric-by-Metric Verdict</h3>
-                <div style="overflow:auto">
-                    <table class="compare-table">
-                        <thead><tr><th>Metric</th><th>${esc(cmp.artistA)}</th><th>${esc(cmp.artistB)}</th><th>Weight</th><th>Winner</th></tr></thead>
-                        <tbody>${scoreRows}</tbody>
-                    </table>
                 </div>
             </div>
             <div class="chart-container full-width">
@@ -837,6 +901,7 @@ export function renderCompareTab() {
     const selB = container.querySelector('#compare-artist-b');
     const selRace = container.querySelector('#compare-race-metric');
     const strictCheck = container.querySelector('#compare-strict-mode');
+    const randomBtn = container.querySelector('#compare-random-btn');
     const swapBtn = container.querySelector('#compare-swap-btn');
     const resetWeightsBtn = container.querySelector('#compare-reset-weights');
 
@@ -878,6 +943,14 @@ export function renderCompareTab() {
         renderCompareTab();
     });
 
+    randomBtn?.addEventListener('click', () => {
+        const pair = pickRandomSimilarPair(data);
+        if (!pair) return;
+        compareArtistA = pair[0];
+        compareArtistB = pair[1];
+        renderCompareTab();
+    });
+
     container.querySelectorAll('[data-weight-key]').forEach(input => {
         input.addEventListener('change', (e) => {
             const key = e.target.dataset.weightKey;
@@ -915,11 +988,11 @@ export function renderCompareTab() {
     charts.renderCompareGroupedBar(
         'compare-weekday-chart',
         ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-        cmp.summaryA.weekdayMinutes,
-        cmp.summaryB.weekdayMinutes,
+        cmp.summaryA.weekdayPct,
+        cmp.summaryB.weekdayPct,
         cmp.artistA,
         cmp.artistB,
-        'Minutes'
+        'Share %'
     );
     charts.renderCompareGroupedBar(
         'compare-daypart-chart',
@@ -940,22 +1013,28 @@ export function renderCompareTab() {
         cmp.artistB,
         'Minutes'
     );
-    charts.renderCompareGroupedBar(
-        'compare-platform-chart',
-        cmp.platformRows.map(r => r.platform),
-        cmp.platformRows.map(r => r.aMinutes),
-        cmp.platformRows.map(r => r.bMinutes),
-        cmp.artistA,
-        cmp.artistB,
-        'Minutes'
-    );
-    charts.renderCompareSessionViolinLike(
-        'compare-session-chart',
-        cmp.artistA,
-        cmp.artistB,
-        cmp.sessionDistribution.A,
-        cmp.sessionDistribution.B
-    );
+}
+
+function pickRandomSimilarPair(data) {
+    const top = store.calculateTopItems(data, 'artistName', 'minutes', 50)
+        .map(a => ({ name: a.name, minutes: a.minutes, plays: a.plays }))
+        .filter(a => a.name);
+    if (top.length < 2) return null;
+
+    const base = top[Math.floor(Math.random() * top.length)];
+    const candidates = top
+        .filter(a => a.name !== base.name)
+        .map(a => {
+            const minuteGap = Math.abs((a.minutes || 0) - (base.minutes || 0)) / Math.max(1, base.minutes || 1);
+            const playGap = Math.abs((a.plays || 0) - (base.plays || 0)) / Math.max(1, base.plays || 1);
+            return { ...a, score: minuteGap * 0.7 + playGap * 0.3 };
+        })
+        .sort((x, y) => x.score - y.score)
+        .slice(0, 10);
+
+    if (!candidates.length) return null;
+    const pair = candidates[Math.floor(Math.random() * candidates.length)];
+    return [base.name, pair.name];
 }
 
 function buildCompareKpiCard(artistName, summary, duelPoints, weeklyWins) {

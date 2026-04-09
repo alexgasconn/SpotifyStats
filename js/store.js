@@ -935,6 +935,8 @@ export function calculateArtistComparison(data, artistA, artistB, options = {}) 
 
         const totalHourMinutes = hourMinutes.reduce((s, v) => s + v, 0) || 1;
         const hourPct = hourMinutes.map(v => +((v / totalHourMinutes) * 100).toFixed(2));
+        const totalWeekdayMinutes = weekdayMinutes.reduce((s, v) => s + v, 0) || 1;
+        const weekdayPct = weekdayMinutes.map(v => +((v / totalWeekdayMinutes) * 100).toFixed(2));
 
         const repeatedSameDayCount = Object.values(dayTrackCounts).filter(c => c >= 2).reduce((s, c) => s + c, 0);
         const repeatedSameDayEvents = Object.values(dayTrackCounts).filter(c => c >= 2).length;
@@ -980,6 +982,7 @@ export function calculateArtistComparison(data, artistA, artistB, options = {}) 
             hourMinutes: hourMinutes.map(v => Math.round(v)),
             hourPct,
             weekdayMinutes: weekdayMinutes.map(v => Math.round(v)),
+            weekdayPct,
             timeOfDayMinutes: Object.fromEntries(
                 Object.entries(timeOfDayMinutes).map(([k, v]) => [k, Math.round(v)])
             ),
@@ -1141,6 +1144,9 @@ export function calculateArtistComparison(data, artistA, artistB, options = {}) 
     let sharedAlbums = 0;
     aAlbumSet.forEach(a => { if (bAlbumSet.has(a)) sharedAlbums += 1; });
 
+    const trackUnion = aTrackSet.size + bTrackSet.size - sharedTracks;
+    const albumUnion = aAlbumSet.size + bAlbumSet.size - sharedAlbums;
+
     const sessionDistribution = {
         A: quantilesFromSorted(A.dailyMinutesSorted),
         B: quantilesFromSorted(B.dailyMinutesSorted)
@@ -1292,7 +1298,9 @@ export function calculateArtistComparison(data, artistA, artistB, options = {}) 
             onlyATracks: Math.max(0, aTrackSet.size - sharedTracks),
             onlyBTracks: Math.max(0, bTrackSet.size - sharedTracks),
             onlyAAlbums: Math.max(0, aAlbumSet.size - sharedAlbums),
-            onlyBAlbums: Math.max(0, bAlbumSet.size - sharedAlbums)
+            onlyBAlbums: Math.max(0, bAlbumSet.size - sharedAlbums),
+            trackJaccardPct: +(((sharedTracks / (trackUnion || 1)) * 100).toFixed(1)),
+            albumJaccardPct: +(((sharedAlbums / (albumUnion || 1)) * 100).toFixed(1))
         },
         sessionDistribution,
         scorecard,
