@@ -2832,6 +2832,74 @@ header {
     background: rgba(29, 185, 84, 0.08);
 }
 
+.compare-row-win-a {
+    background: rgba(29, 185, 84, 0.1);
+}
+
+.compare-row-win-b {
+    background: rgba(23, 162, 184, 0.1);
+}
+
+.compare-row-draw {
+    background: rgba(255, 193, 7, 0.08);
+}
+
+.compare-streak-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 0.9rem;
+}
+
+.compare-streak-card {
+    background: #151515;
+    border: 1px solid var(--gray);
+    border-radius: 10px;
+    padding: 0.9rem;
+}
+
+.compare-streak-card h4 {
+    color: var(--green);
+    margin-bottom: 0.55rem;
+}
+
+.compare-streak-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.compare-streak-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.6rem;
+    border-radius: 7px;
+    padding: 0.38rem 0.48rem;
+    font-size: 0.82rem;
+}
+
+.compare-streak-row span {
+    color: var(--text-muted);
+}
+
+.compare-streak-row strong {
+    color: var(--text);
+}
+
+.compare-streak-row.win {
+    background: rgba(29, 185, 84, 0.16);
+    border: 1px solid rgba(29, 185, 84, 0.45);
+}
+
+.compare-streak-row.lose {
+    background: rgba(23, 162, 184, 0.15);
+    border: 1px solid rgba(23, 162, 184, 0.45);
+}
+
+.compare-streak-row.draw {
+    background: rgba(255, 193, 7, 0.13);
+    border: 1px solid rgba(255, 193, 7, 0.45);
+}
+
 @media (max-width: 768px) {
     .compare-selectors {
         flex-direction: column;
@@ -2847,6 +2915,10 @@ header {
     }
 
     .compare-overlap-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .compare-streak-grid {
         grid-template-columns: 1fr;
     }
 }

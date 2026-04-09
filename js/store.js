@@ -910,8 +910,28 @@ export function calculateArtistComparison(data, artistA, artistB) {
         });
 
         const avgMinutesPerPlay = +((totalMinutesRaw / (plays || 1)).toFixed(2));
+        const avgPlaysPerActiveDay = +((plays / (activeDays.size || 1)).toFixed(2));
         const avgMinutesPerActiveDay = +((totalMinutesRaw / (activeDays.size || 1)).toFixed(2));
         const bestDay = Object.entries(dayMinutes).sort((a, b) => b[1] - a[1])[0] || null;
+
+        const weekMinutes = {};
+        rows.forEach(r => {
+            const wk = getStartOfWeek(r.ts);
+            weekMinutes[wk] = (weekMinutes[wk] || 0) + r.durationMin;
+        });
+        const bestWeek = Object.entries(weekMinutes).sort((a, b) => b[1] - a[1])[0] || null;
+
+        const monthMinutes = {};
+        rows.forEach(r => {
+            const mk = `${r.year}-${String(r.month + 1).padStart(2, '0')}`;
+            monthMinutes[mk] = (monthMinutes[mk] || 0) + r.durationMin;
+        });
+        const bestMonth = Object.entries(monthMinutes).sort((a, b) => b[1] - a[1])[0] || null;
+
+        const streaks = calculateStreaksFromDateSet(activeDays);
+
+        const totalHourMinutes = hourMinutes.reduce((s, v) => s + v, 0) || 1;
+        const hourPct = hourMinutes.map(v => +((v / totalHourMinutes) * 100).toFixed(2));
 
         const repeatedSameDayCount = Object.values(dayTrackCounts).filter(c => c >= 2).reduce((s, c) => s + c, 0);
         const repeatedSameDayEvents = Object.values(dayTrackCounts).filter(c => c >= 2).length;
@@ -943,13 +963,19 @@ export function calculateArtistComparison(data, artistA, artistB) {
             uniqueAlbums: uniqueAlbums.size,
             activeDays: activeDays.size,
             avgMinutesPerPlay,
+            avgPlaysPerActiveDay,
             avgMinutesPerActiveDay,
             bestDay: bestDay ? { date: bestDay[0], minutes: Math.round(bestDay[1]) } : null,
+            bestWeek: bestWeek ? { week: bestWeek[0], minutes: Math.round(bestWeek[1]) } : null,
+            bestMonth: bestMonth ? { month: bestMonth[0], minutes: Math.round(bestMonth[1]) } : null,
+            longestStreak: streaks.longest,
+            currentStreak: streaks.current,
             repeatedSameDayCount,
             repeatedSameDayEvents,
             varietyTrackPct,
             varietyAlbumPct,
             hourMinutes: hourMinutes.map(v => Math.round(v)),
+            hourPct,
             weekdayMinutes: weekdayMinutes.map(v => Math.round(v)),
             timeOfDayMinutes: Object.fromEntries(
                 Object.entries(timeOfDayMinutes).map(([k, v]) => [k, Math.round(v)])
@@ -983,6 +1009,15 @@ export function calculateArtistComparison(data, artistA, artistB) {
     const monthlyA = buildMonthlyMinutes(aRows);
     const monthlyB = buildMonthlyMinutes(bRows);
 
+    // Trim monthly series so charts start at first non-zero point.
+    let monthStart = 0;
+    while (monthStart < monthLabels.length && (monthlyA[monthStart] || 0) === 0 && (monthlyB[monthStart] || 0) === 0) {
+        monthStart += 1;
+    }
+    const trimmedMonthLabels = monthLabels.slice(monthStart);
+    const trimmedMonthlyA = monthlyA.slice(monthStart);
+    const trimmedMonthlyB = monthlyB.slice(monthStart);
+
     // Cumulative race by date
     const dayMinutesA = A.dayMinutesRaw;
     const dayMinutesB = B.dayMinutesRaw;
@@ -1006,6 +1041,15 @@ export function calculateArtistComparison(data, artistA, artistB) {
             raceB.push(Math.round(accumB));
         }
     });
+
+    // Trim cumulative race so it starts when at least one side is non-zero.
+    let raceStart = 0;
+    while (raceStart < raceLabels.length && (raceA[raceStart] || 0) === 0 && (raceB[raceStart] || 0) === 0) {
+        raceStart += 1;
+    }
+    const trimmedRaceLabels = raceLabels.slice(raceStart);
+    const trimmedRaceA = raceA.slice(raceStart);
+    const trimmedRaceB = raceB.slice(raceStart);
 
     // Week-based duel points and wins
     const byWeekA = {};
@@ -1054,7 +1098,7 @@ export function calculateArtistComparison(data, artistA, artistB) {
     const allPlatforms = [...new Set([...Object.keys(A.platformMinutes), ...Object.keys(B.platformMinutes)])]
         .sort((x, y) => ((B.platformMinutes[y] || 0) + (A.platformMinutes[y] || 0)) - ((B.platformMinutes[x] || 0) + (A.platformMinutes[x] || 0)));
 
-    const platformRows = allPlatforms.slice(0, 10).map(p => ({
+    const platformRows = allPlatforms.slice(0, 2).map(p => ({
         platform: p,
         aMinutes: A.platformMinutes[p] || 0,
         bMinutes: B.platformMinutes[p] || 0
@@ -1084,10 +1128,18 @@ export function calculateArtistComparison(data, artistA, artistB) {
         { key: 'activeDays', label: 'Active days', a: A.activeDays, b: B.activeDays, higherWins: true },
         { key: 'duelPoints', label: 'Head-to-head points', a: duelPointsA, b: duelPointsB, higherWins: true },
         { key: 'weeklyWins', label: 'Weekly wins', a: winsA, b: winsB, higherWins: true },
+        { key: 'longestStreak', label: 'Longest streak (days)', a: A.longestStreak, b: B.longestStreak, higherWins: true },
+        { key: 'currentStreak', label: 'Current streak (days)', a: A.currentStreak, b: B.currentStreak, higherWins: true },
+        { key: 'bestDayMinutes', label: 'Best day minutes', a: A.bestDay?.minutes || 0, b: B.bestDay?.minutes || 0, higherWins: true },
+        { key: 'bestWeekMinutes', label: 'Best week minutes', a: A.bestWeek?.minutes || 0, b: B.bestWeek?.minutes || 0, higherWins: true },
+        { key: 'bestMonthMinutes', label: 'Best month minutes', a: A.bestMonth?.minutes || 0, b: B.bestMonth?.minutes || 0, higherWins: true },
+        { key: 'avgPlaysPerActiveDay', label: 'Avg plays / active day', a: A.avgPlaysPerActiveDay, b: B.avgPlaysPerActiveDay, higherWins: true },
+        { key: 'avgMinPerActiveDay', label: 'Avg min / active day', a: A.avgMinutesPerActiveDay, b: B.avgMinutesPerActiveDay, higherWins: true },
         { key: 'skipRate', label: 'Skip rate (lower better)', a: A.skipRate, b: B.skipRate, higherWins: false },
         { key: 'varietyTrackPct', label: 'Track variety %', a: A.varietyTrackPct, b: B.varietyTrackPct, higherWins: true },
         { key: 'varietyAlbumPct', label: 'Album variety %', a: A.varietyAlbumPct, b: B.varietyAlbumPct, higherWins: true },
-        { key: 'repeatSameDay', label: 'Same-day repetition count', a: A.repeatedSameDayCount, b: B.repeatedSameDayCount, higherWins: true }
+        { key: 'repeatSameDay', label: 'Same-day repetition count', a: A.repeatedSameDayCount, b: B.repeatedSameDayCount, higherWins: true },
+        { key: 'repeatSameDayEvents', label: 'Repeated-track day events', a: A.repeatedSameDayEvents, b: B.repeatedSameDayEvents, higherWins: true }
     ];
 
     let scoreA = 0;
@@ -1112,12 +1164,12 @@ export function calculateArtistComparison(data, artistA, artistB) {
         artistB: cleanB,
         summaryA: A,
         summaryB: B,
-        monthlyLabels: monthLabels,
-        monthlyA,
-        monthlyB,
-        raceLabels,
-        raceA,
-        raceB,
+        monthlyLabels: trimmedMonthLabels,
+        monthlyA: trimmedMonthlyA,
+        monthlyB: trimmedMonthlyB,
+        raceLabels: trimmedRaceLabels,
+        raceA: trimmedRaceA,
+        raceB: trimmedRaceB,
         duel: {
             pointsA: duelPointsA,
             pointsB: duelPointsB,
@@ -1161,6 +1213,44 @@ function quantilesFromSorted(sortedVals) {
         q75: q(0.75),
         q90: q(0.9)
     };
+}
+
+function calculateStreaksFromDateSet(dateSet) {
+    const dates = [...dateSet].sort();
+    if (!dates.length) return { longest: 0, current: 0 };
+
+    let longest = 1;
+    let currentRun = 1;
+
+    for (let i = 1; i < dates.length; i++) {
+        const prev = new Date(dates[i - 1]);
+        const cur = new Date(dates[i]);
+        const diffDays = Math.round((cur - prev) / 86400000);
+        if (diffDays === 1) {
+            currentRun += 1;
+            if (currentRun > longest) longest = currentRun;
+        } else {
+            currentRun = 1;
+        }
+    }
+
+    let trailing = 1;
+    for (let i = dates.length - 1; i > 0; i--) {
+        const cur = new Date(dates[i]);
+        const prev = new Date(dates[i - 1]);
+        const diffDays = Math.round((cur - prev) / 86400000);
+        if (diffDays === 1) trailing += 1;
+        else break;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const lastDate = new Date(dates[dates.length - 1]);
+    lastDate.setHours(0, 0, 0, 0);
+    const gap = Math.round((today - lastDate) / 86400000);
+    const current = gap <= 1 ? trailing : 0;
+
+    return { longest, current };
 }
 
 // ─────────────────────────────────────────────

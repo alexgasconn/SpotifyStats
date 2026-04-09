@@ -674,11 +674,17 @@ export function renderCompareTab() {
         const aVal = typeof row.a === 'number' ? row.a.toLocaleString() : row.a;
         const bVal = typeof row.b === 'number' ? row.b.toLocaleString() : row.b;
         let verdict = 'Draw';
+        let cls = 'compare-row-draw';
         if (row.a !== row.b) {
-            if (row.higherWins) verdict = row.a > row.b ? cmp.artistA : cmp.artistB;
-            else verdict = row.a < row.b ? cmp.artistA : cmp.artistB;
+            if (row.higherWins) {
+                verdict = row.a > row.b ? cmp.artistA : cmp.artistB;
+                cls = row.a > row.b ? 'compare-row-win-a' : 'compare-row-win-b';
+            } else {
+                verdict = row.a < row.b ? cmp.artistA : cmp.artistB;
+                cls = row.a < row.b ? 'compare-row-win-a' : 'compare-row-win-b';
+            }
         }
-        return `<tr>
+        return `<tr class="${cls}">
             <td>${esc(row.label)}</td>
             <td>${aVal}</td>
             <td>${bVal}</td>
@@ -732,7 +738,7 @@ export function renderCompareTab() {
                 <div class="chart-wrapper"><canvas id="compare-monthly-chart"></canvas></div>
             </div>
             <div class="chart-container">
-                <h3>Hour of Day Profile</h3>
+                <h3>Hour of Day Profile (Normalized %)</h3>
                 <div class="chart-wrapper"><canvas id="compare-hour-chart"></canvas></div>
             </div>
             <div class="chart-container">
@@ -760,6 +766,13 @@ export function renderCompareTab() {
                     <div class="compare-overlap-card"><span>Only ${esc(cmp.artistB)} tracks</span><strong>${cmp.overlap.onlyBTracks}</strong></div>
                     <div class="compare-overlap-card"><span>Only ${esc(cmp.artistA)} albums</span><strong>${cmp.overlap.onlyAAlbums}</strong></div>
                     <div class="compare-overlap-card"><span>Only ${esc(cmp.artistB)} albums</span><strong>${cmp.overlap.onlyBAlbums}</strong></div>
+                </div>
+            </div>
+            <div class="chart-container full-width">
+                <h3>Streaks and Intensity Battle</h3>
+                <div class="compare-streak-grid">
+                    ${buildStreakCard(cmp.artistA, cmp.summaryA, 'A', cmp.summaryB)}
+                    ${buildStreakCard(cmp.artistB, cmp.summaryB, 'B', cmp.summaryA)}
                 </div>
             </div>
             <div class="chart-container full-width">
@@ -818,11 +831,11 @@ export function renderCompareTab() {
     charts.renderCompareGroupedBar(
         'compare-hour-chart',
         Array.from({ length: 24 }, (_, i) => String(i)),
-        cmp.summaryA.hourMinutes,
-        cmp.summaryB.hourMinutes,
+        cmp.summaryA.hourPct,
+        cmp.summaryB.hourPct,
         cmp.artistA,
         cmp.artistB,
-        'Minutes'
+        'Share %'
     );
     charts.renderCompareGroupedBar(
         'compare-weekday-chart',
@@ -879,17 +892,46 @@ function buildCompareKpiCard(artistName, summary, duelPoints, weeklyWins) {
                 <div><span>Plays</span><strong>${summary.plays.toLocaleString()}</strong></div>
                 <div><span>Duel points</span><strong>${duelPoints}</strong></div>
                 <div><span>Weekly wins</span><strong>${weeklyWins}</strong></div>
+                <div><span>Longest streak</span><strong>${summary.longestStreak}d</strong></div>
+                <div><span>Current streak</span><strong>${summary.currentStreak}d</strong></div>
                 <div><span>Unique tracks</span><strong>${summary.uniqueTracks}</strong></div>
                 <div><span>Unique albums</span><strong>${summary.uniqueAlbums}</strong></div>
                 <div><span>Track variety %</span><strong>${summary.varietyTrackPct}%</strong></div>
                 <div><span>Album variety %</span><strong>${summary.varietyAlbumPct}%</strong></div>
                 <div><span>Skip rate</span><strong>${summary.skipRate}%</strong></div>
                 <div><span>Avg min/play</span><strong>${summary.avgMinutesPerPlay}</strong></div>
+                <div><span>Avg plays/active day</span><strong>${summary.avgPlaysPerActiveDay}</strong></div>
                 <div><span>Avg min/active day</span><strong>${summary.avgMinutesPerActiveDay}</strong></div>
                 <div><span>Same-day repeats</span><strong>${summary.repeatedSameDayCount}</strong></div>
             </div>
         </div>
     `;
+}
+
+function buildStreakCard(artistName, me, side, other) {
+    const w = (my, ot, higherWins = true) => {
+        if (my === ot) return 'draw';
+        if (higherWins) return my > ot ? side : 'other';
+        return my < ot ? side : 'other';
+    };
+    return `
+        <div class="compare-streak-card">
+            <h4>${esc(artistName)}</h4>
+            <div class="compare-streak-list">
+                ${buildStreakRow('Longest streak', `${me.longestStreak} days`, w(me.longestStreak, other.longestStreak))}
+                ${buildStreakRow('Current streak', `${me.currentStreak} days`, w(me.currentStreak, other.currentStreak))}
+                ${buildStreakRow('Best day', `${me.bestDay?.minutes || 0} min`, w(me.bestDay?.minutes || 0, other.bestDay?.minutes || 0))}
+                ${buildStreakRow('Best week', `${me.bestWeek?.minutes || 0} min`, w(me.bestWeek?.minutes || 0, other.bestWeek?.minutes || 0))}
+                ${buildStreakRow('Best month', `${me.bestMonth?.minutes || 0} min`, w(me.bestMonth?.minutes || 0, other.bestMonth?.minutes || 0))}
+                ${buildStreakRow('Repeated-track days', `${me.repeatedSameDayEvents}`, w(me.repeatedSameDayEvents, other.repeatedSameDayEvents))}
+            </div>
+        </div>
+    `;
+}
+
+function buildStreakRow(label, value, winner) {
+    const cls = winner === 'draw' ? 'draw' : winner === 'other' ? 'lose' : 'win';
+    return `<div class="compare-streak-row ${cls}"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`;
 }
 
 // ─────────────────────────────────────────────
