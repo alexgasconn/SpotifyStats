@@ -39,13 +39,11 @@ let viewerState = {
     rollingWindow: 4,
     granularity: 'month',
     chartType: 'line',
-    visibleTop: 0,
     lockCamera: true,
     speedMs: 450,
     topX: 8,
     fromDate: '',
     toDate: '',
-    autoLoop: false
 };
 
 // ─────────────────────────────────────────────
@@ -1320,18 +1318,8 @@ export function renderViewerTab() {
                     </select>
                 </div>
                 <div class="viewer-control">
-                    <label for="viewer-topx">Top X to compare</label>
+                    <label for="viewer-topx">Top</label>
                     <input id="viewer-topx" type="number" min="2" max="20" step="1" value="${viewerState.topX}">
-                </div>
-                <div class="viewer-control">
-                    <label for="viewer-visible-top">Visible in chart</label>
-                    <select id="viewer-visible-top">
-                        <option value="0" ${viewerState.visibleTop === 0 ? 'selected' : ''}>All</option>
-                        <option value="3" ${viewerState.visibleTop === 3 ? 'selected' : ''}>Top 3</option>
-                        <option value="5" ${viewerState.visibleTop === 5 ? 'selected' : ''}>Top 5</option>
-                        <option value="8" ${viewerState.visibleTop === 8 ? 'selected' : ''}>Top 8</option>
-                        <option value="10" ${viewerState.visibleTop === 10 ? 'selected' : ''}>Top 10</option>
-                    </select>
                 </div>
                 <div class="viewer-control">
                     <label for="viewer-metric">Metric</label>
@@ -1384,10 +1372,6 @@ export function renderViewerTab() {
                 </div>
                 <div class="viewer-control viewer-check">
                     <label>
-                        <input id="viewer-autoloop" type="checkbox" ${viewerState.autoLoop ? 'checked' : ''}>
-                        Auto-loop animation
-                    </label>
-                    <label>
                         <input id="viewer-lock-camera" type="checkbox" ${viewerState.lockCamera ? 'checked' : ''}>
                         Lock camera scale
                     </label>
@@ -1419,7 +1403,6 @@ export function renderViewerTab() {
     const readControls = () => {
         viewerState.entityType = container.querySelector('#viewer-entity-type')?.value || 'artist';
         viewerState.topX = Math.max(2, Math.min(20, parseInt(container.querySelector('#viewer-topx')?.value || '8', 10)));
-        viewerState.visibleTop = Math.max(0, Math.min(20, parseInt(container.querySelector('#viewer-visible-top')?.value || '0', 10)));
         viewerState.metric = container.querySelector('#viewer-metric')?.value || 'minutes';
         viewerState.valueMode = container.querySelector('#viewer-value-mode')?.value || 'accum';
         viewerState.rollingWindow = Math.max(2, Math.min(24, parseInt(container.querySelector('#viewer-rolling-window')?.value || '4', 10)));
@@ -1428,7 +1411,6 @@ export function renderViewerTab() {
         viewerState.fromDate = container.querySelector('#viewer-from')?.value || firstDate;
         viewerState.toDate = container.querySelector('#viewer-to')?.value || lastDate;
         viewerState.speedMs = Math.max(80, Math.min(2000, parseInt(container.querySelector('#viewer-speed')?.value || '450', 10)));
-        viewerState.autoLoop = !!container.querySelector('#viewer-autoloop')?.checked;
         viewerState.lockCamera = !!container.querySelector('#viewer-lock-camera')?.checked;
     };
 
@@ -1539,9 +1521,7 @@ export function renderViewerTab() {
                 value: (viewerSeries.seriesByKey[e.key] || [0])[upto - 1] || 0
             }))
             .sort((a, b) => b.value - a.value);
-        const visibleCount = viewerState.visibleTop > 0
-            ? Math.min(viewerState.visibleTop, ranking.length)
-            : ranking.length;
+        const visibleCount = Math.min(viewerState.topX, ranking.length);
         const visibleRanking = ranking.slice(0, visibleCount);
 
         const fixedAxisMax = (() => {
@@ -1685,11 +1665,7 @@ export function renderViewerTab() {
             drawViewerChart(viewerPlaybackStep);
 
             if (viewerPlaybackStep >= viewerSeries.labels.length) {
-                if (viewerState.autoLoop) {
-                    viewerPlaybackStep = 0;
-                } else {
-                    stopViewerPlayback();
-                }
+                stopViewerPlayback();
             }
         }, viewerState.speedMs);
     };
@@ -1716,11 +1692,6 @@ export function renderViewerTab() {
     });
 
     container.querySelector('#viewer-topx')?.addEventListener('change', () => {
-        readControls();
-        buildFull();
-    });
-
-    container.querySelector('#viewer-visible-top')?.addEventListener('change', () => {
         readControls();
         buildFull();
     });
