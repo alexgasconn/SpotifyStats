@@ -41,6 +41,7 @@ let viewerState = {
     chartType: 'line',
     visibleTop: 0,
     trailLength: 0,
+    lockCamera: true,
     speedMs: 450,
     topX: 8,
     fromDate: '',
@@ -74,22 +75,6 @@ function renderKPIs(data) {
     const k = store.calculateGlobalKPIs(data);
     const grid = document.getElementById('kpi-grid');
     if (!grid) return;
-
-    const COLORS = ['#1DB954', '#17A2B8', '#FFC107', '#FD7E14', '#6F42C1', '#E83E8C', '#20C997', '#0DCAF0', '#FF6384', '#8BC34A', '#FFB74D', '#7E57C2'];
-    const colorOf = (idx, alpha = 1) => {
-        const hex = COLORS[idx % COLORS.length];
-        if (alpha === 1) return hex;
-        const h = hex.replace('#', '');
-        const r = parseInt(h.substring(0, 2), 16);
-        const g = parseInt(h.substring(2, 4), 16);
-        const b = parseInt(h.substring(4, 6), 16);
-        return `rgba(${r},${g},${b},${alpha})`;
-    };
-
-    const shortEntityLabel = (e) => {
-        const txt = e.subtitle ? `${e.name} - ${e.subtitle}` : e.name;
-        return txt.length > 36 ? `${txt.slice(0, 35)}...` : txt;
-    };
 
     const fmt = n => Number(n).toLocaleString();
 
@@ -1286,6 +1271,21 @@ export function renderViewerTab() {
     const container = document.getElementById('viewer-content');
     if (!container) return;
 
+    const COLORS = ['#1DB954', '#17A2B8', '#FFC107', '#FD7E14', '#6F42C1', '#E83E8C', '#20C997', '#0DCAF0', '#FF6384', '#8BC34A', '#FFB74D', '#7E57C2'];
+    const colorOf = (idx, alpha = 1) => {
+        const hex = COLORS[idx % COLORS.length];
+        if (alpha === 1) return hex;
+        const h = hex.replace('#', '');
+        const r = parseInt(h.substring(0, 2), 16);
+        const g = parseInt(h.substring(2, 4), 16);
+        const b = parseInt(h.substring(4, 6), 16);
+        return `rgba(${r},${g},${b},${alpha})`;
+    };
+    const shortEntityLabel = (e) => {
+        const txt = e.subtitle ? `${e.name} - ${e.subtitle}` : e.name;
+        return txt.length > 36 ? `${txt.slice(0, 35)}...` : txt;
+    };
+
     stopViewerPlayback();
     destroyViewerChart();
 
@@ -1387,6 +1387,10 @@ export function renderViewerTab() {
                         <input id="viewer-autoloop" type="checkbox" ${viewerState.autoLoop ? 'checked' : ''}>
                         Auto-loop animation
                     </label>
+                    <label>
+                        <input id="viewer-lock-camera" type="checkbox" ${viewerState.lockCamera ? 'checked' : ''}>
+                        Lock camera scale
+                    </label>
                 </div>
             </div>
 
@@ -1426,6 +1430,7 @@ export function renderViewerTab() {
         viewerState.toDate = container.querySelector('#viewer-to')?.value || lastDate;
         viewerState.speedMs = Math.max(80, Math.min(2000, parseInt(container.querySelector('#viewer-speed')?.value || '450', 10)));
         viewerState.autoLoop = !!container.querySelector('#viewer-autoloop')?.checked;
+        viewerState.lockCamera = !!container.querySelector('#viewer-lock-camera')?.checked;
     };
 
     const updateRollingVisibility = () => {
@@ -1538,6 +1543,13 @@ export function renderViewerTab() {
             : ranking.length;
         const visibleRanking = ranking.slice(0, visibleCount);
 
+        const fixedAxisMax = (() => {
+            if (!viewerState.lockCamera) return undefined;
+            const allVisibleValues = visibleRanking.flatMap(r => viewerSeries.seriesByKey[r.key] || [0]);
+            const maxVal = Math.max(...allVisibleValues, 1);
+            return Math.max(1, Math.ceil(maxVal * 1.05));
+        })();
+
         if (viewerState.chartType === 'line') {
             const trailStart = viewerState.trailLength > 0
                 ? Math.max(0, upto - viewerState.trailLength)
@@ -1587,6 +1599,7 @@ export function renderViewerTab() {
                         y: {
                             ticks: { color: '#b3b3b3' },
                             grid: { color: '#282828' },
+                            max: fixedAxisMax,
                             title: {
                                 display: true,
                                 text: getYAxisTitle(),
@@ -1645,6 +1658,7 @@ export function renderViewerTab() {
                         x: {
                             ticks: { color: '#b3b3b3' },
                             grid: { color: '#282828' },
+                            max: fixedAxisMax,
                             title: {
                                 display: true,
                                 text: getYAxisTitle(),
@@ -1762,6 +1776,16 @@ export function renderViewerTab() {
         if (viewerPlaybackTimer) {
             playViewer();
         }
+    });
+
+    container.querySelector('#viewer-lock-camera')?.addEventListener('change', () => {
+        readControls();
+        if (!viewerSeries || !viewerSeries.labels.length) {
+            buildFull();
+            return;
+        }
+        const step = Math.max(1, Math.min(viewerPlaybackStep || 1, viewerSeries.labels.length));
+        drawViewerChart(step);
     });
 
     container.querySelector('#viewer-build-btn')?.addEventListener('click', buildFull);
