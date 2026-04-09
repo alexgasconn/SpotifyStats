@@ -11,6 +11,7 @@ let currentSkipTrendUnit = 'week';
 let f1Mode = 'artists';
 let f1Year = null;
 let f1WeekIndex = -1;
+let f1EvolutionUnit = 'month';
 let f1StandingsSort = { key: 'points', dir: 'desc' };
 let f1AllTimeSort = { key: 'totalPoints', dir: 'desc' };
 let f1YearlySort = { key: 'points', dir: 'desc' };
@@ -699,7 +700,11 @@ export function renderF1Tab() {
 
         <div class="f1-grid">
             <div class="f1-card" style="grid-column:1/-1">
-                <h3>📅 Evolution by Month</h3>
+                <h3>📅 Evolution</h3>
+                <div class="timeline-controls" id="f1EvolutionControls">
+                    <button class="timeline-btn ${f1EvolutionUnit === 'month' ? 'active' : ''}" data-unit="month">Month</button>
+                    <button class="timeline-btn ${f1EvolutionUnit === 'week' ? 'active' : ''}" data-unit="week">Week</button>
+                </div>
                 <div style="height:310px"><canvas id="f1-evolution-chart"></canvas></div>
             </div>
 
@@ -799,7 +804,7 @@ export function renderF1Tab() {
 
     // Render week table with selected state
     renderF1WeekDetails(stats, f1WeekIndex, f1WeekSort);
-    charts.renderF1EvolutionChart(stats.evolution.labels, stats.evolution.series);
+    renderF1Evolution(stats);
 
     document.getElementById('f1-mode')?.addEventListener('change', (e) => {
         f1Mode = e.target.value;
@@ -814,6 +819,15 @@ export function renderF1Tab() {
     document.getElementById('f1-week-selector')?.addEventListener('change', (e) => {
         f1WeekIndex = parseInt(e.target.value, 10);
         renderF1WeekDetails(stats, f1WeekIndex, f1WeekSort);
+    });
+
+    container.querySelectorAll('#f1EvolutionControls .timeline-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            f1EvolutionUnit = btn.dataset.unit || 'month';
+            container.querySelectorAll('#f1EvolutionControls .timeline-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderF1Evolution(stats);
+        });
     });
 
     container.querySelectorAll('.f1-sortable-th').forEach(th => {
@@ -849,6 +863,12 @@ export function renderF1Tab() {
             }
         });
     });
+}
+
+function renderF1Evolution(stats) {
+    const evolution = stats?.evolution?.[f1EvolutionUnit] || stats?.evolution?.month;
+    if (!evolution) return;
+    charts.renderF1EvolutionChart(evolution.labels, evolution.series);
 }
 
 function renderF1WeekDetails(stats, weekIdx, sortState = { key: 'rank', dir: 'asc' }) {

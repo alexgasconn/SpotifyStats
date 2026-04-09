@@ -769,8 +769,10 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
     const selectedStandings = (standingsByYear[activeYear] || []).slice(0, topN);
     const selectedWeekly = weeklyByYear[activeYear] || [];
 
-    // Evolution month-by-month (cumulative points) for top contenders of selected year
+    // Evolution for top contenders of selected year
     const contenders = selectedStandings.slice(0, 8).map(s => s.key);
+
+    // Month-by-month cumulative points
     const monthPoints = {};
     contenders.forEach(c => { monthPoints[c] = Array(12).fill(0); });
 
@@ -785,6 +787,19 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
     const evolutionSeries = contenders.map(key => {
         let cum = 0;
         const data = monthPoints[key].map(v => { cum += v; return cum; });
+        const label = getLabel(key);
+        return { key, name: label.name, subtitle: label.subtitle, data };
+    });
+
+    // Week-by-week cumulative points
+    const weekLabels = selectedWeekly.map((_, idx) => `W${idx + 1}`);
+    const evolutionWeekSeries = contenders.map(key => {
+        let cum = 0;
+        const data = selectedWeekly.map(w => {
+            const row = w.topWeek.find(r => r.key === key);
+            cum += row ? row.points : 0;
+            return cum;
+        });
         const label = getLabel(key);
         return { key, name: label.name, subtitle: label.subtitle, data };
     });
@@ -851,8 +866,14 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
         standings: selectedStandings,
         weekly: selectedWeekly,
         evolution: {
-            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-            series: evolutionSeries
+            month: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                series: evolutionSeries
+            },
+            week: {
+                labels: weekLabels,
+                series: evolutionWeekSeries
+            }
         },
         winners,
         yearlyTop3,
