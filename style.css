@@ -1799,7 +1799,12 @@ header {
     margin-bottom: 1rem;
 }
 
+.podcast-top-chart.podcast-primary {
+    height: 500px;
+}
+
 #podcastTimelineChart,
+#podcastSkipTrendChart,
 #podcastHourlyChart,
 #topShowsChart,
 #topEpisodesChart {
@@ -1814,12 +1819,18 @@ header {
     max-height: 340px;
 }
 
+.podcast-primary #topShowsChart {
+    height: 410px !important;
+    max-height: 410px;
+}
+
 .podcast-timeline-card {
     height: 460px;
     overflow: hidden;
 }
 
-#podcastTimelineChart {
+#podcastTimelineChart,
+#podcastSkipTrendChart {
     display: block;
     width: 100% !important;
     height: 340px !important;
@@ -2368,17 +2379,27 @@ header {
         height: 360px;
     }
 
+    .podcast-top-chart.podcast-primary {
+        height: 400px;
+    }
+
     #topShowsChart,
     #topEpisodesChart {
         height: 270px !important;
         max-height: 270px;
     }
 
+    .podcast-primary #topShowsChart {
+        height: 305px !important;
+        max-height: 305px;
+    }
+
     .podcast-timeline-card {
         height: 390px;
     }
 
-    #podcastTimelineChart {
+    #podcastTimelineChart,
+    #podcastSkipTrendChart {
         height: 260px !important;
         max-height: 260px;
     }

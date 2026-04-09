@@ -7,8 +7,10 @@ let topShowsChart = null;
 let topEpisodesChart = null;
 let podcastTimelineChart = null;
 let podcastHourlyChart = null; // NEW
+let podcastSkipTrendChart = null;
 
 let currentPodcastTimelineUnit = 'week';
+let currentPodcastSkipTrendUnit = 'week';
 
 // --- HELPERS (Refactored for reusability) ---
 const formatMinutesToTime = (totalMinutes) => {
@@ -21,6 +23,18 @@ const formatMinutesToTime = (totalMinutes) => {
 const truncateString = (str, len) => {
     if (!str) return '';
     return str.length > len ? str.substring(0, len) + '...' : str;
+};
+
+const formatLocalDate = (dateObj) => {
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const parseLocalDate = (dateStr) => {
+    const [year, month, day] = String(dateStr).split('-').map(Number);
+    return new Date(year, (month || 1) - 1, day || 1);
 };
 
 // --- DATA ANALYSIS ---
@@ -47,7 +61,7 @@ export function analyzePodcasts(fullData) {
             month: isValidDate ? tsDate.getMonth() : null,
             hour: isValidDate ? tsDate.getHours() : null,
             weekday: isValidDate ? ((tsDate.getDay() + 6) % 7) : null,
-            date: isValidDate ? tsDate.toISOString().split('T')[0] : null,
+            date: isValidDate ? formatLocalDate(tsDate) : null,
             ts: isValidDate ? tsDate.toISOString() : null
         };
     }).filter(d => d.durationMin > 0.5 && d.date);
@@ -307,7 +321,7 @@ export function renderPodcastTimeByDay(podcastData) {
         switch (currentPodcastTimelineUnit) {
             case 'year': key = d.year ? String(d.year) : null; break;
             case 'month': key = d.year && d.month !== null ? `${d.year}-${String(d.month + 1).padStart(2, '0')}` : null; break;
-            case 'week': key = getStartOfWeek(new Date(d.date)); break;
+            case 'week': key = getStartOfWeek(d.date); break;
             case 'day': default: key = d.date; break;
         }
         if (key) {
@@ -320,18 +334,16 @@ export function renderPodcastTimeByDay(podcastData) {
         .map(([date, minutes]) => ({ date, minutes: Math.round(minutes) }));
 
     podcastTimelineChart = new Chart(ctx, {
-        type: 'line',
+        type: 'bar',
         data: {
             labels: sortedData.map(d => formatDateLabel(d.date, currentPodcastTimelineUnit)),
             datasets: [{
                 data: sortedData.map(d => d.minutes),
+                label: 'Listening Time',
+                backgroundColor: 'rgba(29, 185, 84, 0.7)',
                 borderColor: '#1DB954',
-                backgroundColor: 'rgba(29, 185, 84, 0.2)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.3,
-                pointRadius: 0,
-                pointHitRadius: 10
+                borderWidth: 1,
+                borderRadius: 4
             }]
         },
         options: {
@@ -340,13 +352,92 @@ export function renderPodcastTimeByDay(podcastData) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    mode: 'index',
-                    intersect: false,
                     callbacks: { label: (c) => formatMinutesToTime(c.raw) }
                 }
             },
             scales: {
                 y: { ...whiteTextOptions },
+                x: { ...whiteTextOptions, ticks: { ...whiteTextOptions.ticks, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } }
+            }
+        }
+    });
+}
+
+function buildSkipRateTimeline(podcastData, unit) {
+    const timelineMap = {};
+
+    podcastData.forEach(d => {
+        let key;
+        switch (unit) {
+            case 'year': key = d.year ? String(d.year) : null; break;
+            case 'month': key = d.year && d.month !== null ? `${d.year}-${String(d.month + 1).padStart(2, '0')}` : null; break;
+            case 'week': key = getStartOfWeek(d.date); break;
+            case 'day': default: key = d.date; break;
+        }
+
+        if (!key) return;
+        if (!timelineMap[key]) timelineMap[key] = { plays: 0, skipped: 0 };
+        timelineMap[key].plays += 1;
+        if (d.skipped) timelineMap[key].skipped += 1;
+    });
+
+    return Object.entries(timelineMap)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([bucket, values]) => ({
+            bucket,
+            plays: values.plays,
+            skipRate: +((values.skipped / (values.plays || 1)) * 100).toFixed(1)
+        }));
+}
+
+export function renderPodcastSkipTrendChart(podcastData) {
+    const canvas = document.getElementById('podcastSkipTrendChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (podcastSkipTrendChart) podcastSkipTrendChart.destroy();
+
+    const trend = buildSkipRateTimeline(podcastData, currentPodcastSkipTrendUnit);
+
+    podcastSkipTrendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: trend.map(d => formatDateLabel(d.bucket, currentPodcastSkipTrendUnit)),
+            datasets: [{
+                label: 'Skip Rate %',
+                data: trend.map(d => d.skipRate),
+                borderColor: '#FFC107',
+                backgroundColor: 'rgba(255, 193, 7, 0.2)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.25,
+                pointRadius: 2,
+                pointHoverRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => {
+                            const idx = ctx.dataIndex;
+                            return `${ctx.raw}% skip (${trend[idx].plays} plays)`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    ...whiteTextOptions,
+                    min: 0,
+                    max: 100,
+                    ticks: {
+                        ...whiteTextOptions.ticks,
+                        callback: (value) => `${value}%`
+                    }
+                },
                 x: { ...whiteTextOptions, ticks: { ...whiteTextOptions.ticks, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } }
             }
         }
@@ -425,17 +516,23 @@ function renderPodcastInsights(analyzed) {
 
 // --- UTILS ---
 function getStartOfWeek(date) {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
-    return new Date(d.setDate(diff)).toISOString().split('T')[0];
+    const d = typeof date === 'string' ? parseLocalDate(date) : new Date(date);
+    d.setHours(0, 0, 0, 0);
+    const dayFromMonday = (d.getDay() + 6) % 7;
+    d.setDate(d.getDate() - dayFromMonday);
+    return formatLocalDate(d);
 }
 
 function formatDateLabel(dateStr, unit) {
-    const date = new Date(dateStr);
     if (unit === 'year') return dateStr;
-    const opts = unit === 'month' ? { year: 'numeric', month: 'short' } : { month: 'short', day: 'numeric' };
-    return date.toLocaleDateString('en-US', opts);
+
+    if (unit === 'month') {
+        const date = parseLocalDate(`${dateStr}-01`);
+        return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+    }
+
+    const date = parseLocalDate(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 // --- CONTROLS ---
@@ -450,9 +547,28 @@ export function setupPodcastTimelineControls(podcastData) {
         btn.className = `timeline-btn ${unit === currentPodcastTimelineUnit ? 'active' : ''}`;
         btn.onclick = () => {
             currentPodcastTimelineUnit = unit;
-            document.querySelectorAll('.timeline-btn').forEach(b => b.classList.remove('active'));
+            container.querySelectorAll('.timeline-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             renderPodcastTimeByDay(podcastData);
+        };
+        container.appendChild(btn);
+    });
+}
+
+export function setupPodcastSkipTrendControls(podcastData) {
+    const container = document.getElementById('podcastSkipTrendControls');
+    if (!container) return;
+    container.innerHTML = '';
+
+    ['day', 'week', 'month', 'year'].forEach(unit => {
+        const btn = document.createElement('button');
+        btn.textContent = unit.charAt(0).toUpperCase() + unit.slice(1);
+        btn.className = `timeline-btn ${unit === currentPodcastSkipTrendUnit ? 'active' : ''}`;
+        btn.onclick = () => {
+            currentPodcastSkipTrendUnit = unit;
+            container.querySelectorAll('.timeline-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderPodcastSkipTrendChart(podcastData);
         };
         container.appendChild(btn);
     });
@@ -472,5 +588,7 @@ export function renderPodcastUI(dataToRender) {
 
     // Pass the filtered data to the timeline controls so they work on the current subset
     setupPodcastTimelineControls(podcastData);
+    setupPodcastSkipTrendControls(podcastData);
     renderPodcastTimeByDay(podcastData);
+    renderPodcastSkipTrendChart(podcastData);
 }

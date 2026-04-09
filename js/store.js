@@ -18,6 +18,13 @@ let _cfg = {
 
 export function getConfig() { return { ..._cfg }; }
 
+function formatLocalDate(dateObj) {
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 export async function processSpotifyZip(zipFile, config = {}, onProgress = null) {
     _cfg = { ..._cfg, ...config };
 
@@ -102,7 +109,7 @@ function processEntry(entry) {
 
     return {
         ts,
-        date: ts.toISOString().split('T')[0],
+        date: formatLocalDate(ts),
         trackName: entry.master_metadata_track_name || null,
         artistName: entry.master_metadata_album_artist_name || null,
         albumName: entry.master_metadata_album_album_name || null,
@@ -247,9 +254,10 @@ export function calculateTopItems(data, key, metric = 'plays', topN = 10) {
 
 function getStartOfWeek(d) {
     const date = new Date(d);
-    const day = date.getDay();
-    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(date.setDate(diff)).toISOString().split('T')[0];
+    date.setHours(0, 0, 0, 0);
+    const dayFromMonday = (date.getDay() + 6) % 7;
+    date.setDate(date.getDate() - dayFromMonday);
+    return formatLocalDate(date);
 }
 
 export function calculateAggregatedTimeline(data, unit = 'week') {
@@ -259,7 +267,7 @@ export function calculateAggregatedTimeline(data, unit = 'week') {
         let key;
         switch (unit) {
             case 'year': key = `${d.year}-01-01`; break;
-            case 'month': key = d.ts.toISOString().substring(0, 7) + '-01'; break;
+            case 'month': key = `${d.year}-${String(d.month + 1).padStart(2, '0')}-01`; break;
             case 'week': key = getStartOfWeek(d.ts); break;
             default: key = d.date;
         }
@@ -612,7 +620,7 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
     const weeklyByYear = {};
 
     Object.entries(weekMap).sort((a, b) => a[0].localeCompare(b[0])).forEach(([weekStart, values]) => {
-        const year = new Date(weekStart).getFullYear();
+        const year = Number(weekStart.split('-')[0]);
         if (!yearStandingMap[year]) yearStandingMap[year] = {};
         if (!weeklyByYear[year]) weeklyByYear[year] = [];
 
@@ -729,7 +737,8 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
     contenders.forEach(c => { monthPoints[c] = Array(12).fill(0); });
 
     selectedWeekly.forEach(w => {
-        const month = new Date(w.weekStart).getMonth();
+        const month = Number(w.weekStart.split('-')[1]) - 1;
+        if (isNaN(month) || month < 0 || month > 11) return;
         w.topWeek.forEach(row => {
             if (monthPoints[row.key]) monthPoints[row.key][month] += row.points;
         });
