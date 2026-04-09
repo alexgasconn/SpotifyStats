@@ -30,6 +30,8 @@ let viewerChartInstance = null;
 let viewerPlaybackTimer = null;
 let viewerPlaybackStep = 0;
 let viewerSeries = null;
+let viewerColorKeyToIdx = new Map();
+let viewerColorNextIdx = 0;
 let viewerState = {
     entityType: 'artist',
     metric: 'minutes',
@@ -38,6 +40,7 @@ let viewerState = {
     granularity: 'month',
     chartType: 'line',
     visibleTop: 0,
+    trailLength: 0,
     speedMs: 450,
     topX: 8,
     fromDate: '',
@@ -1363,6 +1366,10 @@ export function renderViewerTab() {
                         <option value="bar" ${viewerState.chartType === 'bar' ? 'selected' : ''}>Bar Race</option>
                     </select>
                 </div>
+                <div class="viewer-control" id="viewer-trail-wrap">
+                    <label for="viewer-trail-length">Trail length (line)</label>
+                    <input id="viewer-trail-length" type="number" min="0" max="120" step="1" value="${viewerState.trailLength}">
+                </div>
                 <div class="viewer-control">
                     <label for="viewer-from">From</label>
                     <input id="viewer-from" type="date" min="${firstDate}" max="${lastDate}" value="${viewerState.fromDate}">
@@ -1414,6 +1421,7 @@ export function renderViewerTab() {
         viewerState.rollingWindow = Math.max(2, Math.min(24, parseInt(container.querySelector('#viewer-rolling-window')?.value || '4', 10)));
         viewerState.granularity = container.querySelector('#viewer-granularity')?.value || 'month';
         viewerState.chartType = container.querySelector('#viewer-chart-type')?.value || 'line';
+        viewerState.trailLength = Math.max(0, Math.min(120, parseInt(container.querySelector('#viewer-trail-length')?.value || '0', 10)));
         viewerState.fromDate = container.querySelector('#viewer-from')?.value || firstDate;
         viewerState.toDate = container.querySelector('#viewer-to')?.value || lastDate;
         viewerState.speedMs = Math.max(80, Math.min(2000, parseInt(container.querySelector('#viewer-speed')?.value || '450', 10)));
@@ -1424,6 +1432,21 @@ export function renderViewerTab() {
         const wrap = container.querySelector('#viewer-rolling-wrap');
         if (!wrap) return;
         wrap.style.display = viewerState.valueMode === 'rolling' ? '' : 'none';
+    };
+
+    const updateTrailVisibility = () => {
+        const wrap = container.querySelector('#viewer-trail-wrap');
+        if (!wrap) return;
+        wrap.style.display = viewerState.chartType === 'line' ? '' : 'none';
+    };
+
+    const ensureStableColorKeys = (entities) => {
+        entities.forEach(e => {
+            if (!viewerColorKeyToIdx.has(e.key)) {
+                viewerColorKeyToIdx.set(e.key, viewerColorNextIdx);
+                viewerColorNextIdx += 1;
+            }
+        });
     };
 
     const getYAxisTitle = () => {
@@ -1482,6 +1505,7 @@ export function renderViewerTab() {
             destroyViewerChart();
             return false;
         }
+        ensureStableColorKeys(viewerSeries.entities);
         return true;
     };
 
@@ -1502,7 +1526,7 @@ export function renderViewerTab() {
         if (viewerChartInstance) viewerChartInstance.destroy();
         let leaderText = '—';
 
-        const entityIndexByKey = new Map(viewerSeries.entities.map((e, idx) => [e.key, idx]));
+        const entityIndexByKey = viewerColorKeyToIdx;
         const ranking = viewerSeries.entities
             .map(e => ({
                 ...e,
@@ -1515,11 +1539,16 @@ export function renderViewerTab() {
         const visibleRanking = ranking.slice(0, visibleCount);
 
         if (viewerState.chartType === 'line') {
+            const trailStart = viewerState.trailLength > 0
+                ? Math.max(0, upto - viewerState.trailLength)
+                : 0;
+            const lineLabels = viewerSeries.labels.slice(trailStart, upto);
+
             const datasets = visibleRanking.map((e, rankIdx) => {
                 const stableIdx = entityIndexByKey.get(e.key) ?? rankIdx;
                 return {
                     label: `#${rankIdx + 1} ${shortEntityLabel(e)}`,
-                    data: (viewerSeries.seriesByKey[e.key] || []).slice(0, upto),
+                    data: (viewerSeries.seriesByKey[e.key] || []).slice(trailStart, upto),
                     borderColor: colorOf(stableIdx, 1),
                     backgroundColor: colorOf(stableIdx, 0.15),
                     borderWidth: 2,
@@ -1535,7 +1564,7 @@ export function renderViewerTab() {
 
             viewerChartInstance = new Chart(ctx, {
                 type: 'line',
-                data: { labels, datasets },
+                data: { labels: lineLabels, datasets },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
@@ -1545,7 +1574,7 @@ export function renderViewerTab() {
                         datalabels: false,
                         tooltip: {
                             callbacks: {
-                                title: (ctxItems) => labels[ctxItems[0].dataIndex],
+                                title: (ctxItems) => lineLabels[ctxItems[0].dataIndex],
                                 label: (ctx) => `${ctx.dataset.label}: ${Math.round(ctx.raw).toLocaleString()} ${unit}`
                             }
                         }
@@ -1707,6 +1736,12 @@ export function renderViewerTab() {
 
     container.querySelector('#viewer-chart-type')?.addEventListener('change', () => {
         readControls();
+        updateTrailVisibility();
+        buildFull();
+    });
+
+    container.querySelector('#viewer-trail-length')?.addEventListener('change', () => {
+        readControls();
         buildFull();
     });
 
@@ -1762,6 +1797,7 @@ export function renderViewerTab() {
     });
 
     updateRollingVisibility();
+    updateTrailVisibility();
 
     // Initial preview
     buildFull();
