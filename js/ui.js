@@ -40,7 +40,6 @@ let viewerState = {
     granularity: 'month',
     chartType: 'line',
     visibleTop: 0,
-    trailLength: 0,
     lockCamera: true,
     speedMs: 450,
     topX: 8,
@@ -154,10 +153,14 @@ function renderTopListInto(containerId, items, type, sortBy) {
     el.innerHTML = items.map((item, i) => {
         const mainVal = sortBy === 'minutes'
             ? `${item.minutes.toLocaleString()} min`
-            : `${item.plays.toLocaleString()} plays`;
+            : sortBy === 'points'
+                ? `${item.points.toLocaleString()} pts`
+                : `${item.plays.toLocaleString()} plays`;
         const subVal = sortBy === 'minutes'
-            ? `${item.plays.toLocaleString()} plays`
-            : `${item.minutes.toLocaleString()} min`;
+            ? `${item.plays.toLocaleString()} plays · ${item.points.toLocaleString()} pts`
+            : sortBy === 'points'
+                ? `${item.plays.toLocaleString()} plays · ${item.minutes.toLocaleString()} min`
+                : `${item.minutes.toLocaleString()} min · ${item.points.toLocaleString()} pts`;
         const pct = Math.round((item[sortBy] / maxVal) * 100);
 
         let sub = '';
@@ -1366,10 +1369,6 @@ export function renderViewerTab() {
                         <option value="bar" ${viewerState.chartType === 'bar' ? 'selected' : ''}>Bar Race</option>
                     </select>
                 </div>
-                <div class="viewer-control" id="viewer-trail-wrap">
-                    <label for="viewer-trail-length">Trail length (line)</label>
-                    <input id="viewer-trail-length" type="number" min="0" max="120" step="1" value="${viewerState.trailLength}">
-                </div>
                 <div class="viewer-control">
                     <label for="viewer-from">From</label>
                     <input id="viewer-from" type="date" min="${firstDate}" max="${lastDate}" value="${viewerState.fromDate}">
@@ -1425,7 +1424,6 @@ export function renderViewerTab() {
         viewerState.rollingWindow = Math.max(2, Math.min(24, parseInt(container.querySelector('#viewer-rolling-window')?.value || '4', 10)));
         viewerState.granularity = container.querySelector('#viewer-granularity')?.value || 'month';
         viewerState.chartType = container.querySelector('#viewer-chart-type')?.value || 'line';
-        viewerState.trailLength = Math.max(0, Math.min(120, parseInt(container.querySelector('#viewer-trail-length')?.value || '0', 10)));
         viewerState.fromDate = container.querySelector('#viewer-from')?.value || firstDate;
         viewerState.toDate = container.querySelector('#viewer-to')?.value || lastDate;
         viewerState.speedMs = Math.max(80, Math.min(2000, parseInt(container.querySelector('#viewer-speed')?.value || '450', 10)));
@@ -1437,12 +1435,6 @@ export function renderViewerTab() {
         const wrap = container.querySelector('#viewer-rolling-wrap');
         if (!wrap) return;
         wrap.style.display = viewerState.valueMode === 'rolling' ? '' : 'none';
-    };
-
-    const updateTrailVisibility = () => {
-        const wrap = container.querySelector('#viewer-trail-wrap');
-        if (!wrap) return;
-        wrap.style.display = viewerState.chartType === 'line' ? '' : 'none';
     };
 
     const ensureStableColorKeys = (entities) => {
@@ -1551,16 +1543,13 @@ export function renderViewerTab() {
         })();
 
         if (viewerState.chartType === 'line') {
-            const trailStart = viewerState.trailLength > 0
-                ? Math.max(0, upto - viewerState.trailLength)
-                : 0;
-            const lineLabels = viewerSeries.labels.slice(trailStart, upto);
+            const lineLabels = viewerSeries.labels.slice(0, upto);
 
             const datasets = visibleRanking.map((e, rankIdx) => {
                 const stableIdx = entityIndexByKey.get(e.key) ?? rankIdx;
                 return {
                     label: `#${rankIdx + 1} ${shortEntityLabel(e)}`,
-                    data: (viewerSeries.seriesByKey[e.key] || []).slice(trailStart, upto),
+                    data: (viewerSeries.seriesByKey[e.key] || []).slice(0, upto),
                     borderColor: colorOf(stableIdx, 1),
                     backgroundColor: colorOf(stableIdx, 0.15),
                     borderWidth: 2,
@@ -1750,12 +1739,6 @@ export function renderViewerTab() {
 
     container.querySelector('#viewer-chart-type')?.addEventListener('change', () => {
         readControls();
-        updateTrailVisibility();
-        buildFull();
-    });
-
-    container.querySelector('#viewer-trail-length')?.addEventListener('change', () => {
-        readControls();
         buildFull();
     });
 
@@ -1821,7 +1804,6 @@ export function renderViewerTab() {
     });
 
     updateRollingVisibility();
-    updateTrailVisibility();
 
     // Initial preview
     buildFull();

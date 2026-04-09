@@ -196,32 +196,47 @@ export function calculateGlobalKPIs(data) {
 export function calculateTopItems(data, key, metric = 'plays', topN = 10) {
     const music = data.filter(d => !d.isPodcast && d.trackName);
     const grouped = {};
+    const F1_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 
-    music.forEach(d => {
-        let itemKey, displayName, artistName, albumName;
-
+    const getItemIdentity = (d) => {
         if (key === 'albumName') {
             const album = d.albumName ? String(d.albumName).trim() : '';
             const artist = d.artistName ? String(d.artistName).trim() : '';
-            if (!album || !artist || album.toLowerCase() === 'null') return;
-            itemKey = `${album}|||${artist}`;
-            displayName = album;
-            artistName = artist;
-            albumName = album;
-        } else if (key === 'trackName') {
-            const track = d.trackName ? String(d.trackName).trim() : '';
-            if (!track || track.toLowerCase() === 'null') return;
-            itemKey = `${track}|||${d.artistName || ''}`;
-            displayName = track;
-            artistName = d.artistName || '';
-            albumName = d.albumName || '';
-        } else {
-            const val = d[key] ? String(d[key]).trim() : '';
-            if (!val || val.toLowerCase() === 'null') return;
-            itemKey = val;
-            displayName = val;
-            artistName = d.artistName || '';
+            if (!album || !artist || album.toLowerCase() === 'null') return null;
+            return {
+                itemKey: `${album}|||${artist}`,
+                displayName: album,
+                artistName: artist,
+                albumName: album
+            };
         }
+
+        if (key === 'trackName') {
+            const track = d.trackName ? String(d.trackName).trim() : '';
+            if (!track || track.toLowerCase() === 'null') return null;
+            return {
+                itemKey: `${track}|||${d.artistName || ''}`,
+                displayName: track,
+                artistName: d.artistName || '',
+                albumName: d.albumName || ''
+            };
+        }
+
+        const val = d[key] ? String(d[key]).trim() : '';
+        if (!val || val.toLowerCase() === 'null') return null;
+        return {
+            itemKey: val,
+            displayName: val,
+            artistName: d.artistName || '',
+            albumName: ''
+        };
+    };
+
+    music.forEach(d => {
+        const identity = getItemIdentity(d);
+        if (!identity) return;
+
+        const { itemKey, displayName, artistName, albumName } = identity;
 
         if (!grouped[itemKey]) {
             grouped[itemKey] = {
@@ -230,7 +245,8 @@ export function calculateTopItems(data, key, metric = 'plays', topN = 10) {
                 albumName: albumName || '',
                 plays: 0,
                 minutes: 0,
-                skipped: 0
+                skipped: 0,
+                points: 0
             };
         }
         grouped[itemKey].plays++;
@@ -238,10 +254,30 @@ export function calculateTopItems(data, key, metric = 'plays', topN = 10) {
         if (d.skipped) grouped[itemKey].skipped++;
     });
 
+    // F1-style weekly points: weekly ranking by minutes, top 10 score 25..1
+    const weekMap = {};
+    music.forEach(d => {
+        const identity = getItemIdentity(d);
+        if (!identity) return;
+        const wk = getStartOfWeek(d.ts);
+        if (!weekMap[wk]) weekMap[wk] = {};
+        weekMap[wk][identity.itemKey] = (weekMap[wk][identity.itemKey] || 0) + d.durationMin;
+    });
+
+    Object.values(weekMap).forEach(weekValues => {
+        Object.entries(weekValues)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .forEach(([itemKey], idx) => {
+                if (grouped[itemKey]) grouped[itemKey].points += (F1_POINTS[idx] || 0);
+            });
+    });
+
     return Object.values(grouped)
         .map(v => ({
             ...v,
             minutes: Math.round(v.minutes),
+            points: Math.round(v.points || 0),
             skipRate: v.plays > 0 ? ((v.skipped / v.plays) * 100).toFixed(1) : '0.0'
         }))
         .sort((a, b) => b[metric] - a[metric])
