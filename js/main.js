@@ -21,6 +21,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const artistFilter = document.getElementById('artist-filter');
     const albumFilter = document.getElementById('album-filter');
     const trackFilter = document.getElementById('track-filter');
+    const artistFilterSearch = document.getElementById('artist-filter-search');
+    const albumFilterSearch = document.getElementById('album-filter-search');
+    const trackFilterSearch = document.getElementById('track-filter-search');
+    const artistFilterMeta = document.getElementById('artist-filter-meta');
+    const albumFilterMeta = document.getElementById('album-filter-meta');
+    const trackFilterMeta = document.getElementById('track-filter-meta');
     const platformFilter = document.getElementById('platform-filter');
     const countryFilter = document.getElementById('country-filter');
     const timeOfDayFilter = document.getElementById('timeofday-filter');
@@ -33,8 +39,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const toggleFiltersBtn = document.getElementById('toggle-filters-btn');
 
     const wrappedYearFilter = document.getElementById('wrapped-year-filter');
+    const multiSelectState = new Map();
+    const searchableFilters = [
+        { key: 'artist', select: artistFilter, search: artistFilterSearch, meta: artistFilterMeta },
+        { key: 'album', select: albumFilter, search: albumFilterSearch, meta: albumFilterMeta },
+        { key: 'track', select: trackFilter, search: trackFilterSearch, meta: trackFilterMeta }
+    ];
 
     window.spotifyData = { full: [], filtered: [] };
+
+    setupSearchableMultiSelects();
 
     // ── SETTINGS TOGGLE ─────────────────────────
     const settingsToggle = document.getElementById('settings-toggle');
@@ -122,9 +136,9 @@ document.addEventListener('DOMContentLoaded', () => {
         initDateFilters(data);
         yearFilter.value = '';
         seasonFilter.value = '';
-        Array.from(artistFilter.options).forEach(o => o.selected = false);
-        Array.from(albumFilter.options).forEach(o => o.selected = false);
-        Array.from(trackFilter.options).forEach(o => o.selected = false);
+        clearSearchableMultiSelect(artistFilter);
+        clearSearchableMultiSelect(albumFilter);
+        clearSearchableMultiSelect(trackFilter);
         platformFilter.value = '';
         countryFilter.value = '';
         timeOfDayFilter.value = '';
@@ -198,9 +212,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         const artists = Object.keys(artistCounts)
-            .sort((a, b) => artistCounts[b] - artistCounts[a]);
-        artistFilter.innerHTML = '<option value="">All Artists</option>' +
-            artists.map(a => `<option value="${escOpt(a)}">${escOpt(a)}</option>`).join('');
+            .sort((a, b) => sortByCountThenName(artistCounts, a, b));
+        setSearchableMultiSelectOptions(artistFilter, artists);
 
         // Count play counts for each album - ordered by play count
         const albumCounts = {};
@@ -210,9 +223,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         const albums = Object.keys(albumCounts)
-            .sort((a, b) => albumCounts[b] - albumCounts[a]);
-        albumFilter.innerHTML = '<option value="">All Albums</option>' +
-            albums.map(a => `<option value="${escOpt(a)}">${escOpt(a)}</option>`).join('');
+            .sort((a, b) => sortByCountThenName(albumCounts, a, b));
+        setSearchableMultiSelectOptions(albumFilter, albums);
 
         // Count play counts for each track - ordered by play count
         const trackCounts = {};
@@ -222,9 +234,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         const tracks = Object.keys(trackCounts)
-            .sort((a, b) => trackCounts[b] - trackCounts[a]);
-        trackFilter.innerHTML = '<option value="">All Tracks</option>' +
-            tracks.map(t => `<option value="${escOpt(t)}">${escOpt(t)}</option>`).join('');
+            .sort((a, b) => sortByCountThenName(trackCounts, a, b));
+        setSearchableMultiSelectOptions(trackFilter, tracks);
 
         const platforms = [...new Set(data.map(d => d.platform).filter(Boolean))].sort();
         platformFilter.innerHTML = '<option value="">All Platforms</option>' +
@@ -244,9 +255,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const to = dateTo.value;
             const year = yearFilter.value;
             const season = seasonFilter.value;
-            const artists = Array.from(artistFilter.selectedOptions).map(o => o.value).filter(v => v);
-            const albums = Array.from(albumFilter.selectedOptions).map(o => o.value).filter(v => v);
-            const tracks = Array.from(trackFilter.selectedOptions).map(o => o.value).filter(v => v);
+            const artists = getSearchableMultiSelectValues(artistFilter);
+            const albums = getSearchableMultiSelectValues(albumFilter);
+            const tracks = getSearchableMultiSelectValues(trackFilter);
             const platform = platformFilter.value;
             const country = countryFilter.value;
             const timeOfDay = timeOfDayFilter.value;
@@ -269,9 +280,9 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             // Format for display in pills
-            const artistLabel = artists.length > 0 ? `${artists.length} artist${artists.length !== 1 ? 's' : ''}` : '';
-            const albumLabel = albums.length > 0 ? `${albums.length} album${albums.length !== 1 ? 's' : ''}` : '';
-            const trackLabel = tracks.length > 0 ? `${tracks.length} track${tracks.length !== 1 ? 's' : ''}` : '';
+            const artistLabel = summarizeSelectedItems(artists);
+            const albumLabel = summarizeSelectedItems(albums);
+            const trackLabel = summarizeSelectedItems(tracks);
 
             renderFilterPills({
                 from, to, year, season,
@@ -320,7 +331,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (key === 'artist' || key === 'album' || key === 'track') {
                     const elMap = { artist: artistFilter, album: albumFilter, track: trackFilter };
                     const el = elMap[key];
-                    if (el) Array.from(el.options).forEach(o => o.selected = false);
+                    if (el) clearSearchableMultiSelect(el);
                 } else {
                     const elMap = { from: dateFrom, to: dateTo, year: yearFilter, season: seasonFilter, platform: platformFilter, country: countryFilter, timeOfDay: timeOfDayFilter, skipMode: skipFilter };
                     const el = elMap[key];
@@ -336,5 +347,113 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function escOpt(str) {
         return String(str).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function escText(str) {
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function sortByCountThenName(counts, a, b) {
+        const diff = (counts[b] || 0) - (counts[a] || 0);
+        if (diff !== 0) return diff;
+        return String(a).localeCompare(String(b), undefined, { sensitivity: 'base' });
+    }
+
+    function setupSearchableMultiSelects() {
+        searchableFilters.forEach(({ select, search }) => {
+            if (!select || !search) return;
+
+            multiSelectState.set(select.id, { options: [], selected: [], query: '' });
+
+            search.addEventListener('input', e => {
+                const state = multiSelectState.get(select.id);
+                if (!state) return;
+                state.query = e.target.value || '';
+                renderSearchableMultiSelect(select);
+            });
+
+            select.addEventListener('change', () => {
+                syncVisibleSelection(select);
+                renderSearchableMultiSelect(select, false);
+            });
+        });
+    }
+
+    function setSearchableMultiSelectOptions(select, values) {
+        const state = multiSelectState.get(select.id);
+        if (!state) return;
+
+        const validValues = new Set(values);
+        state.options = values.map(value => ({ value, label: value }));
+        state.selected = state.selected.filter(value => validValues.has(value));
+        renderSearchableMultiSelect(select, false);
+    }
+
+    function renderSearchableMultiSelect(select, preserveScroll = true) {
+        const state = multiSelectState.get(select.id);
+        if (!state) return;
+
+        const scrollTop = select.scrollTop;
+        const query = state.query.trim().toLowerCase();
+        const selected = new Set(state.selected);
+        const visible = state.options.filter(option => selected.has(option.value) || !query || option.label.toLowerCase().includes(query));
+
+        select.innerHTML = visible.length
+            ? visible.map(option => `<option value="${escOpt(option.value)}"${selected.has(option.value) ? ' selected' : ''}>${escText(option.label)}</option>`).join('')
+            : '<option value="" disabled>No matches found</option>';
+
+        if (preserveScroll) select.scrollTop = scrollTop;
+        updateSearchableMultiSelectMeta(select, visible.length);
+    }
+
+    function syncVisibleSelection(select) {
+        const state = multiSelectState.get(select.id);
+        if (!state) return;
+
+        const visibleValues = new Set(Array.from(select.options).map(option => option.value).filter(Boolean));
+        const nextSelected = new Set(state.selected.filter(value => !visibleValues.has(value)));
+        Array.from(select.selectedOptions).forEach(option => {
+            if (option.value) nextSelected.add(option.value);
+        });
+        state.selected = state.options
+            .map(option => option.value)
+            .filter(value => nextSelected.has(value));
+    }
+
+    function updateSearchableMultiSelectMeta(select, visibleCount = null) {
+        const config = searchableFilters.find(entry => entry.select === select);
+        const state = multiSelectState.get(select.id);
+        if (!config?.meta || !state) return;
+
+        const total = state.options.length;
+        const selectedCount = state.selected.length;
+        const shown = visibleCount === null ? total : visibleCount;
+
+        config.meta.textContent = state.query
+            ? `${selectedCount} selected · ${shown} shown of ${total}`
+            : `${selectedCount} selected · ${total} available`;
+    }
+
+    function getSearchableMultiSelectValues(select) {
+        const state = multiSelectState.get(select.id);
+        if (!state) return Array.from(select.selectedOptions).map(option => option.value).filter(Boolean);
+        return [...state.selected];
+    }
+
+    function clearSearchableMultiSelect(select) {
+        const config = searchableFilters.find(entry => entry.select === select);
+        const state = multiSelectState.get(select.id);
+        if (!state) return;
+
+        state.selected = [];
+        state.query = '';
+        if (config?.search) config.search.value = '';
+        renderSearchableMultiSelect(select, false);
+    }
+
+    function summarizeSelectedItems(values) {
+        if (!values.length) return '';
+        if (values.length <= 2) return values.join(', ');
+        return `${values[0]}, ${values[1]} +${values.length - 2}`;
     }
 });

@@ -122,9 +122,14 @@
                 <!-- FILTERS PANEL -->
                 <div class="filters-panel">
                     <div class="filters-panel-head">
+                        <div class="filters-panel-copy">
+                            <h3>Filters</h3>
+                            <p>Use quick filters above and searchable lists below to narrow artists, albums, and tracks
+                                faster.</p>
+                        </div>
                         <button id="toggle-filters-btn" class="secondary-btn">Hide Filters</button>
                     </div>
-                    <div class="filters-row">
+                    <div class="filters-grid filters-grid-primary">
                         <div class="filter-group">
                             <label>From</label>
                             <input type="date" id="date-from">
@@ -147,24 +152,6 @@
                                 <option value="summer">Summer (Jun-Aug)</option>
                                 <option value="autumn">Autumn (Sep-Nov)</option>
                                 <option value="winter">Winter (Dec-Feb)</option>
-                            </select>
-                        </div>
-                        <div class="filter-group">
-                            <label>Artist</label>
-                            <select id="artist-filter" multiple>
-                                <option value="">All Artists</option>
-                            </select>
-                        </div>
-                        <div class="filter-group">
-                            <label>Album</label>
-                            <select id="album-filter" multiple>
-                                <option value="">All Albums</option>
-                            </select>
-                        </div>
-                        <div class="filter-group">
-                            <label>Track</label>
-                            <select id="track-filter" multiple>
-                                <option value="">All Tracks</option>
                             </select>
                         </div>
                         <div class="filter-group">
@@ -197,7 +184,41 @@
                                 <option value="skipped">Skipped only</option>
                             </select>
                         </div>
-                        <div class="filter-actions">
+                    </div>
+                    <div class="filters-section-title">Artists, albums and tracks</div>
+                    <div class="filters-grid filters-grid-entities">
+                        <div class="filter-group filter-group-large">
+                            <div class="filter-label-row">
+                                <label for="artist-filter">Artists</label>
+                                <span class="filter-meta" id="artist-filter-meta">0 selected</span>
+                            </div>
+                            <input type="search" id="artist-filter-search" class="filter-search"
+                                placeholder="Search artists...">
+                            <select id="artist-filter" multiple size="10"></select>
+                        </div>
+                        <div class="filter-group filter-group-large">
+                            <div class="filter-label-row">
+                                <label for="album-filter">Albums</label>
+                                <span class="filter-meta" id="album-filter-meta">0 selected</span>
+                            </div>
+                            <input type="search" id="album-filter-search" class="filter-search"
+                                placeholder="Search albums...">
+                            <select id="album-filter" multiple size="10"></select>
+                        </div>
+                        <div class="filter-group filter-group-large">
+                            <div class="filter-label-row">
+                                <label for="track-filter">Tracks</label>
+                                <span class="filter-meta" id="track-filter-meta">0 selected</span>
+                            </div>
+                            <input type="search" id="track-filter-search" class="filter-search"
+                                placeholder="Search tracks...">
+                            <select id="track-filter" multiple size="10"></select>
+                        </div>
+                    </div>
+                    <div class="filter-actions filter-actions-row">
+                        <div class="filter-actions-copy">Multi-select is supported. Search narrows the list without
+                            clearing your current selection.</div>
+                        <div class="filter-actions-buttons">
                             <button id="apply-filter-btn">Apply</button>
                             <button id="reset-filters-btn" class="secondary-btn">Reset</button>
                         </div>

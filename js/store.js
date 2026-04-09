@@ -280,7 +280,11 @@ export function calculateTopItems(data, key, metric = 'plays', topN = 10) {
             points: Math.round(v.points || 0),
             skipRate: v.plays > 0 ? ((v.skipped / v.plays) * 100).toFixed(1) : '0.0'
         }))
-        .sort((a, b) => b[metric] - a[metric])
+        .sort((a, b) => {
+            const metricDiff = (b[metric] || 0) - (a[metric] || 0);
+            if (metricDiff !== 0) return metricDiff;
+            return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' });
+        })
         .slice(0, topN);
 }
 
