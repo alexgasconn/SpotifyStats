@@ -25,6 +25,10 @@ let tracksSortBy = 'plays';
 let artistsSortBy = 'plays';
 let albumsSortBy = 'plays';
 
+// Compare tab state
+let compareArtistA = '';
+let compareArtistB = '';
+
 // Viewer state
 let viewerChartInstance = null;
 let viewerPlaybackTimer = null;
@@ -616,6 +620,276 @@ export function renderDeepDiveTab() {
             openDetail(name, type, extra, window.spotifyData.full);
         });
     });
+}
+
+// ─────────────────────────────────────────────
+//  COMPARE TAB
+// ─────────────────────────────────────────────
+
+export function renderCompareTab() {
+    const container = document.getElementById('compare-content');
+    if (!container) return;
+
+    const data = (window.spotifyData?.filtered || []).filter(d => !d.isPodcast && d.trackName);
+    if (!data.length) {
+        container.innerHTML = '<p style="color:var(--text-muted);padding:1rem">No music data available for comparison.</p>';
+        return;
+    }
+
+    const artistCounts = {};
+    data.forEach(d => {
+        if (!d.artistName) return;
+        artistCounts[d.artistName] = (artistCounts[d.artistName] || 0) + 1;
+    });
+
+    const artists = Object.entries(artistCounts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([name]) => name);
+
+    if (!compareArtistA || !artists.includes(compareArtistA)) compareArtistA = artists[0] || '';
+    if (!compareArtistB || !artists.includes(compareArtistB) || compareArtistB === compareArtistA) {
+        compareArtistB = artists.find(a => a !== compareArtistA) || artists[0] || '';
+    }
+
+    if (!compareArtistA || !compareArtistB || compareArtistA === compareArtistB) {
+        container.innerHTML = '<p style="color:var(--text-muted);padding:1rem">Need at least two artists with data to compare.</p>';
+        return;
+    }
+
+    const cmp = store.calculateArtistComparison(data, compareArtistA, compareArtistB);
+    if (!cmp) {
+        container.innerHTML = '<p style="color:var(--text-muted);padding:1rem">Comparison could not be generated with current filters.</p>';
+        return;
+    }
+
+    const winnerLabel = cmp.winner === 'A' ? cmp.artistA : cmp.winner === 'B' ? cmp.artistB : 'Tie';
+    const winnerClass = cmp.winner === 'A' ? 'compare-winner-a' : cmp.winner === 'B' ? 'compare-winner-b' : 'compare-winner-tie';
+
+    const optionHtml = artists
+        .slice(0, 300)
+        .map(name => `<option value="${esc(name)}">${esc(name)}</option>`)
+        .join('');
+
+    const scoreRows = cmp.scorecard.map(row => {
+        const aVal = typeof row.a === 'number' ? row.a.toLocaleString() : row.a;
+        const bVal = typeof row.b === 'number' ? row.b.toLocaleString() : row.b;
+        let verdict = 'Draw';
+        if (row.a !== row.b) {
+            if (row.higherWins) verdict = row.a > row.b ? cmp.artistA : cmp.artistB;
+            else verdict = row.a < row.b ? cmp.artistA : cmp.artistB;
+        }
+        return `<tr>
+            <td>${esc(row.label)}</td>
+            <td>${aVal}</td>
+            <td>${bVal}</td>
+            <td>${esc(verdict)}</td>
+        </tr>`;
+    }).join('');
+
+    const weeklyRows = cmp.duel.weekly
+        .slice()
+        .reverse()
+        .slice(0, 24)
+        .map(w => `<tr>
+            <td>${w.week}</td>
+            <td>${w.aMinutes}</td>
+            <td>${w.bMinutes}</td>
+            <td>${w.winner === 'A' ? esc(cmp.artistA) : w.winner === 'B' ? esc(cmp.artistB) : 'Tie'}</td>
+        </tr>`).join('');
+
+    container.innerHTML = `
+        <div class="compare-header">
+            <div class="compare-selectors">
+                <div class="compare-control">
+                    <label for="compare-artist-a">Artist A</label>
+                    <select id="compare-artist-a">${optionHtml}</select>
+                </div>
+                <div class="compare-control">
+                    <label for="compare-artist-b">Artist B</label>
+                    <select id="compare-artist-b">${optionHtml}</select>
+                </div>
+                <button id="compare-swap-btn" class="secondary-btn">Swap</button>
+            </div>
+            <div class="compare-hero ${winnerClass}">
+                <div class="compare-hero-title">Exhaustive Head-to-Head Winner</div>
+                <div class="compare-hero-value">${esc(winnerLabel)}</div>
+                <div class="compare-hero-sub">${cmp.winsByMetrics.A} metrics won by ${esc(cmp.artistA)} · ${cmp.winsByMetrics.B} by ${esc(cmp.artistB)} · ${cmp.winsByMetrics.draws} draws</div>
+            </div>
+        </div>
+
+        <div class="compare-kpi-grid">
+            ${buildCompareKpiCard(cmp.artistA, cmp.summaryA, cmp.duel.pointsA, cmp.duel.winsA)}
+            ${buildCompareKpiCard(cmp.artistB, cmp.summaryB, cmp.duel.pointsB, cmp.duel.winsB)}
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-container full-width">
+                <h3>Cumulative Listening Race</h3>
+                <div class="chart-wrapper"><canvas id="compare-race-chart"></canvas></div>
+            </div>
+            <div class="chart-container">
+                <h3>Monthly Trend (Minutes)</h3>
+                <div class="chart-wrapper"><canvas id="compare-monthly-chart"></canvas></div>
+            </div>
+            <div class="chart-container">
+                <h3>Hour of Day Profile</h3>
+                <div class="chart-wrapper"><canvas id="compare-hour-chart"></canvas></div>
+            </div>
+            <div class="chart-container">
+                <h3>Weekday Profile</h3>
+                <div class="chart-wrapper"><canvas id="compare-weekday-chart"></canvas></div>
+            </div>
+            <div class="chart-container">
+                <h3>Time of Day Segments</h3>
+                <div class="chart-wrapper"><canvas id="compare-daypart-chart"></canvas></div>
+            </div>
+            <div class="chart-container full-width">
+                <h3>Device / Platform Comparison</h3>
+                <div class="chart-wrapper"><canvas id="compare-platform-chart"></canvas></div>
+            </div>
+            <div class="chart-container">
+                <h3>Session Distribution (Violin-like)</h3>
+                <div class="chart-wrapper"><canvas id="compare-session-chart"></canvas></div>
+            </div>
+            <div class="chart-container">
+                <h3>Catalog Overlap</h3>
+                <div class="compare-overlap-grid">
+                    <div class="compare-overlap-card"><span>Shared tracks</span><strong>${cmp.overlap.sharedTracks}</strong></div>
+                    <div class="compare-overlap-card"><span>Shared albums</span><strong>${cmp.overlap.sharedAlbums}</strong></div>
+                    <div class="compare-overlap-card"><span>Only ${esc(cmp.artistA)} tracks</span><strong>${cmp.overlap.onlyATracks}</strong></div>
+                    <div class="compare-overlap-card"><span>Only ${esc(cmp.artistB)} tracks</span><strong>${cmp.overlap.onlyBTracks}</strong></div>
+                    <div class="compare-overlap-card"><span>Only ${esc(cmp.artistA)} albums</span><strong>${cmp.overlap.onlyAAlbums}</strong></div>
+                    <div class="compare-overlap-card"><span>Only ${esc(cmp.artistB)} albums</span><strong>${cmp.overlap.onlyBAlbums}</strong></div>
+                </div>
+            </div>
+            <div class="chart-container full-width">
+                <h3>Metric-by-Metric Verdict</h3>
+                <div style="overflow:auto">
+                    <table class="compare-table">
+                        <thead><tr><th>Metric</th><th>${esc(cmp.artistA)}</th><th>${esc(cmp.artistB)}</th><th>Winner</th></tr></thead>
+                        <tbody>${scoreRows}</tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="chart-container full-width">
+                <h3>Weekly Head-to-Head (recent 24 weeks)</h3>
+                <div style="overflow:auto">
+                    <table class="compare-table">
+                        <thead><tr><th>Week</th><th>${esc(cmp.artistA)} min</th><th>${esc(cmp.artistB)} min</th><th>Winner</th></tr></thead>
+                        <tbody>${weeklyRows}</tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const selA = container.querySelector('#compare-artist-a');
+    const selB = container.querySelector('#compare-artist-b');
+    const swapBtn = container.querySelector('#compare-swap-btn');
+
+    if (selA) selA.value = compareArtistA;
+    if (selB) selB.value = compareArtistB;
+
+    selA?.addEventListener('change', (e) => {
+        compareArtistA = e.target.value;
+        if (compareArtistA === compareArtistB) {
+            compareArtistB = artists.find(a => a !== compareArtistA) || compareArtistB;
+        }
+        renderCompareTab();
+    });
+
+    selB?.addEventListener('change', (e) => {
+        compareArtistB = e.target.value;
+        if (compareArtistA === compareArtistB) {
+            compareArtistA = artists.find(a => a !== compareArtistB) || compareArtistA;
+        }
+        renderCompareTab();
+    });
+
+    swapBtn?.addEventListener('click', () => {
+        const tmp = compareArtistA;
+        compareArtistA = compareArtistB;
+        compareArtistB = tmp;
+        renderCompareTab();
+    });
+
+    charts.renderCompareRaceChart('compare-race-chart', cmp.raceLabels, cmp.raceA, cmp.raceB, cmp.artistA, cmp.artistB);
+    charts.renderCompareGroupedBar('compare-monthly-chart', cmp.monthlyLabels, cmp.monthlyA, cmp.monthlyB, cmp.artistA, cmp.artistB, 'Minutes');
+    charts.renderCompareGroupedBar(
+        'compare-hour-chart',
+        Array.from({ length: 24 }, (_, i) => String(i)),
+        cmp.summaryA.hourMinutes,
+        cmp.summaryB.hourMinutes,
+        cmp.artistA,
+        cmp.artistB,
+        'Minutes'
+    );
+    charts.renderCompareGroupedBar(
+        'compare-weekday-chart',
+        ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        cmp.summaryA.weekdayMinutes,
+        cmp.summaryB.weekdayMinutes,
+        cmp.artistA,
+        cmp.artistB,
+        'Minutes'
+    );
+    charts.renderCompareGroupedBar(
+        'compare-daypart-chart',
+        ['Morning', 'Afternoon', 'Evening', 'Night'],
+        [
+            cmp.summaryA.timeOfDayMinutes.morning,
+            cmp.summaryA.timeOfDayMinutes.afternoon,
+            cmp.summaryA.timeOfDayMinutes.evening,
+            cmp.summaryA.timeOfDayMinutes.night
+        ],
+        [
+            cmp.summaryB.timeOfDayMinutes.morning,
+            cmp.summaryB.timeOfDayMinutes.afternoon,
+            cmp.summaryB.timeOfDayMinutes.evening,
+            cmp.summaryB.timeOfDayMinutes.night
+        ],
+        cmp.artistA,
+        cmp.artistB,
+        'Minutes'
+    );
+    charts.renderCompareGroupedBar(
+        'compare-platform-chart',
+        cmp.platformRows.map(r => r.platform),
+        cmp.platformRows.map(r => r.aMinutes),
+        cmp.platformRows.map(r => r.bMinutes),
+        cmp.artistA,
+        cmp.artistB,
+        'Minutes'
+    );
+    charts.renderCompareSessionViolinLike(
+        'compare-session-chart',
+        cmp.artistA,
+        cmp.artistB,
+        cmp.sessionDistribution.A,
+        cmp.sessionDistribution.B
+    );
+}
+
+function buildCompareKpiCard(artistName, summary, duelPoints, weeklyWins) {
+    return `
+        <div class="compare-kpi-card">
+            <h4>${esc(artistName)}</h4>
+            <div class="compare-kpi-list">
+                <div><span>Minutes</span><strong>${summary.totalMinutes.toLocaleString()}</strong></div>
+                <div><span>Plays</span><strong>${summary.plays.toLocaleString()}</strong></div>
+                <div><span>Duel points</span><strong>${duelPoints}</strong></div>
+                <div><span>Weekly wins</span><strong>${weeklyWins}</strong></div>
+                <div><span>Unique tracks</span><strong>${summary.uniqueTracks}</strong></div>
+                <div><span>Unique albums</span><strong>${summary.uniqueAlbums}</strong></div>
+                <div><span>Track variety %</span><strong>${summary.varietyTrackPct}%</strong></div>
+                <div><span>Album variety %</span><strong>${summary.varietyAlbumPct}%</strong></div>
+                <div><span>Skip rate</span><strong>${summary.skipRate}%</strong></div>
+                <div><span>Avg min/play</span><strong>${summary.avgMinutesPerPlay}</strong></div>
+                <div><span>Avg min/active day</span><strong>${summary.avgMinutesPerActiveDay}</strong></div>
+                <div><span>Same-day repeats</span><strong>${summary.repeatedSameDayCount}</strong></div>
+            </div>
+        </div>
+    `;
 }
 
 // ─────────────────────────────────────────────

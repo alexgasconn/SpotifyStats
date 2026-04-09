@@ -363,3 +363,189 @@ export function renderWrappedMonthlyChart(monthlyData) {
         }
     });
 }
+
+// ── ARTIST COMPARE ───────────────────────────────────────────────────────────
+
+export function renderCompareRaceChart(canvasId, labels, seriesA, seriesB, artistA, artistB) {
+    make(canvasId, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: `${artistA} cumulative`,
+                    data: seriesA,
+                    borderColor: '#1DB954',
+                    backgroundColor: 'rgba(29,185,84,0.15)',
+                    borderWidth: 2,
+                    pointRadius: 1.5,
+                    pointHoverRadius: 4,
+                    tension: 0.22,
+                    fill: false
+                },
+                {
+                    label: `${artistB} cumulative`,
+                    data: seriesB,
+                    borderColor: '#17A2B8',
+                    backgroundColor: 'rgba(23,162,184,0.15)',
+                    borderWidth: 2,
+                    pointRadius: 1.5,
+                    pointHoverRadius: 4,
+                    tension: 0.22,
+                    fill: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: TICK, boxWidth: 12 } },
+                datalabels: false
+            },
+            scales: {
+                x: {
+                    ticks: { color: TICK, maxTicksLimit: 10, autoSkip: true },
+                    grid: { display: false }
+                },
+                y: {
+                    ticks: { color: TICK },
+                    grid: { color: GRID },
+                    title: { display: true, text: 'Cumulative Minutes', color: TICK }
+                }
+            }
+        }
+    });
+}
+
+export function renderCompareGroupedBar(canvasId, labels, aValues, bValues, artistA, artistB, yTitle) {
+    make(canvasId, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: artistA,
+                    data: aValues,
+                    backgroundColor: 'rgba(29,185,84,0.8)',
+                    borderColor: '#1DB954',
+                    borderWidth: 1,
+                    borderRadius: 4
+                },
+                {
+                    label: artistB,
+                    data: bValues,
+                    backgroundColor: 'rgba(23,162,184,0.8)',
+                    borderColor: '#17A2B8',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: TICK, boxWidth: 12 } },
+                datalabels: false
+            },
+            scales: {
+                x: { ticks: { color: TICK }, grid: { display: false } },
+                y: {
+                    ticks: { color: TICK },
+                    grid: { color: GRID },
+                    title: { display: true, text: yTitle, color: TICK }
+                }
+            }
+        }
+    });
+}
+
+export function renderCompareSessionViolinLike(canvasId, artistA, artistB, distA, distB) {
+    const labels = [artistA, artistB];
+    const ranges = [
+        [distA.q10, distA.q90],
+        [distB.q10, distB.q90]
+    ];
+
+    make(canvasId, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                {
+                    type: 'bar',
+                    label: 'P10-P90 range',
+                    data: ranges,
+                    backgroundColor: ['rgba(29,185,84,0.25)', 'rgba(23,162,184,0.25)'],
+                    borderColor: ['#1DB954', '#17A2B8'],
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    barPercentage: 0.55,
+                    categoryPercentage: 0.7
+                },
+                {
+                    type: 'line',
+                    label: 'Median',
+                    data: [distA.q50, distB.q50],
+                    borderColor: '#FFC107',
+                    backgroundColor: '#FFC107',
+                    borderWidth: 0,
+                    pointRadius: 6,
+                    pointHoverRadius: 7,
+                    showLine: false
+                },
+                {
+                    type: 'line',
+                    label: 'IQR (Q25-Q75)',
+                    data: [distA.q25, distB.q25],
+                    borderColor: '#8fd9a8',
+                    backgroundColor: '#8fd9a8',
+                    borderWidth: 0,
+                    pointRadius: 4,
+                    pointHoverRadius: 5,
+                    showLine: false
+                },
+                {
+                    type: 'line',
+                    data: [distA.q75, distB.q75],
+                    borderColor: '#8fd9a8',
+                    backgroundColor: '#8fd9a8',
+                    borderWidth: 0,
+                    pointRadius: 4,
+                    pointHoverRadius: 5,
+                    showLine: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: TICK, boxWidth: 12 } },
+                datalabels: false,
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => {
+                            if (ctx.dataset.type === 'bar') {
+                                const range = ctx.raw || [0, 0];
+                                return `P10-P90: ${range[0]}-${range[1]} min`;
+                            }
+                            if (ctx.dataset.label === 'Median') return `Median: ${ctx.raw} min`;
+                            if (ctx.dataset.label === 'IQR (Q25-Q75)') return `Q25: ${ctx.raw} min`;
+                            return `Q75: ${ctx.raw} min`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { ticks: { color: TICK }, grid: { display: false } },
+                y: {
+                    ticks: { color: TICK },
+                    grid: { color: GRID },
+                    title: { display: true, text: 'Daily minutes distribution', color: TICK }
+                }
+            }
+        }
+    });
+}

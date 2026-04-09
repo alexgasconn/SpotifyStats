@@ -851,6 +851,319 @@ export function calculateDeepInsights(data) {
 }
 
 // ─────────────────────────────────────────────
+//  ARTIST VS ARTIST (COMPARE TAB)
+// ─────────────────────────────────────────────
+
+export function calculateArtistComparison(data, artistA, artistB) {
+    const cleanA = String(artistA || '').trim();
+    const cleanB = String(artistB || '').trim();
+    if (!cleanA || !cleanB || cleanA === cleanB) return null;
+
+    const music = (data || []).filter(d => !d.isPodcast && d.trackName);
+    const aRows = music.filter(d => d.artistName === cleanA);
+    const bRows = music.filter(d => d.artistName === cleanB);
+    if (!aRows.length || !bRows.length) return null;
+
+    const allDates = [...new Set(music.map(d => d.date))].sort();
+    const monthLabels = [...new Set(music.map(d => `${d.year}-${String(d.month + 1).padStart(2, '0')}`))].sort();
+
+    const summarize = (rows) => {
+        const totalMinutesRaw = rows.reduce((s, d) => s + d.durationMin, 0);
+        const totalMinutes = Math.round(totalMinutesRaw);
+        const plays = rows.length;
+        const skipped = rows.filter(r => r.skipped).length;
+        const skipRate = +(((skipped / (plays || 1)) * 100).toFixed(1));
+
+        const uniqueTracks = new Set(rows.map(r => r.trackName).filter(Boolean));
+        const uniqueAlbums = new Set(rows.map(r => `${r.albumName || ''}|||${r.artistName || ''}`).filter(v => !v.startsWith('|||')));
+        const activeDays = new Set(rows.map(r => r.date));
+
+        const dayMinutes = {};
+        const dayPlays = {};
+        const dayTrackCounts = {};
+        const hourMinutes = Array(24).fill(0);
+        const weekdayMinutes = Array(7).fill(0);
+        const timeOfDayMinutes = { morning: 0, afternoon: 0, evening: 0, night: 0 };
+        const platformMinutes = {};
+        const trackPlaysMap = {};
+        const albumPlaysMap = {};
+
+        rows.forEach(r => {
+            dayMinutes[r.date] = (dayMinutes[r.date] || 0) + r.durationMin;
+            dayPlays[r.date] = (dayPlays[r.date] || 0) + 1;
+
+            const dayTrackKey = `${r.date}|||${r.trackName || ''}`;
+            dayTrackCounts[dayTrackKey] = (dayTrackCounts[dayTrackKey] || 0) + 1;
+
+            hourMinutes[r.hour] += r.durationMin;
+            weekdayMinutes[r.weekday] += r.durationMin;
+            if (r.timeOfDay && timeOfDayMinutes[r.timeOfDay] !== undefined) {
+                timeOfDayMinutes[r.timeOfDay] += r.durationMin;
+            }
+            platformMinutes[r.platform || 'unknown'] = (platformMinutes[r.platform || 'unknown'] || 0) + r.durationMin;
+
+            if (r.trackName) trackPlaysMap[r.trackName] = (trackPlaysMap[r.trackName] || 0) + 1;
+            if (r.albumName) {
+                const aKey = `${r.albumName}|||${r.artistName || ''}`;
+                albumPlaysMap[aKey] = (albumPlaysMap[aKey] || 0) + 1;
+            }
+        });
+
+        const avgMinutesPerPlay = +((totalMinutesRaw / (plays || 1)).toFixed(2));
+        const avgMinutesPerActiveDay = +((totalMinutesRaw / (activeDays.size || 1)).toFixed(2));
+        const bestDay = Object.entries(dayMinutes).sort((a, b) => b[1] - a[1])[0] || null;
+
+        const repeatedSameDayCount = Object.values(dayTrackCounts).filter(c => c >= 2).reduce((s, c) => s + c, 0);
+        const repeatedSameDayEvents = Object.values(dayTrackCounts).filter(c => c >= 2).length;
+
+        const varietyTrackPct = +(((uniqueTracks.size / (plays || 1)) * 100).toFixed(1));
+        const varietyAlbumPct = +(((uniqueAlbums.size / (plays || 1)) * 100).toFixed(1));
+
+        const topTracks = Object.entries(trackPlaysMap)
+            .map(([name, v]) => ({ name, plays: v }))
+            .sort((a, b) => b.plays - a.plays)
+            .slice(0, 10);
+
+        const topAlbums = Object.entries(albumPlaysMap)
+            .map(([k, v]) => {
+                const [name] = k.split('|||');
+                return { name, plays: v };
+            })
+            .sort((a, b) => b.plays - a.plays)
+            .slice(0, 10);
+
+        const sessionLike = Object.values(dayMinutes).map(v => +(v.toFixed(2))).sort((a, b) => a - b);
+
+        return {
+            totalMinutes,
+            plays,
+            skipped,
+            skipRate,
+            uniqueTracks: uniqueTracks.size,
+            uniqueAlbums: uniqueAlbums.size,
+            activeDays: activeDays.size,
+            avgMinutesPerPlay,
+            avgMinutesPerActiveDay,
+            bestDay: bestDay ? { date: bestDay[0], minutes: Math.round(bestDay[1]) } : null,
+            repeatedSameDayCount,
+            repeatedSameDayEvents,
+            varietyTrackPct,
+            varietyAlbumPct,
+            hourMinutes: hourMinutes.map(v => Math.round(v)),
+            weekdayMinutes: weekdayMinutes.map(v => Math.round(v)),
+            timeOfDayMinutes: Object.fromEntries(
+                Object.entries(timeOfDayMinutes).map(([k, v]) => [k, Math.round(v)])
+            ),
+            platformMinutes: Object.fromEntries(
+                Object.entries(platformMinutes)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([k, v]) => [k, Math.round(v)])
+            ),
+            topTracks,
+            topAlbums,
+            dailyMinutesSorted: sessionLike,
+            dayMinutesRaw: dayMinutes,
+            dayPlaysRaw: dayPlays
+        };
+    };
+
+    const A = summarize(aRows);
+    const B = summarize(bRows);
+
+    // Monthly trends
+    const buildMonthlyMinutes = (rows) => {
+        const map = {};
+        rows.forEach(r => {
+            const k = `${r.year}-${String(r.month + 1).padStart(2, '0')}`;
+            map[k] = (map[k] || 0) + r.durationMin;
+        });
+        return monthLabels.map(m => Math.round(map[m] || 0));
+    };
+
+    const monthlyA = buildMonthlyMinutes(aRows);
+    const monthlyB = buildMonthlyMinutes(bRows);
+
+    // Cumulative race by date
+    const dayMinutesA = A.dayMinutesRaw;
+    const dayMinutesB = B.dayMinutesRaw;
+
+    let accumA = 0;
+    let accumB = 0;
+    const raceLabels = [];
+    const raceA = [];
+    const raceB = [];
+
+    allDates.forEach((date, idx) => {
+        accumA += dayMinutesA[date] || 0;
+        accumB += dayMinutesB[date] || 0;
+
+        // Keep series readable for long histories.
+        const keepStep = allDates.length > 260 ? Math.ceil(allDates.length / 260) : 1;
+        const isLast = idx === allDates.length - 1;
+        if (idx % keepStep === 0 || isLast) {
+            raceLabels.push(date);
+            raceA.push(Math.round(accumA));
+            raceB.push(Math.round(accumB));
+        }
+    });
+
+    // Week-based duel points and wins
+    const byWeekA = {};
+    const byWeekB = {};
+    aRows.forEach(r => {
+        const wk = getStartOfWeek(r.ts);
+        byWeekA[wk] = (byWeekA[wk] || 0) + r.durationMin;
+    });
+    bRows.forEach(r => {
+        const wk = getStartOfWeek(r.ts);
+        byWeekB[wk] = (byWeekB[wk] || 0) + r.durationMin;
+    });
+
+    const weeks = [...new Set([...Object.keys(byWeekA), ...Object.keys(byWeekB)])].sort();
+    let duelPointsA = 0;
+    let duelPointsB = 0;
+    let winsA = 0;
+    let winsB = 0;
+    let ties = 0;
+    const weeklyDuel = weeks.map(w => {
+        const aMin = byWeekA[w] || 0;
+        const bMin = byWeekB[w] || 0;
+        let winner = 'tie';
+        if (aMin > bMin) {
+            winner = 'A';
+            winsA += 1;
+            duelPointsA += 3;
+        } else if (bMin > aMin) {
+            winner = 'B';
+            winsB += 1;
+            duelPointsB += 3;
+        } else {
+            ties += 1;
+            duelPointsA += 1;
+            duelPointsB += 1;
+        }
+        return {
+            week: w,
+            aMinutes: Math.round(aMin),
+            bMinutes: Math.round(bMin),
+            winner
+        };
+    });
+
+    // Device comparison matrix
+    const allPlatforms = [...new Set([...Object.keys(A.platformMinutes), ...Object.keys(B.platformMinutes)])]
+        .sort((x, y) => ((B.platformMinutes[y] || 0) + (A.platformMinutes[y] || 0)) - ((B.platformMinutes[x] || 0) + (A.platformMinutes[x] || 0)));
+
+    const platformRows = allPlatforms.slice(0, 10).map(p => ({
+        platform: p,
+        aMinutes: A.platformMinutes[p] || 0,
+        bMinutes: B.platformMinutes[p] || 0
+    }));
+
+    // Shared vs exclusive catalogue
+    const aTrackSet = new Set(aRows.map(r => r.trackName).filter(Boolean));
+    const bTrackSet = new Set(bRows.map(r => r.trackName).filter(Boolean));
+    const aAlbumSet = new Set(aRows.map(r => r.albumName).filter(Boolean));
+    const bAlbumSet = new Set(bRows.map(r => r.albumName).filter(Boolean));
+
+    let sharedTracks = 0;
+    aTrackSet.forEach(t => { if (bTrackSet.has(t)) sharedTracks += 1; });
+    let sharedAlbums = 0;
+    aAlbumSet.forEach(a => { if (bAlbumSet.has(a)) sharedAlbums += 1; });
+
+    const sessionDistribution = {
+        A: quantilesFromSorted(A.dailyMinutesSorted),
+        B: quantilesFromSorted(B.dailyMinutesSorted)
+    };
+
+    const scorecard = [
+        { key: 'totalMinutes', label: 'Total minutes', a: A.totalMinutes, b: B.totalMinutes, higherWins: true },
+        { key: 'plays', label: 'Total plays', a: A.plays, b: B.plays, higherWins: true },
+        { key: 'uniqueTracks', label: 'Unique tracks', a: A.uniqueTracks, b: B.uniqueTracks, higherWins: true },
+        { key: 'uniqueAlbums', label: 'Unique albums', a: A.uniqueAlbums, b: B.uniqueAlbums, higherWins: true },
+        { key: 'activeDays', label: 'Active days', a: A.activeDays, b: B.activeDays, higherWins: true },
+        { key: 'duelPoints', label: 'Head-to-head points', a: duelPointsA, b: duelPointsB, higherWins: true },
+        { key: 'weeklyWins', label: 'Weekly wins', a: winsA, b: winsB, higherWins: true },
+        { key: 'skipRate', label: 'Skip rate (lower better)', a: A.skipRate, b: B.skipRate, higherWins: false },
+        { key: 'varietyTrackPct', label: 'Track variety %', a: A.varietyTrackPct, b: B.varietyTrackPct, higherWins: true },
+        { key: 'varietyAlbumPct', label: 'Album variety %', a: A.varietyAlbumPct, b: B.varietyAlbumPct, higherWins: true },
+        { key: 'repeatSameDay', label: 'Same-day repetition count', a: A.repeatedSameDayCount, b: B.repeatedSameDayCount, higherWins: true }
+    ];
+
+    let scoreA = 0;
+    let scoreB = 0;
+    let draws = 0;
+    scorecard.forEach(row => {
+        if (row.a === row.b) {
+            draws += 1;
+            return;
+        }
+        if (row.higherWins) {
+            if (row.a > row.b) scoreA += 1;
+            else scoreB += 1;
+        } else {
+            if (row.a < row.b) scoreA += 1;
+            else scoreB += 1;
+        }
+    });
+
+    return {
+        artistA: cleanA,
+        artistB: cleanB,
+        summaryA: A,
+        summaryB: B,
+        monthlyLabels: monthLabels,
+        monthlyA,
+        monthlyB,
+        raceLabels,
+        raceA,
+        raceB,
+        duel: {
+            pointsA: duelPointsA,
+            pointsB: duelPointsB,
+            winsA,
+            winsB,
+            ties,
+            weekly: weeklyDuel
+        },
+        platformRows,
+        overlap: {
+            sharedTracks,
+            sharedAlbums,
+            onlyATracks: Math.max(0, aTrackSet.size - sharedTracks),
+            onlyBTracks: Math.max(0, bTrackSet.size - sharedTracks),
+            onlyAAlbums: Math.max(0, aAlbumSet.size - sharedAlbums),
+            onlyBAlbums: Math.max(0, bAlbumSet.size - sharedAlbums)
+        },
+        sessionDistribution,
+        scorecard,
+        winner: scoreA === scoreB ? 'tie' : (scoreA > scoreB ? 'A' : 'B'),
+        winsByMetrics: { A: scoreA, B: scoreB, draws }
+    };
+}
+
+function quantilesFromSorted(sortedVals) {
+    if (!sortedVals || !sortedVals.length) return { q10: 0, q25: 0, q50: 0, q75: 0, q90: 0 };
+
+    const q = (p) => {
+        const idx = (sortedVals.length - 1) * p;
+        const lo = Math.floor(idx);
+        const hi = Math.ceil(idx);
+        if (lo === hi) return +sortedVals[lo].toFixed(1);
+        const t = idx - lo;
+        return +(sortedVals[lo] + (sortedVals[hi] - sortedVals[lo]) * t).toFixed(1);
+    };
+
+    return {
+        q10: q(0.1),
+        q25: q(0.25),
+        q50: q(0.5),
+        q75: q(0.75),
+        q90: q(0.9)
+    };
+}
+
+// ─────────────────────────────────────────────
 //  F1 CHAMPIONSHIP
 // ─────────────────────────────────────────────
 

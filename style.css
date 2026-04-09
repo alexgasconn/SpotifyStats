@@ -2651,3 +2651,202 @@ header {
     width: 100% !important;
     height: 100% !important;
 }
+
+/* ── COMPARE TAB ── */
+.compare-header {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.compare-selectors {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    align-items: flex-end;
+    background: var(--dark);
+    border: 1px solid var(--gray);
+    border-radius: var(--radius);
+    padding: 1rem;
+}
+
+.compare-control {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 220px;
+}
+
+.compare-control label {
+    font-size: 0.74rem;
+    color: var(--green);
+    text-transform: uppercase;
+    letter-spacing: 0.55px;
+    font-weight: 700;
+}
+
+.compare-control select {
+    padding: 0.55rem 0.7rem;
+    background: var(--gray);
+    border: 1px solid rgba(29, 185, 84, 0.25);
+    color: var(--text);
+    border-radius: 7px;
+    font-size: 0.88rem;
+}
+
+.compare-control select:focus {
+    outline: none;
+    border-color: var(--green);
+}
+
+.compare-hero {
+    border-radius: 12px;
+    padding: 1rem 1.2rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.compare-winner-a {
+    background: linear-gradient(135deg, rgba(29, 185, 84, 0.25), rgba(12, 24, 18, 0.75));
+    border-color: rgba(29, 185, 84, 0.45);
+}
+
+.compare-winner-b {
+    background: linear-gradient(135deg, rgba(23, 162, 184, 0.25), rgba(14, 23, 28, 0.75));
+    border-color: rgba(23, 162, 184, 0.45);
+}
+
+.compare-winner-tie {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.22), rgba(28, 24, 15, 0.75));
+    border-color: rgba(255, 193, 7, 0.45);
+}
+
+.compare-hero-title {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.compare-hero-value {
+    margin-top: 0.35rem;
+    font-size: 2rem;
+    font-weight: 800;
+}
+
+.compare-hero-sub {
+    margin-top: 0.35rem;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.compare-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.3rem;
+}
+
+.compare-kpi-card {
+    background: var(--dark);
+    border: 1px solid var(--gray);
+    border-radius: var(--radius);
+    padding: 1rem 1.1rem;
+}
+
+.compare-kpi-card h4 {
+    margin-bottom: 0.8rem;
+    font-size: 1.1rem;
+    color: var(--green);
+}
+
+.compare-kpi-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem 0.8rem;
+}
+
+.compare-kpi-list div {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 0.2rem;
+}
+
+.compare-kpi-list span {
+    color: var(--text-muted);
+}
+
+.compare-kpi-list strong {
+    color: var(--text);
+}
+
+.compare-overlap-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem;
+}
+
+.compare-overlap-card {
+    background: #151515;
+    border: 1px solid var(--gray);
+    border-radius: 8px;
+    padding: 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.compare-overlap-card span {
+    color: var(--text-muted);
+    font-size: 0.76rem;
+}
+
+.compare-overlap-card strong {
+    font-size: 1.3rem;
+    color: var(--green);
+}
+
+.compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.84rem;
+}
+
+.compare-table th,
+.compare-table td {
+    padding: 0.58rem 0.52rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    text-align: left;
+}
+
+.compare-table th {
+    color: var(--green);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    background: rgba(29, 185, 84, 0.08);
+}
+
+@media (max-width: 768px) {
+    .compare-selectors {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .compare-control {
+        min-width: 0;
+    }
+
+    .compare-kpi-list {
+        grid-template-columns: 1fr;
+    }
+
+    .compare-overlap-grid {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,7 +1,7 @@
 // js/main.js — Application bootstrap & filter management
 
 import { processSpotifyZip } from './store.js';
-import { showLoading, hideLoading, setLoadingProgress, renderUI, renderStreaksTab, renderDeepDiveTab, renderF1Tab, renderExplorerTab, renderViewerTab, populateWrappedFilter, renderWrappedContent } from './ui.js';
+import { showLoading, hideLoading, setLoadingProgress, renderUI, renderStreaksTab, renderDeepDiveTab, renderF1Tab, renderExplorerTab, renderViewerTab, renderCompareTab, populateWrappedFilter, renderWrappedContent } from './ui.js';
 import { setupGame } from './game.js';
 import * as podcasts from './podcasts.js';
 import { openDetail, closeDetail } from './detail.js';
@@ -116,6 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderStreaksTab();
             renderDeepDiveTab();
             renderExplorerTab(data);
+            renderCompareTab();
             podcasts.renderPodcastUI(data);
 
             setLoadingProgress(100, 'Done! Launching dashboard...');
@@ -183,6 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (tabId === 'f1-tab') renderF1Tab();
                 if (tabId === 'explorer-tab') renderExplorerTab(window.spotifyData.filtered);
                 if (tabId === 'viewer-tab') renderViewerTab();
+                if (tabId === 'compare-tab') renderCompareTab();
             });
         });
     }
@@ -298,6 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderF1Tab();
             renderExplorerTab(window.spotifyData.filtered);
             renderViewerTab();
+            renderCompareTab();
             podcasts.renderPodcastUI(window.spotifyData.filtered);
 
             hideLoading();
