@@ -403,14 +403,14 @@ export function getViewerEntities(data, entityType = 'artist', topN = 250) {
 export function calculateViewerAccumulatedSeries(data, options = {}) {
     const {
         entityType = 'artist',
-        entityKey = '',
         metric = 'minutes',
         granularity = 'month',
         fromDate = '',
-        toDate = ''
+        toDate = '',
+        topX = 8,
+        valueMode = 'accum',
+        rollingWindow = 4
     } = options;
-
-    if (!entityKey) return { labels: [], values: [], increments: [], total: 0 };
 
     const parseKey = (d) => {
         if (entityType === 'artist') return d.artistName || '';
@@ -418,15 +418,21 @@ export function calculateViewerAccumulatedSeries(data, options = {}) {
         return `${d.trackName || ''}|||${d.artistName || ''}`;
     };
 
+    const parseLabel = (key) => {
+        if (entityType === 'artist') return { name: key, subtitle: '' };
+        const [name, subtitle] = String(key).split('|||');
+        return { name: name || key, subtitle: subtitle || '' };
+    };
+
     const music = (data || []).filter(d => {
         if (d.isPodcast || !d.trackName) return false;
-        if (parseKey(d) !== entityKey) return false;
         if (fromDate && d.date < fromDate) return false;
         if (toDate && d.date > toDate) return false;
+        if (!parseKey(d)) return false;
         return true;
     });
 
-    if (!music.length) return { labels: [], values: [], increments: [], total: 0 };
+    if (!music.length) return { labels: [], entities: [], seriesByKey: {}, totalsByKey: {} };
 
     const bucketOf = (d) => {
         switch (granularity) {
@@ -438,34 +444,78 @@ export function calculateViewerAccumulatedSeries(data, options = {}) {
         }
     };
 
-    const map = {};
+    const bucketMap = {};
+    const totals = {};
+
     music.forEach(d => {
         const b = bucketOf(d);
-        map[b] = (map[b] || 0) + (metric === 'plays' ? 1 : d.durationMin);
+        const key = parseKey(d);
+        const val = metric === 'plays' ? 1 : d.durationMin;
+
+        if (!bucketMap[b]) bucketMap[b] = {};
+        bucketMap[b][key] = (bucketMap[b][key] || 0) + val;
+
+        totals[key] = (totals[key] || 0) + val;
     });
+
+    const rankedKeys = Object.entries(totals)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, Math.max(1, topX))
+        .map(([k]) => k);
+
+    if (!rankedKeys.length) return { labels: [], entities: [], seriesByKey: {}, totalsByKey: {} };
+
+    const buckets = Object.keys(bucketMap).sort((a, b) => new Date(a) - new Date(b));
 
     const formatLabel = (bucket) => {
         if (granularity === 'year') return String(bucket).slice(0, 4);
         if (granularity === 'month') return String(bucket).slice(0, 7);
-        if (granularity === 'week') return `Wk ${bucket}`;
+        if (granularity === 'week') return bucket;
         return bucket;
     };
 
-    let total = 0;
-    const increments = [];
-    const values = [];
-    const labels = [];
+    const labels = buckets.map(formatLabel);
+    const periodSeriesByKey = {};
+    const seriesByKey = {};
+    const totalsByKey = {};
+    const entities = rankedKeys.map(key => ({ key, ...parseLabel(key) }));
 
-    Object.entries(map)
-        .sort((a, b) => new Date(a[0]) - new Date(b[0]))
-        .forEach(([bucket, val]) => {
-            total += val;
-            increments.push(metric === 'plays' ? val : Math.round(val));
-            values.push(metric === 'plays' ? total : Math.round(total));
-            labels.push(formatLabel(bucket));
-        });
+    rankedKeys.forEach(key => {
+        periodSeriesByKey[key] = buckets.map(b => bucketMap[b]?.[key] || 0);
+    });
 
-    return { labels, values, increments, total: metric === 'plays' ? total : Math.round(total) };
+    const w = Math.max(1, parseInt(rollingWindow, 10) || 1);
+    rankedKeys.forEach(key => {
+        const raw = periodSeriesByKey[key] || [];
+
+        if (valueMode === 'accum') {
+            let cumulative = 0;
+            seriesByKey[key] = raw.map(v => {
+                cumulative += v;
+                return metric === 'plays' ? cumulative : Math.round(cumulative);
+            });
+        } else if (valueMode === 'rolling') {
+            seriesByKey[key] = raw.map((_, idx) => {
+                const start = Math.max(0, idx - w + 1);
+                const windowVals = raw.slice(start, idx + 1);
+                const avg = windowVals.reduce((s, v) => s + v, 0) / (windowVals.length || 1);
+                return metric === 'plays' ? +avg.toFixed(2) : +avg.toFixed(1);
+            });
+        } else {
+            // 'period' and 'simple' both show raw values for each bucket.
+            seriesByKey[key] = raw.map(v => (metric === 'plays' ? v : Math.round(v)));
+        }
+
+        const finalVal = seriesByKey[key][seriesByKey[key].length - 1] || 0;
+        totalsByKey[key] = metric === 'plays' ? finalVal : Math.round(finalVal);
+    });
+
+    return {
+        labels,
+        entities,
+        seriesByKey,
+        totalsByKey
+    };
 }
 
 export function calculateWeekdayHourMatrix(data) {

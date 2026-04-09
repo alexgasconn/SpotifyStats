@@ -32,12 +32,14 @@ let viewerPlaybackStep = 0;
 let viewerSeries = null;
 let viewerState = {
     entityType: 'artist',
-    entityKey: '',
     metric: 'minutes',
+    valueMode: 'accum',
+    rollingWindow: 4,
     granularity: 'month',
     chartType: 'line',
+    visibleTop: 0,
     speedMs: 450,
-    topN: 120,
+    topX: 8,
     fromDate: '',
     toDate: '',
     autoLoop: false
@@ -69,6 +71,22 @@ function renderKPIs(data) {
     const k = store.calculateGlobalKPIs(data);
     const grid = document.getElementById('kpi-grid');
     if (!grid) return;
+
+    const COLORS = ['#1DB954', '#17A2B8', '#FFC107', '#FD7E14', '#6F42C1', '#E83E8C', '#20C997', '#0DCAF0', '#FF6384', '#8BC34A', '#FFB74D', '#7E57C2'];
+    const colorOf = (idx, alpha = 1) => {
+        const hex = COLORS[idx % COLORS.length];
+        if (alpha === 1) return hex;
+        const h = hex.replace('#', '');
+        const r = parseInt(h.substring(0, 2), 16);
+        const g = parseInt(h.substring(2, 4), 16);
+        const b = parseInt(h.substring(4, 6), 16);
+        return `rgba(${r},${g},${b},${alpha})`;
+    };
+
+    const shortEntityLabel = (e) => {
+        const txt = e.subtitle ? `${e.name} - ${e.subtitle}` : e.name;
+        return txt.length > 36 ? `${txt.slice(0, 35)}...` : txt;
+    };
 
     const fmt = n => Number(n).toLocaleString();
 
@@ -1284,25 +1302,6 @@ export function renderViewerTab() {
     viewerState.fromDate = viewerState.fromDate < firstDate ? firstDate : viewerState.fromDate;
     viewerState.toDate = viewerState.toDate > lastDate ? lastDate : viewerState.toDate;
 
-    const entities = store.getViewerEntities(data, viewerState.entityType, viewerState.topN);
-    if (!entities.length) {
-        container.innerHTML = '<p style="color:var(--text-muted);padding:1rem">No entities found for current filters.</p>';
-        stopViewerPlayback();
-        destroyViewerChart();
-        return;
-    }
-
-    if (!entities.some(e => e.key === viewerState.entityKey)) {
-        viewerState.entityKey = entities[0].key;
-    }
-
-    const entityOptions = entities.map(e => {
-        const text = e.subtitle
-            ? `${e.name} — ${e.subtitle} · ${e.minutes} min`
-            : `${e.name} · ${e.minutes} min`;
-        return `<option value="${esc(e.key)}" ${e.key === viewerState.entityKey ? 'selected' : ''}>${esc(text)}</option>`;
-    }).join('');
-
     container.innerHTML = `
         <div class="viewer-panel">
             <div class="viewer-controls-grid">
@@ -1315,8 +1314,18 @@ export function renderViewerTab() {
                     </select>
                 </div>
                 <div class="viewer-control">
-                    <label for="viewer-entity-key">Target</label>
-                    <select id="viewer-entity-key">${entityOptions}</select>
+                    <label for="viewer-topx">Top X to compare</label>
+                    <input id="viewer-topx" type="number" min="2" max="20" step="1" value="${viewerState.topX}">
+                </div>
+                <div class="viewer-control">
+                    <label for="viewer-visible-top">Visible in chart</label>
+                    <select id="viewer-visible-top">
+                        <option value="0" ${viewerState.visibleTop === 0 ? 'selected' : ''}>All</option>
+                        <option value="3" ${viewerState.visibleTop === 3 ? 'selected' : ''}>Top 3</option>
+                        <option value="5" ${viewerState.visibleTop === 5 ? 'selected' : ''}>Top 5</option>
+                        <option value="8" ${viewerState.visibleTop === 8 ? 'selected' : ''}>Top 8</option>
+                        <option value="10" ${viewerState.visibleTop === 10 ? 'selected' : ''}>Top 10</option>
+                    </select>
                 </div>
                 <div class="viewer-control">
                     <label for="viewer-metric">Metric</label>
@@ -1324,6 +1333,19 @@ export function renderViewerTab() {
                         <option value="minutes" ${viewerState.metric === 'minutes' ? 'selected' : ''}>Accumulated Minutes</option>
                         <option value="plays" ${viewerState.metric === 'plays' ? 'selected' : ''}>Accumulated Plays</option>
                     </select>
+                </div>
+                <div class="viewer-control">
+                    <label for="viewer-value-mode">Value mode</label>
+                    <select id="viewer-value-mode">
+                        <option value="accum" ${viewerState.valueMode === 'accum' ? 'selected' : ''}>Accum (default)</option>
+                        <option value="rolling" ${viewerState.valueMode === 'rolling' ? 'selected' : ''}>Rolling mean</option>
+                        <option value="period" ${viewerState.valueMode === 'period' ? 'selected' : ''}>Period data</option>
+                        <option value="simple" ${viewerState.valueMode === 'simple' ? 'selected' : ''}>Simple data</option>
+                    </select>
+                </div>
+                <div class="viewer-control" id="viewer-rolling-wrap">
+                    <label for="viewer-rolling-window">Rolling window</label>
+                    <input id="viewer-rolling-window" type="number" min="2" max="24" step="1" value="${viewerState.rollingWindow}">
                 </div>
                 <div class="viewer-control">
                     <label for="viewer-granularity">Granularity</label>
@@ -1337,13 +1359,9 @@ export function renderViewerTab() {
                 <div class="viewer-control">
                     <label for="viewer-chart-type">Visualization</label>
                     <select id="viewer-chart-type">
-                        <option value="line" ${viewerState.chartType === 'line' ? 'selected' : ''}>Line Chart</option>
-                        <option value="bar" ${viewerState.chartType === 'bar' ? 'selected' : ''}>Bar Chart</option>
+                        <option value="line" ${viewerState.chartType === 'line' ? 'selected' : ''}>Line Race</option>
+                        <option value="bar" ${viewerState.chartType === 'bar' ? 'selected' : ''}>Bar Race</option>
                     </select>
-                </div>
-                <div class="viewer-control">
-                    <label for="viewer-topn">Entity pool size</label>
-                    <input id="viewer-topn" type="number" min="20" max="1000" step="10" value="${viewerState.topN}">
                 </div>
                 <div class="viewer-control">
                     <label for="viewer-from">From</label>
@@ -1374,6 +1392,13 @@ export function renderViewerTab() {
 
             <div class="viewer-status" id="viewer-status">Ready to build a progression.</div>
 
+            <div class="viewer-timeline-controls">
+                <button id="viewer-step-back" class="secondary-btn" title="Step back">◀</button>
+                <input id="viewer-scrub" type="range" min="1" max="1" step="1" value="1">
+                <button id="viewer-step-next" class="secondary-btn" title="Step forward">▶</button>
+                <span id="viewer-scrub-label">1/1</span>
+            </div>
+
             <div class="viewer-chart-wrap">
                 <canvas id="viewer-progress-chart"></canvas>
             </div>
@@ -1382,20 +1407,49 @@ export function renderViewerTab() {
 
     const readControls = () => {
         viewerState.entityType = container.querySelector('#viewer-entity-type')?.value || 'artist';
-        viewerState.entityKey = container.querySelector('#viewer-entity-key')?.value || '';
+        viewerState.topX = Math.max(2, Math.min(20, parseInt(container.querySelector('#viewer-topx')?.value || '8', 10)));
+        viewerState.visibleTop = Math.max(0, Math.min(20, parseInt(container.querySelector('#viewer-visible-top')?.value || '0', 10)));
         viewerState.metric = container.querySelector('#viewer-metric')?.value || 'minutes';
+        viewerState.valueMode = container.querySelector('#viewer-value-mode')?.value || 'accum';
+        viewerState.rollingWindow = Math.max(2, Math.min(24, parseInt(container.querySelector('#viewer-rolling-window')?.value || '4', 10)));
         viewerState.granularity = container.querySelector('#viewer-granularity')?.value || 'month';
         viewerState.chartType = container.querySelector('#viewer-chart-type')?.value || 'line';
-        viewerState.topN = Math.max(20, Math.min(1000, parseInt(container.querySelector('#viewer-topn')?.value || '120', 10)));
         viewerState.fromDate = container.querySelector('#viewer-from')?.value || firstDate;
         viewerState.toDate = container.querySelector('#viewer-to')?.value || lastDate;
         viewerState.speedMs = Math.max(80, Math.min(2000, parseInt(container.querySelector('#viewer-speed')?.value || '450', 10)));
         viewerState.autoLoop = !!container.querySelector('#viewer-autoloop')?.checked;
     };
 
+    const updateRollingVisibility = () => {
+        const wrap = container.querySelector('#viewer-rolling-wrap');
+        if (!wrap) return;
+        wrap.style.display = viewerState.valueMode === 'rolling' ? '' : 'none';
+    };
+
+    const getYAxisTitle = () => {
+        const unit = viewerState.metric === 'plays' ? 'Plays' : 'Minutes';
+        if (viewerState.valueMode === 'accum') return `${unit} (accum)`;
+        if (viewerState.valueMode === 'rolling') return `${unit} (rolling mean)`;
+        if (viewerState.valueMode === 'period') return `${unit} (per period)`;
+        return `${unit} (simple)`;
+    };
+
     const setStatus = (text) => {
         const el = container.querySelector('#viewer-status');
         if (el) el.textContent = text;
+    };
+
+    const updateScrubber = (step, maxStep) => {
+        const scrub = container.querySelector('#viewer-scrub');
+        const label = container.querySelector('#viewer-scrub-label');
+        if (scrub) {
+            scrub.min = '1';
+            scrub.max = String(Math.max(1, maxStep));
+            scrub.value = String(Math.max(1, Math.min(step, maxStep)));
+        }
+        if (label) {
+            label.textContent = `${Math.max(1, Math.min(step, maxStep))}/${Math.max(1, maxStep)}`;
+        }
     };
 
     const buildSeries = () => {
@@ -1413,15 +1467,17 @@ export function renderViewerTab() {
 
         viewerSeries = store.calculateViewerAccumulatedSeries(data, {
             entityType: viewerState.entityType,
-            entityKey: viewerState.entityKey,
             metric: viewerState.metric,
+            valueMode: viewerState.valueMode,
+            rollingWindow: viewerState.rollingWindow,
             granularity: viewerState.granularity,
             fromDate: viewerState.fromDate,
-            toDate: viewerState.toDate
+            toDate: viewerState.toDate,
+            topX: viewerState.topX
         });
 
         viewerPlaybackStep = 0;
-        if (!viewerSeries.labels.length) {
+        if (!viewerSeries.labels.length || !viewerSeries.entities.length) {
             setStatus('No data found for current selection and time range.');
             destroyViewerChart();
             return false;
@@ -1435,68 +1491,144 @@ export function renderViewerTab() {
         const maxStep = viewerSeries.labels.length;
         const upto = full ? maxStep : Math.max(1, Math.min(stepCount, maxStep));
         const labels = viewerSeries.labels.slice(0, upto);
-        const values = viewerSeries.values.slice(0, upto);
-        const increments = viewerSeries.increments.slice(0, upto);
-
-        const currentVal = values[values.length - 1] || 0;
-        const currentInc = increments[increments.length - 1] || 0;
         const unit = viewerState.metric === 'plays' ? 'plays' : 'min';
         const pct = Math.round((upto / maxStep) * 100);
+        const currentBucket = labels[labels.length - 1] || '-';
 
         const canvas = container.querySelector('#viewer-progress-chart');
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
 
         if (viewerChartInstance) viewerChartInstance.destroy();
-        viewerChartInstance = new Chart(ctx, {
-            type: viewerState.chartType,
-            data: {
-                labels,
-                datasets: [{
-                    label: viewerState.metric === 'plays' ? 'Accumulated Plays' : 'Accumulated Minutes',
-                    data: values,
-                    borderColor: '#1DB954',
-                    backgroundColor: viewerState.chartType === 'line' ? 'rgba(29,185,84,0.2)' : 'rgba(29,185,84,0.75)',
+        let leaderText = '—';
+
+        const entityIndexByKey = new Map(viewerSeries.entities.map((e, idx) => [e.key, idx]));
+        const ranking = viewerSeries.entities
+            .map(e => ({
+                ...e,
+                value: (viewerSeries.seriesByKey[e.key] || [0])[upto - 1] || 0
+            }))
+            .sort((a, b) => b.value - a.value);
+        const visibleCount = viewerState.visibleTop > 0
+            ? Math.min(viewerState.visibleTop, ranking.length)
+            : ranking.length;
+        const visibleRanking = ranking.slice(0, visibleCount);
+
+        if (viewerState.chartType === 'line') {
+            const datasets = visibleRanking.map((e, rankIdx) => {
+                const stableIdx = entityIndexByKey.get(e.key) ?? rankIdx;
+                return {
+                    label: `#${rankIdx + 1} ${shortEntityLabel(e)}`,
+                    data: (viewerSeries.seriesByKey[e.key] || []).slice(0, upto),
+                    borderColor: colorOf(stableIdx, 1),
+                    backgroundColor: colorOf(stableIdx, 0.15),
                     borderWidth: 2,
-                    fill: viewerState.chartType === 'line',
+                    fill: false,
                     tension: 0.25,
-                    pointRadius: viewerState.chartType === 'line' ? 1.8 : 0,
-                    borderRadius: viewerState.chartType === 'bar' ? 3 : 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: { duration: 280 },
-                plugins: {
-                    legend: { display: false },
-                    datalabels: false,
-                    tooltip: {
-                        callbacks: {
-                            title: (ctxItems) => labels[ctxItems[0].dataIndex],
-                            label: (ctx) => `${Math.round(ctx.raw).toLocaleString()} ${unit}`
+                    pointRadius: 1.6,
+                    pointHoverRadius: 4
+                };
+            });
+
+            const leader = ranking[0];
+            leaderText = leader ? `${shortEntityLabel(leader)} (${Math.round(leader.value).toLocaleString()} ${unit})` : '—';
+
+            viewerChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 260 },
+                    plugins: {
+                        legend: { display: true, position: 'bottom', labels: { color: '#b3b3b3', boxWidth: 10 } },
+                        datalabels: false,
+                        tooltip: {
+                            callbacks: {
+                                title: (ctxItems) => labels[ctxItems[0].dataIndex],
+                                label: (ctx) => `${ctx.dataset.label}: ${Math.round(ctx.raw).toLocaleString()} ${unit}`
+                            }
                         }
-                    }
-                },
-                scales: {
-                    x: {
-                        ticks: { color: '#b3b3b3', maxRotation: 0, autoSkip: true, maxTicksLimit: 12 },
-                        grid: { display: false }
                     },
-                    y: {
-                        ticks: { color: '#b3b3b3' },
-                        grid: { color: '#282828' },
-                        title: {
-                            display: true,
-                            text: viewerState.metric === 'plays' ? 'Plays (accum)' : 'Minutes (accum)',
-                            color: '#b3b3b3'
+                    scales: {
+                        x: {
+                            ticks: { color: '#b3b3b3', maxRotation: 0, autoSkip: true, maxTicksLimit: 12 },
+                            grid: { display: false }
+                        },
+                        y: {
+                            ticks: { color: '#b3b3b3' },
+                            grid: { color: '#282828' },
+                            title: {
+                                display: true,
+                                text: getYAxisTitle(),
+                                color: '#b3b3b3'
+                            }
                         }
                     }
                 }
-            }
-        });
+            });
+        } else {
+            const barLabels = visibleRanking.map((r, idx) => `#${idx + 1} ${shortEntityLabel(r)}`);
+            const barValues = visibleRanking.map(r => r.value);
+            const barColors = visibleRanking.map((r) => {
+                const stableIdx = entityIndexByKey.get(r.key) ?? 0;
+                return colorOf(stableIdx, 0.78);
+            });
 
-        setStatus(`Progress ${upto}/${maxStep} (${pct}%) · +${Math.round(currentInc).toLocaleString()} ${unit} · Total ${Math.round(currentVal).toLocaleString()} ${unit}`);
+            const leader = ranking[0];
+            leaderText = leader ? `${shortEntityLabel(leader)} (${Math.round(leader.value).toLocaleString()} ${unit})` : '—';
+
+            viewerChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: barLabels,
+                    datasets: [{
+                        data: barValues,
+                        backgroundColor: barColors,
+                        borderColor: visibleRanking.map((r) => {
+                            const stableIdx = entityIndexByKey.get(r.key) ?? 0;
+                            return colorOf(stableIdx, 1);
+                        }),
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: Math.min(420, Math.max(120, Math.round(viewerState.speedMs * 0.7))) },
+                    plugins: {
+                        legend: { display: false },
+                        datalabels: false,
+                        tooltip: {
+                            callbacks: {
+                                title: (ctxItems) => barLabels[ctxItems[0].dataIndex],
+                                label: (ctx) => `${Math.round(ctx.raw).toLocaleString()} ${unit}`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            ticks: { color: '#b3b3b3' },
+                            grid: { display: false }
+                        },
+                        x: {
+                            ticks: { color: '#b3b3b3' },
+                            grid: { color: '#282828' },
+                            title: {
+                                display: true,
+                                text: getYAxisTitle(),
+                                color: '#b3b3b3'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        updateScrubber(upto, maxStep);
+        setStatus(`Progress ${upto}/${maxStep} (${pct}%) · ${currentBucket} · Mode: ${viewerState.valueMode} · Visible: Top ${visibleCount} · Leader: ${leaderText}`);
     };
 
     const playViewer = () => {
@@ -1537,16 +1669,55 @@ export function renderViewerTab() {
         drawViewerChart(viewerPlaybackStep);
     };
 
-    container.querySelector('#viewer-entity-type')?.addEventListener('change', (e) => {
-        viewerState.entityType = e.target.value;
-        viewerState.entityKey = '';
-        renderViewerTab();
+    container.querySelector('#viewer-entity-type')?.addEventListener('change', () => {
+        readControls();
+        buildFull();
     });
 
-    container.querySelector('#viewer-topn')?.addEventListener('change', (e) => {
-        viewerState.topN = parseInt(e.target.value || '120', 10);
-        viewerState.entityKey = '';
-        renderViewerTab();
+    container.querySelector('#viewer-topx')?.addEventListener('change', () => {
+        readControls();
+        buildFull();
+    });
+
+    container.querySelector('#viewer-visible-top')?.addEventListener('change', () => {
+        readControls();
+        buildFull();
+    });
+
+    container.querySelector('#viewer-metric')?.addEventListener('change', () => {
+        readControls();
+        buildFull();
+    });
+
+    container.querySelector('#viewer-value-mode')?.addEventListener('change', () => {
+        readControls();
+        updateRollingVisibility();
+        buildFull();
+    });
+
+    container.querySelector('#viewer-rolling-window')?.addEventListener('change', () => {
+        readControls();
+        buildFull();
+    });
+
+    container.querySelector('#viewer-granularity')?.addEventListener('change', () => {
+        readControls();
+        buildFull();
+    });
+
+    container.querySelector('#viewer-chart-type')?.addEventListener('change', () => {
+        readControls();
+        buildFull();
+    });
+
+    container.querySelector('#viewer-from')?.addEventListener('change', () => {
+        readControls();
+        buildFull();
+    });
+
+    container.querySelector('#viewer-to')?.addEventListener('change', () => {
+        readControls();
+        buildFull();
     });
 
     container.querySelector('#viewer-speed')?.addEventListener('input', (e) => {
@@ -1568,6 +1739,29 @@ export function renderViewerTab() {
         readControls();
         resetViewer();
     });
+
+    container.querySelector('#viewer-scrub')?.addEventListener('input', (e) => {
+        if (!viewerSeries || !viewerSeries.labels.length) return;
+        stopViewerPlayback();
+        viewerPlaybackStep = Math.max(1, Math.min(viewerSeries.labels.length, parseInt(e.target.value || '1', 10)));
+        drawViewerChart(viewerPlaybackStep);
+    });
+
+    container.querySelector('#viewer-step-back')?.addEventListener('click', () => {
+        if (!viewerSeries || !viewerSeries.labels.length) return;
+        stopViewerPlayback();
+        viewerPlaybackStep = Math.max(1, (viewerPlaybackStep || 1) - 1);
+        drawViewerChart(viewerPlaybackStep);
+    });
+
+    container.querySelector('#viewer-step-next')?.addEventListener('click', () => {
+        if (!viewerSeries || !viewerSeries.labels.length) return;
+        stopViewerPlayback();
+        viewerPlaybackStep = Math.min(viewerSeries.labels.length, (viewerPlaybackStep || 0) + 1);
+        drawViewerChart(viewerPlaybackStep);
+    });
+
+    updateRollingVisibility();
 
     // Initial preview
     buildFull();
