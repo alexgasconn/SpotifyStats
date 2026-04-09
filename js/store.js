@@ -361,6 +361,113 @@ export function calculateDistributionPercent(data, key) {
         .sort((a, b) => b.percent - a.percent);
 }
 
+export function getViewerEntities(data, entityType = 'artist', topN = 250) {
+    const music = (data || []).filter(d => !d.isPodcast && d.trackName);
+    const map = {};
+
+    const buildKey = (d) => {
+        if (entityType === 'artist') {
+            const artist = d.artistName ? String(d.artistName).trim() : '';
+            return artist ? { key: artist, name: artist, subtitle: '' } : null;
+        }
+
+        if (entityType === 'album') {
+            const album = d.albumName ? String(d.albumName).trim() : '';
+            const artist = d.artistName ? String(d.artistName).trim() : '';
+            if (!album || !artist || album.toLowerCase() === 'null') return null;
+            return { key: `${album}|||${artist}`, name: album, subtitle: artist };
+        }
+
+        const track = d.trackName ? String(d.trackName).trim() : '';
+        const artist = d.artistName ? String(d.artistName).trim() : '';
+        if (!track || track.toLowerCase() === 'null') return null;
+        return { key: `${track}|||${artist}`, name: track, subtitle: artist };
+    };
+
+    music.forEach(d => {
+        const base = buildKey(d);
+        if (!base) return;
+        if (!map[base.key]) {
+            map[base.key] = { ...base, plays: 0, minutes: 0 };
+        }
+        map[base.key].plays += 1;
+        map[base.key].minutes += d.durationMin;
+    });
+
+    return Object.values(map)
+        .map(v => ({ ...v, minutes: Math.round(v.minutes) }))
+        .sort((a, b) => b.minutes - a.minutes)
+        .slice(0, topN);
+}
+
+export function calculateViewerAccumulatedSeries(data, options = {}) {
+    const {
+        entityType = 'artist',
+        entityKey = '',
+        metric = 'minutes',
+        granularity = 'month',
+        fromDate = '',
+        toDate = ''
+    } = options;
+
+    if (!entityKey) return { labels: [], values: [], increments: [], total: 0 };
+
+    const parseKey = (d) => {
+        if (entityType === 'artist') return d.artistName || '';
+        if (entityType === 'album') return `${d.albumName || ''}|||${d.artistName || ''}`;
+        return `${d.trackName || ''}|||${d.artistName || ''}`;
+    };
+
+    const music = (data || []).filter(d => {
+        if (d.isPodcast || !d.trackName) return false;
+        if (parseKey(d) !== entityKey) return false;
+        if (fromDate && d.date < fromDate) return false;
+        if (toDate && d.date > toDate) return false;
+        return true;
+    });
+
+    if (!music.length) return { labels: [], values: [], increments: [], total: 0 };
+
+    const bucketOf = (d) => {
+        switch (granularity) {
+            case 'year': return `${d.year}-01-01`;
+            case 'month': return `${d.year}-${String(d.month + 1).padStart(2, '0')}-01`;
+            case 'week': return getStartOfWeek(d.ts);
+            case 'day':
+            default: return d.date;
+        }
+    };
+
+    const map = {};
+    music.forEach(d => {
+        const b = bucketOf(d);
+        map[b] = (map[b] || 0) + (metric === 'plays' ? 1 : d.durationMin);
+    });
+
+    const formatLabel = (bucket) => {
+        if (granularity === 'year') return String(bucket).slice(0, 4);
+        if (granularity === 'month') return String(bucket).slice(0, 7);
+        if (granularity === 'week') return `Wk ${bucket}`;
+        return bucket;
+    };
+
+    let total = 0;
+    const increments = [];
+    const values = [];
+    const labels = [];
+
+    Object.entries(map)
+        .sort((a, b) => new Date(a[0]) - new Date(b[0]))
+        .forEach(([bucket, val]) => {
+            total += val;
+            increments.push(metric === 'plays' ? val : Math.round(val));
+            values.push(metric === 'plays' ? total : Math.round(total));
+            labels.push(formatLabel(bucket));
+        });
+
+    return { labels, values, increments, total: metric === 'plays' ? total : Math.round(total) };
+}
+
 export function calculateWeekdayHourMatrix(data) {
     // Returns array of {x: hour, y: weekday, count}
     const matrix = {};

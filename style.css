@@ -2408,3 +2408,103 @@ header {
         max-height: 260px;
     }
 }
+
+/* ── VIEWER TAB ── */
+.viewer-panel {
+    background: var(--dark);
+    border: 1px solid var(--gray);
+    border-radius: var(--radius);
+    padding: 1.2rem;
+}
+
+.viewer-controls-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.9rem;
+}
+
+.viewer-control {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.viewer-control label {
+    font-size: 0.74rem;
+    color: var(--green);
+    text-transform: uppercase;
+    letter-spacing: 0.55px;
+    font-weight: 700;
+}
+
+.viewer-control select,
+.viewer-control input[type="number"],
+.viewer-control input[type="date"] {
+    padding: 0.55rem 0.7rem;
+    background: var(--gray);
+    border: 1px solid rgba(29, 185, 84, 0.25);
+    color: var(--text);
+    border-radius: 7px;
+    font-size: 0.88rem;
+}
+
+.viewer-control input[type="range"] {
+    accent-color: var(--green);
+}
+
+.viewer-control select:focus,
+.viewer-control input:focus {
+    outline: none;
+    border-color: var(--green);
+}
+
+.viewer-speed {
+    grid-column: span 2;
+}
+
+.viewer-check {
+    justify-content: flex-end;
+}
+
+.viewer-check label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-transform: none;
+    letter-spacing: normal;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.viewer-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-top: 1rem;
+}
+
+.viewer-actions button {
+    padding: 0.52rem 0.95rem;
+}
+
+.viewer-status {
+    margin-top: 0.85rem;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    border-left: 3px solid rgba(29, 185, 84, 0.5);
+    padding-left: 0.6rem;
+}
+
+.viewer-chart-wrap {
+    margin-top: 1rem;
+    background: rgba(0, 0, 0, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 0.75rem;
+    height: 420px;
+}
+
+#viewer-progress-chart {
+    width: 100% !important;
+    height: 100% !important;
+}

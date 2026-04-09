@@ -25,6 +25,24 @@ let tracksSortBy = 'plays';
 let artistsSortBy = 'plays';
 let albumsSortBy = 'plays';
 
+// Viewer state
+let viewerChartInstance = null;
+let viewerPlaybackTimer = null;
+let viewerPlaybackStep = 0;
+let viewerSeries = null;
+let viewerState = {
+    entityType: 'artist',
+    entityKey: '',
+    metric: 'minutes',
+    granularity: 'month',
+    chartType: 'line',
+    speedMs: 450,
+    topN: 120,
+    fromDate: '',
+    toDate: '',
+    autoLoop: false
+};
+
 // ─────────────────────────────────────────────
 //  MAIN ENTRY POINT
 // ─────────────────────────────────────────────
@@ -1236,6 +1254,336 @@ function renderWordCloud(data) {
             drawOutOfBound: false,
             shuffle: false
         });
+    }
+}
+
+// ─────────────────────────────────────────────
+//  VIEWER TAB
+// ─────────────────────────────────────────────
+
+export function renderViewerTab() {
+    const container = document.getElementById('viewer-content');
+    if (!container) return;
+
+    stopViewerPlayback();
+    destroyViewerChart();
+
+    const data = window.spotifyData.filtered.filter(d => !d.isPodcast && d.trackName);
+    if (!data.length) {
+        container.innerHTML = '<p style="color:var(--text-muted);padding:1rem">No music data available for viewer.</p>';
+        stopViewerPlayback();
+        destroyViewerChart();
+        return;
+    }
+
+    const firstDate = data[0].date;
+    const lastDate = data[data.length - 1].date;
+    if (!viewerState.fromDate) viewerState.fromDate = firstDate;
+    if (!viewerState.toDate) viewerState.toDate = lastDate;
+
+    viewerState.fromDate = viewerState.fromDate < firstDate ? firstDate : viewerState.fromDate;
+    viewerState.toDate = viewerState.toDate > lastDate ? lastDate : viewerState.toDate;
+
+    const entities = store.getViewerEntities(data, viewerState.entityType, viewerState.topN);
+    if (!entities.length) {
+        container.innerHTML = '<p style="color:var(--text-muted);padding:1rem">No entities found for current filters.</p>';
+        stopViewerPlayback();
+        destroyViewerChart();
+        return;
+    }
+
+    if (!entities.some(e => e.key === viewerState.entityKey)) {
+        viewerState.entityKey = entities[0].key;
+    }
+
+    const entityOptions = entities.map(e => {
+        const text = e.subtitle
+            ? `${e.name} — ${e.subtitle} · ${e.minutes} min`
+            : `${e.name} · ${e.minutes} min`;
+        return `<option value="${esc(e.key)}" ${e.key === viewerState.entityKey ? 'selected' : ''}>${esc(text)}</option>`;
+    }).join('');
+
+    container.innerHTML = `
+        <div class="viewer-panel">
+            <div class="viewer-controls-grid">
+                <div class="viewer-control">
+                    <label for="viewer-entity-type">Entity</label>
+                    <select id="viewer-entity-type">
+                        <option value="artist" ${viewerState.entityType === 'artist' ? 'selected' : ''}>Artist</option>
+                        <option value="album" ${viewerState.entityType === 'album' ? 'selected' : ''}>Album</option>
+                        <option value="track" ${viewerState.entityType === 'track' ? 'selected' : ''}>Track</option>
+                    </select>
+                </div>
+                <div class="viewer-control">
+                    <label for="viewer-entity-key">Target</label>
+                    <select id="viewer-entity-key">${entityOptions}</select>
+                </div>
+                <div class="viewer-control">
+                    <label for="viewer-metric">Metric</label>
+                    <select id="viewer-metric">
+                        <option value="minutes" ${viewerState.metric === 'minutes' ? 'selected' : ''}>Accumulated Minutes</option>
+                        <option value="plays" ${viewerState.metric === 'plays' ? 'selected' : ''}>Accumulated Plays</option>
+                    </select>
+                </div>
+                <div class="viewer-control">
+                    <label for="viewer-granularity">Granularity</label>
+                    <select id="viewer-granularity">
+                        <option value="day" ${viewerState.granularity === 'day' ? 'selected' : ''}>Day</option>
+                        <option value="week" ${viewerState.granularity === 'week' ? 'selected' : ''}>Week</option>
+                        <option value="month" ${viewerState.granularity === 'month' ? 'selected' : ''}>Month</option>
+                        <option value="year" ${viewerState.granularity === 'year' ? 'selected' : ''}>Year</option>
+                    </select>
+                </div>
+                <div class="viewer-control">
+                    <label for="viewer-chart-type">Visualization</label>
+                    <select id="viewer-chart-type">
+                        <option value="line" ${viewerState.chartType === 'line' ? 'selected' : ''}>Line Chart</option>
+                        <option value="bar" ${viewerState.chartType === 'bar' ? 'selected' : ''}>Bar Chart</option>
+                    </select>
+                </div>
+                <div class="viewer-control">
+                    <label for="viewer-topn">Entity pool size</label>
+                    <input id="viewer-topn" type="number" min="20" max="1000" step="10" value="${viewerState.topN}">
+                </div>
+                <div class="viewer-control">
+                    <label for="viewer-from">From</label>
+                    <input id="viewer-from" type="date" min="${firstDate}" max="${lastDate}" value="${viewerState.fromDate}">
+                </div>
+                <div class="viewer-control">
+                    <label for="viewer-to">To</label>
+                    <input id="viewer-to" type="date" min="${firstDate}" max="${lastDate}" value="${viewerState.toDate}">
+                </div>
+                <div class="viewer-control viewer-speed">
+                    <label for="viewer-speed">Speed (<span id="viewer-speed-label">${viewerState.speedMs} ms</span>/step)</label>
+                    <input id="viewer-speed" type="range" min="80" max="2000" step="20" value="${viewerState.speedMs}">
+                </div>
+                <div class="viewer-control viewer-check">
+                    <label>
+                        <input id="viewer-autoloop" type="checkbox" ${viewerState.autoLoop ? 'checked' : ''}>
+                        Auto-loop animation
+                    </label>
+                </div>
+            </div>
+
+            <div class="viewer-actions">
+                <button id="viewer-build-btn" class="secondary-btn">Build</button>
+                <button id="viewer-play-btn">Play</button>
+                <button id="viewer-pause-btn" class="secondary-btn">Pause</button>
+                <button id="viewer-reset-btn" class="secondary-btn">Reset</button>
+            </div>
+
+            <div class="viewer-status" id="viewer-status">Ready to build a progression.</div>
+
+            <div class="viewer-chart-wrap">
+                <canvas id="viewer-progress-chart"></canvas>
+            </div>
+        </div>
+    `;
+
+    const readControls = () => {
+        viewerState.entityType = container.querySelector('#viewer-entity-type')?.value || 'artist';
+        viewerState.entityKey = container.querySelector('#viewer-entity-key')?.value || '';
+        viewerState.metric = container.querySelector('#viewer-metric')?.value || 'minutes';
+        viewerState.granularity = container.querySelector('#viewer-granularity')?.value || 'month';
+        viewerState.chartType = container.querySelector('#viewer-chart-type')?.value || 'line';
+        viewerState.topN = Math.max(20, Math.min(1000, parseInt(container.querySelector('#viewer-topn')?.value || '120', 10)));
+        viewerState.fromDate = container.querySelector('#viewer-from')?.value || firstDate;
+        viewerState.toDate = container.querySelector('#viewer-to')?.value || lastDate;
+        viewerState.speedMs = Math.max(80, Math.min(2000, parseInt(container.querySelector('#viewer-speed')?.value || '450', 10)));
+        viewerState.autoLoop = !!container.querySelector('#viewer-autoloop')?.checked;
+    };
+
+    const setStatus = (text) => {
+        const el = container.querySelector('#viewer-status');
+        if (el) el.textContent = text;
+    };
+
+    const buildSeries = () => {
+        readControls();
+
+        if (viewerState.fromDate > viewerState.toDate) {
+            const swap = viewerState.fromDate;
+            viewerState.fromDate = viewerState.toDate;
+            viewerState.toDate = swap;
+            const fromInput = container.querySelector('#viewer-from');
+            const toInput = container.querySelector('#viewer-to');
+            if (fromInput) fromInput.value = viewerState.fromDate;
+            if (toInput) toInput.value = viewerState.toDate;
+        }
+
+        viewerSeries = store.calculateViewerAccumulatedSeries(data, {
+            entityType: viewerState.entityType,
+            entityKey: viewerState.entityKey,
+            metric: viewerState.metric,
+            granularity: viewerState.granularity,
+            fromDate: viewerState.fromDate,
+            toDate: viewerState.toDate
+        });
+
+        viewerPlaybackStep = 0;
+        if (!viewerSeries.labels.length) {
+            setStatus('No data found for current selection and time range.');
+            destroyViewerChart();
+            return false;
+        }
+        return true;
+    };
+
+    const drawViewerChart = (stepCount, full = false) => {
+        if (!viewerSeries || !viewerSeries.labels.length) return;
+
+        const maxStep = viewerSeries.labels.length;
+        const upto = full ? maxStep : Math.max(1, Math.min(stepCount, maxStep));
+        const labels = viewerSeries.labels.slice(0, upto);
+        const values = viewerSeries.values.slice(0, upto);
+        const increments = viewerSeries.increments.slice(0, upto);
+
+        const currentVal = values[values.length - 1] || 0;
+        const currentInc = increments[increments.length - 1] || 0;
+        const unit = viewerState.metric === 'plays' ? 'plays' : 'min';
+        const pct = Math.round((upto / maxStep) * 100);
+
+        const canvas = container.querySelector('#viewer-progress-chart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+
+        if (viewerChartInstance) viewerChartInstance.destroy();
+        viewerChartInstance = new Chart(ctx, {
+            type: viewerState.chartType,
+            data: {
+                labels,
+                datasets: [{
+                    label: viewerState.metric === 'plays' ? 'Accumulated Plays' : 'Accumulated Minutes',
+                    data: values,
+                    borderColor: '#1DB954',
+                    backgroundColor: viewerState.chartType === 'line' ? 'rgba(29,185,84,0.2)' : 'rgba(29,185,84,0.75)',
+                    borderWidth: 2,
+                    fill: viewerState.chartType === 'line',
+                    tension: 0.25,
+                    pointRadius: viewerState.chartType === 'line' ? 1.8 : 0,
+                    borderRadius: viewerState.chartType === 'bar' ? 3 : 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 280 },
+                plugins: {
+                    legend: { display: false },
+                    datalabels: false,
+                    tooltip: {
+                        callbacks: {
+                            title: (ctxItems) => labels[ctxItems[0].dataIndex],
+                            label: (ctx) => `${Math.round(ctx.raw).toLocaleString()} ${unit}`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#b3b3b3', maxRotation: 0, autoSkip: true, maxTicksLimit: 12 },
+                        grid: { display: false }
+                    },
+                    y: {
+                        ticks: { color: '#b3b3b3' },
+                        grid: { color: '#282828' },
+                        title: {
+                            display: true,
+                            text: viewerState.metric === 'plays' ? 'Plays (accum)' : 'Minutes (accum)',
+                            color: '#b3b3b3'
+                        }
+                    }
+                }
+            }
+        });
+
+        setStatus(`Progress ${upto}/${maxStep} (${pct}%) · +${Math.round(currentInc).toLocaleString()} ${unit} · Total ${Math.round(currentVal).toLocaleString()} ${unit}`);
+    };
+
+    const playViewer = () => {
+        if (!viewerSeries || !viewerSeries.labels.length) {
+            if (!buildSeries()) return;
+        }
+
+        if (viewerPlaybackStep >= viewerSeries.labels.length) viewerPlaybackStep = 0;
+        stopViewerPlayback();
+
+        viewerPlaybackTimer = setInterval(() => {
+            viewerPlaybackStep += 1;
+            drawViewerChart(viewerPlaybackStep);
+
+            if (viewerPlaybackStep >= viewerSeries.labels.length) {
+                if (viewerState.autoLoop) {
+                    viewerPlaybackStep = 0;
+                } else {
+                    stopViewerPlayback();
+                }
+            }
+        }, viewerState.speedMs);
+    };
+
+    const buildFull = () => {
+        stopViewerPlayback();
+        if (!buildSeries()) return;
+        viewerPlaybackStep = viewerSeries.labels.length;
+        drawViewerChart(viewerPlaybackStep, true);
+    };
+
+    const resetViewer = () => {
+        stopViewerPlayback();
+        if (!viewerSeries || !viewerSeries.labels.length) {
+            if (!buildSeries()) return;
+        }
+        viewerPlaybackStep = 1;
+        drawViewerChart(viewerPlaybackStep);
+    };
+
+    container.querySelector('#viewer-entity-type')?.addEventListener('change', (e) => {
+        viewerState.entityType = e.target.value;
+        viewerState.entityKey = '';
+        renderViewerTab();
+    });
+
+    container.querySelector('#viewer-topn')?.addEventListener('change', (e) => {
+        viewerState.topN = parseInt(e.target.value || '120', 10);
+        viewerState.entityKey = '';
+        renderViewerTab();
+    });
+
+    container.querySelector('#viewer-speed')?.addEventListener('input', (e) => {
+        viewerState.speedMs = parseInt(e.target.value || '450', 10);
+        const lbl = container.querySelector('#viewer-speed-label');
+        if (lbl) lbl.textContent = `${viewerState.speedMs} ms`;
+        if (viewerPlaybackTimer) {
+            playViewer();
+        }
+    });
+
+    container.querySelector('#viewer-build-btn')?.addEventListener('click', buildFull);
+    container.querySelector('#viewer-play-btn')?.addEventListener('click', () => {
+        readControls();
+        playViewer();
+    });
+    container.querySelector('#viewer-pause-btn')?.addEventListener('click', stopViewerPlayback);
+    container.querySelector('#viewer-reset-btn')?.addEventListener('click', () => {
+        readControls();
+        resetViewer();
+    });
+
+    // Initial preview
+    buildFull();
+}
+
+function stopViewerPlayback() {
+    if (viewerPlaybackTimer) {
+        clearInterval(viewerPlaybackTimer);
+        viewerPlaybackTimer = null;
+    }
+}
+
+function destroyViewerChart() {
+    if (viewerChartInstance) {
+        viewerChartInstance.destroy();
+        viewerChartInstance = null;
     }
 }
 

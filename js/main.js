@@ -1,7 +1,7 @@
 // js/main.js — Application bootstrap & filter management
 
 import { processSpotifyZip } from './store.js';
-import { showLoading, hideLoading, setLoadingProgress, renderUI, renderStreaksTab, renderDeepDiveTab, renderF1Tab, renderExplorerTab, populateWrappedFilter, renderWrappedContent } from './ui.js';
+import { showLoading, hideLoading, setLoadingProgress, renderUI, renderStreaksTab, renderDeepDiveTab, renderF1Tab, renderExplorerTab, renderViewerTab, populateWrappedFilter, renderWrappedContent } from './ui.js';
 import { setupGame } from './game.js';
 import * as podcasts from './podcasts.js';
 import { openDetail, closeDetail } from './detail.js';
@@ -168,6 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (tabId === 'deepdive-tab') renderDeepDiveTab();
                 if (tabId === 'f1-tab') renderF1Tab();
                 if (tabId === 'explorer-tab') renderExplorerTab(window.spotifyData.filtered);
+                if (tabId === 'viewer-tab') renderViewerTab();
             });
         });
     }
@@ -285,6 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderDeepDiveTab();
             renderF1Tab();
             renderExplorerTab(window.spotifyData.filtered);
+            renderViewerTab();
             podcasts.renderPodcastUI(window.spotifyData.filtered);
 
             hideLoading();
