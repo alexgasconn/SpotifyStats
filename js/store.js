@@ -254,21 +254,42 @@ export function calculateTopItems(data, key, metric = 'plays', topN = 10) {
         if (d.skipped) grouped[itemKey].skipped++;
     });
 
-    // F1-style weekly points: weekly ranking by minutes, top 10 score 25..1
+    // F1-style weekly points: weekly ranking by 50% minutes + 50% plays, top 10 score 25..1
     const weekMap = {};
     music.forEach(d => {
         const identity = getItemIdentity(d);
         if (!identity) return;
         const wk = getStartOfWeek(d.ts);
         if (!weekMap[wk]) weekMap[wk] = {};
-        weekMap[wk][identity.itemKey] = (weekMap[wk][identity.itemKey] || 0) + d.durationMin;
+        if (!weekMap[wk][identity.itemKey]) {
+            weekMap[wk][identity.itemKey] = { minutes: 0, plays: 0 };
+        }
+        weekMap[wk][identity.itemKey].minutes += d.durationMin;
+        weekMap[wk][identity.itemKey].plays += 1;
     });
 
     Object.values(weekMap).forEach(weekValues => {
-        Object.entries(weekValues)
-            .sort((a, b) => b[1] - a[1])
+        const rows = Object.entries(weekValues).map(([itemKey, vals]) => ({
+            itemKey,
+            minutes: vals.minutes || 0,
+            plays: vals.plays || 0
+        }));
+        const maxMinutes = Math.max(...rows.map(r => r.minutes), 1);
+        const maxPlays = Math.max(...rows.map(r => r.plays), 1);
+
+        rows.forEach(r => {
+            r.weekScore = ((r.minutes / maxMinutes) * 0.5) + ((r.plays / maxPlays) * 0.5);
+        });
+
+        rows
+            .sort((a, b) => {
+                if (b.weekScore !== a.weekScore) return b.weekScore - a.weekScore;
+                if (b.minutes !== a.minutes) return b.minutes - a.minutes;
+                if (b.plays !== a.plays) return b.plays - a.plays;
+                return a.itemKey.localeCompare(b.itemKey);
+            })
             .slice(0, 10)
-            .forEach(([itemKey], idx) => {
+            .forEach(({ itemKey }, idx) => {
                 if (grouped[itemKey]) grouped[itemKey].points += (F1_POINTS[idx] || 0);
             });
     });
@@ -1413,8 +1434,9 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
         const key = getKey(d);
         if (!key) return;
         if (!weekMap[wk]) weekMap[wk] = {};
-        if (!weekMap[wk][key]) weekMap[wk][key] = { totalMinutes: 0, bestSessionMinutes: 0 };
+        if (!weekMap[wk][key]) weekMap[wk][key] = { totalMinutes: 0, plays: 0, bestSessionMinutes: 0 };
         weekMap[wk][key].totalMinutes += d.durationMin;
+        weekMap[wk][key].plays += 1;
         weekMap[wk][key].bestSessionMinutes = Math.max(weekMap[wk][key].bestSessionMinutes, d.durationMin);
     });
 
@@ -1430,8 +1452,26 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
         if (!weeklyByYear[year]) weeklyByYear[year] = [];
 
         const ranking = Object.entries(values)
-            .map(([key, agg]) => ({ key, minutes: agg.totalMinutes, bestSessionMinutes: agg.bestSessionMinutes }))
-            .sort((a, b) => b.minutes - a.minutes);
+            .map(([key, agg]) => ({
+                key,
+                minutes: agg.totalMinutes,
+                plays: agg.plays || 0,
+                bestSessionMinutes: agg.bestSessionMinutes
+            }));
+
+        const maxMinutes = Math.max(...ranking.map(r => r.minutes), 1);
+        const maxPlays = Math.max(...ranking.map(r => r.plays), 1);
+
+        ranking.forEach(r => {
+            r.weekScore = ((r.minutes / maxMinutes) * 0.5) + ((r.plays / maxPlays) * 0.5);
+        });
+
+        ranking.sort((a, b) => {
+            if (b.weekScore !== a.weekScore) return b.weekScore - a.weekScore;
+            if (b.minutes !== a.minutes) return b.minutes - a.minutes;
+            if (b.plays !== a.plays) return b.plays - a.plays;
+            return a.key.localeCompare(b.key);
+        });
 
         // Fastest lap: biggest single listening session in the week (not total weekly winner).
         const fastestCandidate = ranking.reduce((best, row) => {
@@ -1454,10 +1494,11 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
             const totalPoints = pts + bonusPoints;
 
             if (!yearStandingMap[year][r.key]) {
-                yearStandingMap[year][r.key] = { points: 0, weeksWon: 0, podiums: 0, minutes: 0, fastestLaps: 0 };
+                yearStandingMap[year][r.key] = { points: 0, weeksWon: 0, podiums: 0, minutes: 0, plays: 0, fastestLaps: 0 };
             }
             yearStandingMap[year][r.key].points += totalPoints;
             yearStandingMap[year][r.key].minutes += r.minutes;
+            yearStandingMap[year][r.key].plays += r.plays;
             if (idx === 0) yearStandingMap[year][r.key].weeksWon += 1;
             if (bonusPoints > 0) yearStandingMap[year][r.key].fastestLaps += 1;
             if (idx < 3) yearStandingMap[year][r.key].podiums += 1;
@@ -1469,6 +1510,8 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
                 basePoints: pts,
                 bonusPoints: bonusPoints,
                 minutes: Math.round(r.minutes),
+                plays: r.plays,
+                weightedScore: +r.weekScore.toFixed(4),
                 fastestLap: r.key === fastestLapKey,
                 ...getLabel(r.key)
             };
@@ -1528,7 +1571,8 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
                 // Kept name for UI compatibility: now means best consecutive Top 10 weeks.
                 bestWinStreak: yearStreaks[y]?.[key]?.bestTop10 || 0,
                 bestPodiumStreak: yearStreaks[y]?.[key]?.bestPodium || 0,
-                minutes: Math.round(val.minutes)
+                minutes: Math.round(val.minutes),
+                plays: val.plays || 0
             }))
             .sort((a, b) => b.points - a.points);
     });
