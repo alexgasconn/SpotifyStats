@@ -3,9 +3,9 @@
 import { processSpotifyZip } from './store.js';
 import { showLoading, hideLoading, setLoadingProgress, renderUI, renderStreaksTab, renderDeepDiveTab, renderF1Tab, renderExplorerTab, renderViewerTab, renderCompareTab, populateWrappedFilter, renderWrappedContent } from './ui.js';
 import { setupGame } from './tabs/game.js';
-import * as podcasts from './podcasts.js';
+import * as podcasts from './tabs/podcasts.js';
 import { openDetail, closeDetail } from './detail.js';
-import { renderCalendarTab } from './calendar.js';
+import { renderCalendarTab } from './tabs/calendar.js';
 
 document.addEventListener('DOMContentLoaded', () => {
 

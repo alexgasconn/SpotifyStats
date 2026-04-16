@@ -1,6 +1,6 @@
 // js/podcasts.js
 
-import { openDetail } from './detail.js';
+import { openDetail } from '../detail.js';
 
 Chart.register(ChartDataLabels);
 
