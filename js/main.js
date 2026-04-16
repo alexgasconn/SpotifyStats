@@ -161,6 +161,14 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleFiltersBtn.textContent = collapsed ? 'Show Filters' : 'Hide Filters';
     });
 
+    // ── ENTITY FILTERS TOGGLE ───────────────────
+    const toggleEntitiesBtn = document.getElementById('toggle-entities-btn');
+    const entitiesPanel = document.getElementById('filters-entities-panel');
+    toggleEntitiesBtn?.addEventListener('click', () => {
+        const isCollapsed = entitiesPanel.classList.toggle('filters-entities-collapsed');
+        toggleEntitiesBtn.classList.toggle('open', !isCollapsed);
+    });
+
     // ── DETAIL MODAL ────────────────────────────
     document.getElementById('detail-close-btn')?.addEventListener('click', closeDetail);
     document.getElementById('detail-modal-backdrop')?.addEventListener('click', closeDetail);
@@ -187,6 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (tabId === 'viewer-tab') renderViewerTab();
                 if (tabId === 'compare-tab') renderCompareTab();
                 if (tabId === 'calendar-tab') renderCalendarTab();
+                if (tabId === 'podcast-tab') podcasts.renderPodcastUI(window.spotifyData.filtered);
             });
         });
     }

@@ -80,6 +80,29 @@ export async function processSpotifyZip(zipFile, config = {}, onProgress = null)
     return sorted;
 }
 
+function normalizePlatform(raw) {
+    if (!raw) return 'Unknown';
+    const p = raw.toLowerCase();
+    if (p.includes('iphone') || p.includes('ios')) return 'iPhone';
+    if (p.includes('ipad')) return 'iPad';
+    if (p.includes('mac') || p.includes('osx') || p.includes('os x') || p.includes('macos')) return 'Mac';
+    if (p.includes('android')) return 'Android';
+    if (p.includes('windows')) return 'Windows';
+    if (p.includes('linux')) return 'Linux';
+    if (p.includes('chromebook') || p.includes('chrome os') || p.includes('chromeos')) return 'ChromeOS';
+    if (p.includes('web') || p.includes('browser')) return 'Web Player';
+    if (p.includes('cast') || p.includes('chromecast') || p.includes('google home') || p.includes('nest')) return 'Cast';
+    if (p.includes('sonos')) return 'Sonos';
+    if (p.includes('alexa') || p.includes('echo') || p.includes('amazon')) return 'Alexa';
+    if (p.includes('playstation') || p.includes('ps4') || p.includes('ps5')) return 'PlayStation';
+    if (p.includes('xbox')) return 'Xbox';
+    if (p.includes('samsung') || p.includes('smart tv') || p.includes('smarttv') || p.includes('tv')) return 'Smart TV';
+    if (p.includes('car') || p.includes('carplay')) return 'Car';
+    if (p.includes('watch') || p.includes('wearos') || p.includes('wear')) return 'Wearable';
+    // Capitalize first word as fallback
+    return raw.charAt(0).toUpperCase() + raw.slice(1).split(/[\s_-]/)[0];
+}
+
 function processEntry(entry) {
     const msPlayed = entry.ms_played ?? 0;
     if (msPlayed < _cfg.minPlayMs) return null;
@@ -124,7 +147,7 @@ function processEntry(entry) {
         weekday: (ts.getDay() + 6) % 7, // Monday=0
         reasonEnd: entry.reason_end || 'unknown',
         reasonStart: entry.reason_start || 'unknown',
-        platform: entry.platform || 'unknown',
+        platform: normalizePlatform(entry.platform),
         country: entry.conn_country || 'unknown',
         season,
         timeOfDay,

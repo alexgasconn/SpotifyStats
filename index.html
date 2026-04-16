@@ -185,8 +185,12 @@
                             </select>
                         </div>
                     </div>
-                    <div class="filters-section-title">Artists, albums and tracks</div>
-                    <div class="filters-grid filters-grid-entities">
+                    <div class="filters-section-title filters-entities-toggle" id="toggle-entities-btn">
+                        <span>Artists, albums and tracks</span>
+                        <span class="toggle-entities-arrow">▸</span>
+                    </div>
+                    <div class="filters-grid filters-grid-entities filters-entities-collapsed"
+                        id="filters-entities-panel">
                         <div class="filter-group filter-group-large">
                             <div class="filter-label-row">
                                 <label for="artist-filter">Artists</label>
@@ -194,7 +198,7 @@
                             </div>
                             <input type="search" id="artist-filter-search" class="filter-search"
                                 placeholder="Search artists...">
-                            <select id="artist-filter" multiple size="10"></select>
+                            <select id="artist-filter" multiple size="6"></select>
                         </div>
                         <div class="filter-group filter-group-large">
                             <div class="filter-label-row">
@@ -203,7 +207,7 @@
                             </div>
                             <input type="search" id="album-filter-search" class="filter-search"
                                 placeholder="Search albums...">
-                            <select id="album-filter" multiple size="10"></select>
+                            <select id="album-filter" multiple size="6"></select>
                         </div>
                         <div class="filter-group filter-group-large">
                             <div class="filter-label-row">
@@ -212,7 +216,7 @@
                             </div>
                             <input type="search" id="track-filter-search" class="filter-search"
                                 placeholder="Search tracks...">
-                            <select id="track-filter" multiple size="10"></select>
+                            <select id="track-filter" multiple size="6"></select>
                         </div>
                     </div>
                     <div class="filter-actions filter-actions-row">
@@ -424,33 +428,7 @@
 
                 <!-- PODCASTS -->
                 <div id="podcast-tab" class="tab-content">
-                    <section id="podcastStats" class="data-section">
-                        <h2>Podcast Stats</h2>
-                        <div class="stats-grid" id="podcastStatsGrid"></div>
-                    </section>
-                    <section class="data-section">
-                        <h2>Podcast Insights</h2>
-                        <div id="podcastInsightsGrid" class="wrapped-grid"></div>
-                    </section>
-                    <div class="charts-grid">
-                        <div class="podcast-top-chart podcast-primary full-width">
-                            <h3>Top Podcast Shows <span class="click-hint">click to explore</span></h3>
-                            <canvas id="topShowsChart"></canvas>
-                        </div>
-                        <div class="podcast-top-chart">
-                            <h3>Top Podcast Episodes <span class="click-hint">click to explore</span></h3>
-                            <canvas id="topEpisodesChart"></canvas>
-                        </div>
-                        <div class="chart-container full-width podcast-timeline-card">
-                            <h3>Podcast Timeline</h3>
-                            <div id="podcastTimelineControls" class="timeline-controls"></div>
-                            <canvas id="podcastTimelineChart"></canvas>
-                        </div>
-                        <div class="chart-container full-width">
-                            <h3>Podcast Listening by Hour</h3>
-                            <canvas id="podcastHourlyChart"></canvas>
-                        </div>
-                    </div>
+                    <div id="podcast-content"></div>
                 </div>
 
                 <!-- COMPARE -->
