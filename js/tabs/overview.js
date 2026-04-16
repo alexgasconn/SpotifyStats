@@ -128,10 +128,10 @@ function renderTopListInto(containerId, items, type, sortBy) {
     el.innerHTML = items.map((item, i) => {
         const mainVal = sortBy === 'minutes' ? `${item.minutes.toLocaleString()} min`
             : sortBy === 'points' ? `${item.points.toLocaleString()} pts`
-            : `${item.plays.toLocaleString()} plays`;
+                : `${item.plays.toLocaleString()} plays`;
         const subVal = sortBy === 'minutes' ? `${item.plays.toLocaleString()} plays · ${item.points.toLocaleString()} pts`
             : sortBy === 'points' ? `${item.plays.toLocaleString()} plays · ${item.minutes.toLocaleString()} min`
-            : `${item.minutes.toLocaleString()} min · ${item.points.toLocaleString()} pts`;
+                : `${item.minutes.toLocaleString()} min · ${item.points.toLocaleString()} pts`;
         const pct = Math.round((item[sortBy] / maxVal) * 100);
         let sub = '';
         if (type === 'track' || type === 'album') sub = item.artistName || '';

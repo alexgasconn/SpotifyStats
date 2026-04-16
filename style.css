@@ -3871,16 +3871,19 @@ header {
 .overview-fun-facts {
     margin: 1.5rem 0;
 }
+
 .overview-fun-facts h3 {
     font-size: 1.1rem;
     margin-bottom: 0.8rem;
     color: var(--text);
 }
+
 .fun-facts-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 0.75rem;
 }
+
 .fun-fact-card {
     display: flex;
     align-items: center;
@@ -3892,10 +3895,12 @@ header {
     font-size: 0.85rem;
     line-height: 1.4;
 }
+
 .ff-icon {
     font-size: 1.3rem;
     flex-shrink: 0;
 }
+
 .ff-text strong {
     color: var(--green);
 }
@@ -3904,11 +3909,13 @@ header {
 .trends-insights {
     margin-bottom: 1.2rem;
 }
+
 .trends-pills-row {
     display: flex;
     flex-wrap: wrap;
     gap: 0.6rem;
 }
+
 .trends-pill {
     display: flex;
     align-items: center;
@@ -3919,15 +3926,18 @@ header {
     font-size: 0.82rem;
     border: 1px solid rgba(29, 185, 84, 0.15);
 }
+
 .tp-icon {
     font-size: 1.1rem;
 }
+
 .tp-label {
     color: var(--text-muted);
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.3px;
 }
+
 .tp-value {
     font-weight: 700;
     color: var(--green);
@@ -3937,15 +3947,18 @@ header {
 .streaks-milestones {
     margin: 1.5rem 0;
 }
+
 .streaks-milestones h3 {
     font-size: 1.1rem;
     margin-bottom: 0.8rem;
 }
+
 .milestones-grid {
     display: flex;
     flex-wrap: wrap;
     gap: 0.75rem;
 }
+
 .milestone-badge {
     display: flex;
     flex-direction: column;
@@ -3958,14 +3971,17 @@ header {
     text-align: center;
     min-width: 120px;
 }
+
 .mb-icon {
     font-size: 1.5rem;
 }
+
 .mb-label {
     font-weight: 700;
     font-size: 0.85rem;
     color: var(--green);
 }
+
 .mb-desc {
     font-size: 0.75rem;
     color: var(--text-muted);
@@ -3979,6 +3995,7 @@ header {
     gap: 0.4rem;
     margin-bottom: 0.8rem;
 }
+
 .cal-year-btn {
     padding: 0.35rem 0.75rem;
     background: var(--gray);
@@ -3990,15 +4007,18 @@ header {
     font-weight: 600;
     transition: all 0.2s;
 }
+
 .cal-year-btn:hover {
     color: var(--text);
     border-color: var(--green);
 }
+
 .cal-year-btn.active {
     background: var(--green);
     color: #000;
     border-color: var(--green);
 }
+
 .cal-year-stats {
     margin-left: auto;
     font-size: 0.78rem;
@@ -4012,6 +4032,7 @@ header {
     gap: 1rem;
     margin-top: 0.8rem;
 }
+
 .habit-item {
     display: flex;
     flex-direction: column;
@@ -4022,11 +4043,13 @@ header {
     background: rgba(29, 185, 84, 0.08);
     border-radius: var(--radius);
 }
+
 .hi-val {
     font-size: 1.4rem;
     font-weight: 800;
     color: var(--green);
 }
+
 .hi-label {
     font-size: 0.72rem;
     color: var(--text-muted);
@@ -4043,15 +4066,18 @@ header {
     border-radius: var(--radius);
     border-left: 3px solid var(--green);
 }
+
 .f1-season-highlights h3 {
     font-size: 1rem;
     margin-bottom: 0.75rem;
 }
+
 .f1-highlights-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 0.6rem;
 }
+
 .f1-highlight-item {
     display: flex;
     align-items: flex-start;
@@ -4059,11 +4085,13 @@ header {
     font-size: 0.85rem;
     line-height: 1.4;
 }
+
 .fh-icon {
     font-size: 1.1rem;
     flex-shrink: 0;
     margin-top: 0.05rem;
 }
+
 .fh-text strong {
     color: var(--green);
 }
@@ -4075,6 +4103,7 @@ header {
     gap: 0.5rem;
     margin-top: 0.5rem;
 }
+
 .wc-milestone {
     padding: 0.4rem 0.8rem;
     background: linear-gradient(135deg, rgba(29, 185, 84, 0.15), rgba(29, 185, 84, 0.05));
@@ -4091,17 +4120,20 @@ header {
     gap: 1rem;
     margin-top: 0.8rem;
 }
+
 .compare-extra-card {
     background: rgba(255, 255, 255, 0.03);
     border-radius: var(--radius);
     padding: 1rem;
     border: 1px solid rgba(255, 255, 255, 0.06);
 }
+
 .compare-extra-card h4 {
     font-size: 0.9rem;
     margin-bottom: 0.6rem;
     color: var(--green);
 }
+
 .ce-row {
     display: flex;
     justify-content: space-between;
@@ -4110,20 +4142,25 @@ header {
     font-size: 0.82rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
+
 .ce-row:last-child {
     border-bottom: none;
 }
+
 .ce-row span {
     color: var(--text-muted);
 }
+
 .ce-row strong {
     font-size: 0.8rem;
 }
+
 .ce-list {
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
 }
+
 .ce-tag {
     display: inline-block;
     padding: 0.25rem 0.6rem;
@@ -4132,14 +4169,17 @@ header {
     font-size: 0.78rem;
     color: var(--text);
 }
+
 .ce-more {
     font-size: 0.78rem;
     color: var(--text-muted);
     padding: 0.25rem 0.5rem;
 }
+
 .compare-table-compact {
     font-size: 0.82rem;
 }
+
 .compare-table-compact th,
 .compare-table-compact td {
     padding: 0.35rem 0.5rem;
