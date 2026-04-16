@@ -16,6 +16,9 @@ export function renderDeepDiveTab() {
     const timeDesc = { morning: 'Most of your listening happens in the morning (6–12).', afternoon: 'Most of your listening happens in the afternoon (12–18).', evening: 'Most of your listening happens in the evening (18–midnight).', night: 'You listen mostly late at night (midnight–6).' };
     const totalTime = Object.values(ins.timeMap).reduce((a, b) => a + b, 0) || 1;
 
+    // Build listening habits summary
+    const habitsHtml = buildListeningHabits(data);
+
     // Build chain HTML sections
     const trackChainsHtml = buildChainSection('🔗 Track Chains', 'After listening to a track, which track do you play next most often?', chains.trackChains, 'track');
     const artistChainsHtml = buildChainSection('🎤 Artist Flow', 'After an artist, which artist comes next in your sessions?', chains.artistChains, 'artist');
@@ -132,6 +135,9 @@ export function renderDeepDiveTab() {
             </div>
         </div>
 
+        <!-- ═══════ LISTENING HABITS SUMMARY ═══════ -->
+        ${habitsHtml}
+
         <!-- ═══════ LISTENING CHAINS SECTION ═══════ -->
         <div class="insight-card chain-section" style="grid-column:1/-1">
             <h4><span class="ic-icon">🔗</span> Listening Chains & Session Flow</h4>
@@ -152,6 +158,49 @@ export function renderDeepDiveTab() {
             openDetail(el.dataset.detailName, el.dataset.detailType, el.dataset.detailExtra || '', window.spotifyData.full);
         });
     });
+}
+
+function buildListeningHabits(data) {
+    const music = data.filter(d => !d.isPodcast && d.trackName);
+    if (!music.length) return '';
+
+    // Compute shuffle vs on-demand ratio
+    const shuffled = music.filter(d => d.shuffle === true).length;
+    const shufflePct = ((shuffled / music.length) * 100).toFixed(0);
+
+    // Offline vs online
+    const offline = music.filter(d => d.offline === true).length;
+    const offlinePct = ((offline / music.length) * 100).toFixed(0);
+
+    // Average track duration
+    const avgDur = (music.reduce((s, d) => s + d.durationMin, 0) / music.length).toFixed(1);
+
+    // Complete listen rate (non-skipped)
+    const completed = music.filter(d => !d.skipped).length;
+    const completionRate = ((completed / music.length) * 100).toFixed(0);
+
+    // Unique tracks per month average
+    const monthMap = {};
+    music.forEach(d => {
+        const key = d.date?.slice(0, 7) || 'unknown';
+        if (!monthMap[key]) monthMap[key] = new Set();
+        monthMap[key].add(d.trackName);
+    });
+    const months = Object.values(monthMap);
+    const avgUniqPerMonth = months.length ? Math.round(months.reduce((s, set) => s + set.size, 0) / months.length) : 0;
+
+    return `
+        <div class="insight-card" style="grid-column:1/-1">
+            <h4><span class="ic-icon">📋</span> Listening Habits Summary</h4>
+            <p class="insight-desc">A quick snapshot of how you listen to music.</p>
+            <div class="habits-grid">
+                <div class="habit-item"><span class="hi-val">${shufflePct}%</span><span class="hi-label">Shuffle plays</span></div>
+                <div class="habit-item"><span class="hi-val">${offlinePct}%</span><span class="hi-label">Offline plays</span></div>
+                <div class="habit-item"><span class="hi-val">${avgDur}</span><span class="hi-label">Avg min/play</span></div>
+                <div class="habit-item"><span class="hi-val">${completionRate}%</span><span class="hi-label">Completion rate</span></div>
+                <div class="habit-item"><span class="hi-val">${avgUniqPerMonth}</span><span class="hi-label">Unique tracks/month</span></div>
+            </div>
+        </div>`;
 }
 
 function buildChainSection(title, description, chains, type) {
@@ -193,6 +242,32 @@ function buildSessionPatterns(sessions) {
     const avgDuration = sessions.reduce((s, se) => s + se.durationMin, 0) / totalSessions;
     const longestSession = sessions.reduce((best, se) => se.trackCount > best.trackCount ? se : best, sessions[0]);
     const longestDuration = sessions.reduce((best, se) => se.durationMin > best.durationMin ? se : best, sessions[0]);
+
+    // Session duration distribution buckets
+    const buckets = { '< 5 min': 0, '5–15 min': 0, '15–30 min': 0, '30–60 min': 0, '1–2 hours': 0, '2+ hours': 0 };
+    sessions.forEach(se => {
+        const m = se.durationMin;
+        if (m < 5) buckets['< 5 min']++;
+        else if (m < 15) buckets['5–15 min']++;
+        else if (m < 30) buckets['15–30 min']++;
+        else if (m < 60) buckets['30–60 min']++;
+        else if (m < 120) buckets['1–2 hours']++;
+        else buckets['2+ hours']++;
+    });
+    const maxBucket = Math.max(...Object.values(buckets), 1);
+
+    // Session time-of-day distribution
+    const timeSlots = { morning: 0, afternoon: 0, evening: 0, night: 0 };
+    sessions.forEach(se => {
+        if (!se.tracks.length) return;
+        const h = new Date(se.tracks[0].endTime).getHours();
+        if (h >= 6 && h < 12) timeSlots.morning++;
+        else if (h >= 12 && h < 18) timeSlots.afternoon++;
+        else if (h >= 18) timeSlots.evening++;
+        else timeSlots.night++;
+    });
+    const maxSlot = Math.max(...Object.values(timeSlots), 1);
+    const slotLabels = { morning: '🌅 Morning', afternoon: '☀️ Afternoon', evening: '🌆 Evening', night: '🌙 Night' };
 
     // Most common session starters
     const starterCounts = {};
@@ -242,6 +317,37 @@ function buildSessionPatterns(sessions) {
         </div>
 
         <div class="insight-card">
+            <h4><span class="ic-icon">📊</span> Session Duration Distribution</h4>
+            <p class="insight-desc">How long your listening sessions typically last.</p>
+            <div style="margin-top:0.8rem">
+                ${Object.entries(buckets).map(([label, count]) => `
+                    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;font-size:0.82rem">
+                        <span style="min-width:80px;color:var(--text-muted)">${label}</span>
+                        <div style="flex:1;background:var(--gray);border-radius:3px;height:8px;overflow:hidden">
+                            <div style="width:${Math.round((count / maxBucket) * 100)}%;height:100%;background:var(--green);border-radius:3px"></div>
+                        </div>
+                        <span style="min-width:40px;text-align:right;font-weight:700">${count}</span>
+                    </div>`).join('')}
+            </div>
+        </div>
+
+        <div class="insight-card">
+            <h4><span class="ic-icon">🕐</span> Session Start Times</h4>
+            <p class="insight-desc">When you tend to start your listening sessions.</p>
+            <div style="margin-top:0.8rem">
+                ${Object.entries(timeSlots).map(([key, count]) => `
+                    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;font-size:0.82rem">
+                        <span style="min-width:110px">${slotLabels[key]}</span>
+                        <div style="flex:1;background:var(--gray);border-radius:3px;height:8px;overflow:hidden">
+                            <div style="width:${Math.round((count / maxSlot) * 100)}%;height:100%;background:#17A2B8;border-radius:3px"></div>
+                        </div>
+                        <span style="min-width:40px;text-align:right;font-weight:700">${count}</span>
+                        <span style="font-size:0.75rem;color:var(--text-muted)">(${((count / totalSessions) * 100).toFixed(0)}%)</span>
+                    </div>`).join('')}
+            </div>
+        </div>
+
+        <div class="insight-card">
             <h4><span class="ic-icon">▶️</span> Session Starters</h4>
             <p class="insight-desc">Tracks you most often start your listening sessions with.</p>
             <ul class="insight-list">
@@ -266,4 +372,5 @@ function buildSessionPatterns(sessions) {
                     </li>`).join('')}
             </ul>
         </div>`;
+}
 }

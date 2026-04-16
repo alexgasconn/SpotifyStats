@@ -1,4 +1,4 @@
-// js/tabs/overview.js — Overview tab: KPIs, top lists, timeline
+// js/tabs/overview.js — Overview tab: KPIs, top lists, timeline, fun facts
 
 import * as store from '../store.js';
 import * as charts from '../charts.js';
@@ -16,6 +16,7 @@ let albumsSortBy = 'plays';
 export function renderOverview() {
     const data = window.spotifyData.filtered;
     renderKPIs(data);
+    renderFunFacts(data);
     renderTopLists(data);
     updateTimelineChart();
     setupTimelineControls();
@@ -27,6 +28,12 @@ function renderKPIs(data) {
     const grid = document.getElementById('kpi-grid');
     if (!grid) return;
     const fmt = n => Number(n).toLocaleString();
+
+    // Extra computed KPIs
+    const music = data.filter(d => !d.isPodcast && d.trackName);
+    const playsPerTrack = k.uniqueTracks ? (music.length / k.uniqueTracks).toFixed(1) : '0';
+    const discoveryRate = k.totalPlays && k.uniqueTracks ? ((k.uniqueTracks / music.length) * 100).toFixed(1) : '0';
+
     grid.innerHTML = `
         <div class="kpi-card"><div class="kpi-icon">⏱</div><h4>Total Hours</h4><div class="kpi-value">${fmt(k.totalHours)}</div><div class="kpi-sub">${fmt(k.totalDays)} full days</div></div>
         <div class="kpi-card"><div class="kpi-icon">▶</div><h4>Total Plays</h4><div class="kpi-value">${fmt(k.totalPlays)}</div><div class="kpi-sub">${fmt(k.totalMinutes)} minutes</div></div>
@@ -35,8 +42,73 @@ function renderKPIs(data) {
         <div class="kpi-card"><div class="kpi-icon">📅</div><h4>Active Days</h4><div class="kpi-value">${fmt(k.activeDays)}</div><div class="kpi-sub">${fmt(k.avgPerDay)} min/day avg</div></div>
         <div class="kpi-card"><div class="kpi-icon">⏭</div><h4>Skip Rate</h4><div class="kpi-value">${k.skipRate}%</div><div class="kpi-sub">${fmt(k.skipped)} skipped plays</div></div>
         <div class="kpi-card"><div class="kpi-icon">🏆</div><h4>Best Day Ever</h4><div class="kpi-value">${fmt(k.maxDayMinutes)}</div><div class="kpi-sub">min on ${k.maxDay || '—'}</div></div>
-        <div class="kpi-card"><div class="kpi-icon">📆</div><h4>Time Span</h4><div class="kpi-value">${k.years ? k.years.length : '?'}</div><div class="kpi-sub">years of data</div></div>
+        <div class="kpi-card"><div class="kpi-icon">📆</div><h4>Time Span</h4><div class="kpi-value">${k.years ? k.years.length : '?'}</div><div class="kpi-sub">${k.firstDate || ''} → ${k.lastDate || ''}</div></div>
+        <div class="kpi-card"><div class="kpi-icon">🔄</div><h4>Plays / Track</h4><div class="kpi-value">${playsPerTrack}</div><div class="kpi-sub">average replay rate</div></div>
+        <div class="kpi-card"><div class="kpi-icon">🌱</div><h4>Discovery Rate</h4><div class="kpi-value">${discoveryRate}%</div><div class="kpi-sub">of plays are unique tracks</div></div>
     `;
+}
+
+function renderFunFacts(data) {
+    let container = document.getElementById('overview-fun-facts');
+    if (!container) {
+        const kpiGrid = document.getElementById('kpi-grid');
+        if (!kpiGrid) return;
+        container = document.createElement('div');
+        container.id = 'overview-fun-facts';
+        container.className = 'overview-fun-facts';
+        kpiGrid.insertAdjacentElement('afterend', container);
+    }
+
+    const music = data.filter(d => !d.isPodcast && d.trackName);
+    if (!music.length) { container.innerHTML = ''; return; }
+
+    // Compute fun facts from raw data
+    const facts = [];
+
+    // 1. Total minutes as real-world comparison
+    const totalMin = music.reduce((s, d) => s + d.durationMin, 0);
+    const flights = (totalMin / (480)).toFixed(0); // NYC-London ~8h
+    facts.push({ icon: '✈️', text: `Your listening time equals <strong>${flights}</strong> New York → London flights` });
+
+    // 2. Most played hour
+    const hourMap = {};
+    music.forEach(d => { const h = new Date(d.endTime).getHours(); hourMap[h] = (hourMap[h] || 0) + 1; });
+    const peakHour = Object.entries(hourMap).sort((a, b) => b[1] - a[1])[0];
+    if (peakHour) facts.push({ icon: '🕐', text: `Your peak hour is <strong>${peakHour[0]}:00</strong> with ${Number(peakHour[1]).toLocaleString()} plays` });
+
+    // 3. Most listened day of week
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dowMap = {};
+    music.forEach(d => { const dow = new Date(d.endTime).getDay(); dowMap[dow] = (dowMap[dow] || 0) + d.durationMin; });
+    const peakDay = Object.entries(dowMap).sort((a, b) => b[1] - a[1])[0];
+    if (peakDay) facts.push({ icon: '📅', text: `<strong>${dayNames[peakDay[0]]}</strong> is your most musical day (${Math.round(peakDay[1]).toLocaleString()} min total)` });
+
+    // 4. Longest single track play
+    const longest = music.reduce((best, d) => d.durationMin > best.durationMin ? d : best, music[0]);
+    if (longest) facts.push({ icon: '⏰', text: `Longest play: <strong>${esc(longest.trackName)}</strong> — ${Math.round(longest.durationMin)} min` });
+
+    // 5. One-hit wonders count
+    const artistTrackMap = {};
+    music.forEach(d => {
+        if (!d.artistName) return;
+        if (!artistTrackMap[d.artistName]) artistTrackMap[d.artistName] = new Set();
+        artistTrackMap[d.artistName].add(d.trackName);
+    });
+    const oneHits = Object.values(artistTrackMap).filter(s => s.size === 1).length;
+    const totalArtists = Object.keys(artistTrackMap).length;
+    if (totalArtists) facts.push({ icon: '🎯', text: `<strong>${oneHits}</strong> of ${totalArtists} artists have only 1 track played (${((oneHits / totalArtists) * 100).toFixed(0)}%)` });
+
+    // 6. Weekend vs weekday
+    const weekendMin = music.filter(d => { const dow = new Date(d.endTime).getDay(); return dow === 0 || dow === 6; }).reduce((s, d) => s + d.durationMin, 0);
+    const weekdayMin = totalMin - weekendMin;
+    const weekendPct = ((weekendMin / totalMin) * 100).toFixed(0);
+    facts.push({ icon: weekendMin > weekdayMin * (2 / 5) ? '🎉' : '💼', text: `Weekend listening: <strong>${weekendPct}%</strong> of total (${Math.round(weekendMin).toLocaleString()} min)` });
+
+    container.innerHTML = `
+        <h3>💡 Quick Facts</h3>
+        <div class="fun-facts-grid">
+            ${facts.map(f => `<div class="fun-fact-card"><span class="ff-icon">${f.icon}</span><span class="ff-text">${f.text}</span></div>`).join('')}
+        </div>`;
 }
 
 function renderTopLists(data) {

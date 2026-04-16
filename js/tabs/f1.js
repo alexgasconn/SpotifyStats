@@ -62,6 +62,7 @@ export function renderF1Tab() {
             <div class="f1-pill"><div class="k">📊 Gap to P2</div><div class="v">${gap}</div><div class="k">${leader?.weeksWon || 0} wins · ${leader?.fastestLaps || 0} ⚡</div></div>
             <div class="f1-pill"><div class="k">📈 Total Minutes</div><div class="v">${Math.round(totalMinutes)}</div><div class="k">${Math.round(totalMinutes / stats.standings.length)} avg</div></div>
         </div>
+        ${buildF1SeasonHighlights(stats)}
         <div class="f1-grid">
             <div class="f1-card" style="grid-column:1/-1"><h3>📅 Evolution</h3>
                 <div class="timeline-controls" id="f1EvolutionControls">
@@ -74,7 +75,7 @@ export function renderF1Tab() {
                     <th class="f1-sortable-th" data-f1-table="standings" data-sort-key="name">Name${sortMark(f1StandingsSort, 'name')}</th>
                     <th class="f1-sortable-th" data-f1-table="standings" data-sort-key="weeksWon">Wins${sortMark(f1StandingsSort, 'weeksWon')}</th>
                     <th class="f1-sortable-th" data-f1-table="standings" data-sort-key="podiums">Podiums${sortMark(f1StandingsSort, 'podiums')}</th>
-                    <th class="f1-sortable-th" data-f1-table="standings" data-sort-key="bestWinStreak">Racha Top 10${sortMark(f1StandingsSort, 'bestWinStreak')}</th>
+                    <th class="f1-sortable-th" data-f1-table="standings" data-sort-key="bestWinStreak">Top 10 Streak${sortMark(f1StandingsSort, 'bestWinStreak')}</th>
                     <th class="f1-sortable-th" data-f1-table="standings" data-sort-key="fastestLaps">⚡${sortMark(f1StandingsSort, 'fastestLaps')}</th>
                     <th class="f1-sortable-th" data-f1-table="standings" data-sort-key="minutes">Minutes${sortMark(f1StandingsSort, 'minutes')}</th>
                     <th class="f1-sortable-th" data-f1-table="standings" data-sort-key="points">Points${sortMark(f1StandingsSort, 'points')}</th>
@@ -97,19 +98,19 @@ export function renderF1Tab() {
             <div class="f1-card" style="grid-column:1/-1"><h3>🏆 All-Time Championship Records</h3>
                 <table class="f1-standings"><thead><tr>
                     <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="name">Name${sortMark(f1AllTimeSort, 'name')}</th>
-                    <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="golds">Oros${sortMark(f1AllTimeSort, 'golds')}</th>
-                    <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="silvers">Platas${sortMark(f1AllTimeSort, 'silvers')}</th>
-                    <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="bronzes">Bronces${sortMark(f1AllTimeSort, 'bronzes')}</th>
+                    <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="golds">Golds${sortMark(f1AllTimeSort, 'golds')}</th>
+                    <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="silvers">Silvers${sortMark(f1AllTimeSort, 'silvers')}</th>
+                    <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="bronzes">Bronzes${sortMark(f1AllTimeSort, 'bronzes')}</th>
                     <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="totalWins">Wins${sortMark(f1AllTimeSort, 'totalWins')}</th>
                     <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="totalPodiums">Podiums${sortMark(f1AllTimeSort, 'totalPodiums')}</th>
-                    <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="bestWinStreak">Racha Top 10${sortMark(f1AllTimeSort, 'bestWinStreak')}</th>
+                    <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="bestWinStreak">Top 10 Streak${sortMark(f1AllTimeSort, 'bestWinStreak')}</th>
                     <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="totalFastestLaps">⚡${sortMark(f1AllTimeSort, 'totalFastestLaps')}</th>
                     <th class="f1-sortable-th" data-f1-table="alltime" data-sort-key="totalPoints">Points${sortMark(f1AllTimeSort, 'totalPoints')}</th>
                 </tr></thead><tbody>
                     ${sortedAllTime.slice(0, 20).map(r => `<tr><td>${esc(r.name)}${r.subtitle ? `<div style="font-size:0.7rem;color:var(--text-muted);">${esc(r.subtitle)}</div>` : ''}</td><td>${r.golds}</td><td>${r.silvers}</td><td>${r.bronzes}</td><td>${r.totalWins}</td><td>${r.totalPodiums}</td><td>${r.bestWinStreak || 0}</td><td>${r.totalFastestLaps}</td><td><strong style="color:var(--green)">${r.totalPoints}</strong></td></tr>`).join('')}
                 </tbody></table></div>
             <div class="f1-card" style="grid-column:1/-1"><h3>Year-by-Year Top 3</h3>
-                <table class="f1-standings"><thead><tr><th>Año</th><th>Oro</th><th>Plata</th><th>Bronce</th></tr></thead><tbody>
+                <table class="f1-standings"><thead><tr><th>Year</th><th>Gold</th><th>Silver</th><th>Bronze</th></tr></thead><tbody>
                     ${yearlyPodiumRows.map(row => `<tr><td><strong>${row.year}</strong></td><td>${row.gold ? `${esc(row.gold.name)}${row.gold.subtitle ? `<div style="font-size:0.7rem;color:var(--text-muted);">${esc(row.gold.subtitle)}</div>` : ''}` : '—'}</td><td>${row.silver ? `${esc(row.silver.name)}${row.silver.subtitle ? `<div style="font-size:0.7rem;color:var(--text-muted);">${esc(row.silver.subtitle)}</div>` : ''}` : '—'}</td><td>${row.bronze ? `${esc(row.bronze.name)}${row.bronze.subtitle ? `<div style="font-size:0.7rem;color:var(--text-muted);">${esc(row.bronze.subtitle)}</div>` : ''}` : '—'}</td></tr>`).join('')}
                 </tbody></table></div>
         </div>`;
@@ -184,4 +185,36 @@ function renderF1WeekDetails(stats, weekIdx, sortState = { key: 'rank', dir: 'as
         </tr></thead><tbody>
             ${rows.map(r => `<tr><td><strong>${r.rank}</strong></td><td>${r.fastestLap ? '⚡ ' : ''}${esc(r.name)}${r.subtitle ? `<div style="font-size:0.7rem;color:var(--text-muted)">${esc(r.subtitle)}</div>` : ''}</td><td>${r.minutes}</td><td>${r.plays}</td><td>${r.weightedScore.toFixed(3)}</td><td>${r.basePoints}</td><td class="${r.bonusPoints > 0 ? 'f1-bonus' : ''}">${r.bonusPoints > 0 ? '+' + r.bonusPoints : '—'}</td><td><strong style="color:var(--green)">${r.points}</strong></td></tr>`).join('')}
         </tbody></table>`;
+}
+
+function buildF1SeasonHighlights(stats) {
+    if (!stats || !stats.standings.length || !stats.weekly.length) return '';
+    const top = stats.standings[0];
+    const totalWeeks = stats.weekly.length;
+
+    // Dominant weeks: how many weeks the champion held P1
+    const dominancePct = top.weeksWon ? ((top.weeksWon / totalWeeks) * 100).toFixed(0) : 0;
+
+    // Most competitive week: smallest gap between P1 and P2
+    let closestGap = Infinity, closestWeek = null;
+    stats.weekly.forEach((w, idx) => {
+        if (w.topWeek.length >= 2) {
+            const gap = w.topWeek[0].points - w.topWeek[1].points;
+            if (gap < closestGap) { closestGap = gap; closestWeek = { idx: idx + 1, start: w.weekStart, p1: w.topWeek[0].name, p2: w.topWeek[1].name }; }
+        }
+    });
+
+    // Top contenders (2nd to 5th)
+    const contenders = stats.standings.slice(1, 5).map(r => `${esc(r.name)} (${r.points} pts)`).join(' · ');
+
+    const items = [];
+    items.push({ icon: '👑', text: `<strong>${esc(top.name)}</strong> dominated with ${dominancePct}% win rate (${top.weeksWon}/${totalWeeks} weeks)` });
+    if (closestWeek) items.push({ icon: '⚔️', text: `Closest battle: Week ${closestWeek.idx} (${closestWeek.start}) — ${esc(closestWeek.p1)} vs ${esc(closestWeek.p2)}` });
+    if (contenders) items.push({ icon: '🏎️', text: `Top contenders: ${contenders}` });
+    items.push({ icon: '📊', text: `Season lasted <strong>${totalWeeks}</strong> scored weeks` });
+
+    return `<div class="f1-season-highlights">
+        <h3>📌 Season ${stats.selectedYear} Highlights</h3>
+        <div class="f1-highlights-grid">${items.map(it => `<div class="f1-highlight-item"><span class="fh-icon">${it.icon}</span><span class="fh-text">${it.text}</span></div>`).join('')}</div>
+    </div>`;
 }

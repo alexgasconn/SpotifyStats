@@ -3,6 +3,8 @@
 import * as store from '../store.js';
 import { esc } from '../utils.js';
 
+let calendarYear = null; // null = all years
+
 export function renderStreaksTab() {
     const data = window.spotifyData.filtered;
     const container = document.getElementById('streaks-content');
@@ -18,6 +20,9 @@ export function renderStreaksTab() {
     const best = store.calculateBestPeriods(data);
     const calData = store.buildCalendarData(data);
 
+    // Compute milestones
+    const milestonesHtml = buildMilestones(streaks, best, data);
+
     const heroHtml = `
         <div class="streaks-hero">
             <div class="streak-card"><div class="sc-icon">🔥</div><div class="sc-value">${streaks.longest}</div><div class="sc-label">Longest Streak</div><div class="sc-dates">${streaks.longestStart || ''} → ${streaks.longestEnd || ''}</div></div>
@@ -28,7 +33,7 @@ export function renderStreaksTab() {
             <div class="streak-card"><div class="sc-icon">🏆</div><div class="sc-value">${best.bestYear ? best.bestYear.minutes : 0}</div><div class="sc-label">Best Year (min)</div><div class="sc-dates">${best.bestYear ? best.bestYear.year : '—'}</div></div>
         </div>`;
 
-    const calHtml = buildCalendarHeatmap(calData);
+    const calHtml = buildCalendarHeatmap(calData, data);
 
     function streakRows(items, valKey, unit) {
         return items.slice(0, 15).map((a, i) => `
@@ -56,11 +61,74 @@ export function renderStreaksTab() {
             <div class="streak-list-card"><h4>💿 Album – Longest absence</h4>${streakRows(albumGaps, 'gap', 'days')}</div>
         </div>`;
 
-    container.innerHTML = heroHtml + calHtml + streakListHtml + gapListHtml;
+    container.innerHTML = heroHtml + milestonesHtml + calHtml + streakListHtml + gapListHtml;
+
+    // Wire calendar year nav
+    container.querySelectorAll('.cal-year-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            calendarYear = btn.dataset.year === 'all' ? null : parseInt(btn.dataset.year);
+            renderStreaksTab();
+        });
+    });
 }
 
-function buildCalendarHeatmap(calData) {
-    const allDates = Object.keys(calData).sort();
+function buildMilestones(streaks, best, data) {
+    const music = data.filter(d => !d.isPodcast && d.trackName);
+    const totalMin = music.reduce((s, d) => s + d.durationMin, 0);
+    const totalPlays = music.length;
+    const activeDays = new Set(data.map(d => d.date)).size;
+
+    const badges = [];
+    // Streak milestones
+    if (streaks.longest >= 365) badges.push({ icon: '👑', label: 'Year-Long Streak', desc: `${streaks.longest} consecutive days` });
+    else if (streaks.longest >= 180) badges.push({ icon: '💎', label: 'Half-Year Streak', desc: `${streaks.longest} consecutive days` });
+    else if (streaks.longest >= 90) badges.push({ icon: '🏅', label: 'Quarter Streak', desc: `${streaks.longest} consecutive days` });
+    else if (streaks.longest >= 30) badges.push({ icon: '🔥', label: 'Monthly Streak', desc: `${streaks.longest} consecutive days` });
+    else if (streaks.longest >= 7) badges.push({ icon: '⭐', label: 'Weekly Streak', desc: `${streaks.longest} consecutive days` });
+
+    // Play milestones
+    if (totalPlays >= 100000) badges.push({ icon: '🎵', label: '100K Club', desc: `${totalPlays.toLocaleString()} total plays` });
+    else if (totalPlays >= 50000) badges.push({ icon: '🎵', label: '50K Plays', desc: `${totalPlays.toLocaleString()} total plays` });
+    else if (totalPlays >= 10000) badges.push({ icon: '🎵', label: '10K Plays', desc: `${totalPlays.toLocaleString()} total plays` });
+
+    // Hours milestones
+    const totalHours = Math.round(totalMin / 60);
+    if (totalHours >= 10000) badges.push({ icon: '⏱', label: 'Time Lord', desc: `${totalHours.toLocaleString()} hours` });
+    else if (totalHours >= 5000) badges.push({ icon: '⏱', label: 'Listening Master', desc: `${totalHours.toLocaleString()} hours` });
+    else if (totalHours >= 1000) badges.push({ icon: '⏱', label: '1K Hours', desc: `${totalHours.toLocaleString()} hours` });
+
+    // Active days milestones
+    if (activeDays >= 1000) badges.push({ icon: '📅', label: '1000 Active Days', desc: `${activeDays} days with music` });
+    else if (activeDays >= 365) badges.push({ icon: '📅', label: 'Year of Music', desc: `${activeDays} active days` });
+
+    // Best day intensity
+    if (best.bestDay && best.bestDay.minutes >= 480) badges.push({ icon: '🏆', label: 'Marathon Day', desc: `${best.bestDay.minutes} min in a single day` });
+
+    if (!badges.length) return '';
+
+    return `
+        <div class="streaks-milestones">
+            <h3>🏆 Milestones & Achievements</h3>
+            <div class="milestones-grid">
+                ${badges.map(b => `<div class="milestone-badge"><span class="mb-icon">${b.icon}</span><span class="mb-label">${b.label}</span><span class="mb-desc">${b.desc}</span></div>`).join('')}
+            </div>
+        </div>`;
+}
+
+function buildCalendarHeatmap(calData, data) {
+    // Get available years for navigation
+    const years = [...new Set(data.map(d => new Date(d.endTime).getFullYear()))].sort();
+
+    // Filter calData by selected year
+    let filteredCalData = calData;
+    if (calendarYear !== null) {
+        filteredCalData = {};
+        Object.entries(calData).forEach(([date, val]) => {
+            if (date.startsWith(String(calendarYear))) filteredCalData[date] = val;
+        });
+    }
+
+    const allDates = Object.keys(filteredCalData).sort();
     if (!allDates.length) return '<p style="color:var(--text-muted)">No data</p>';
 
     const firstDate = new Date(allDates[0]);
@@ -68,9 +136,13 @@ function buildCalendarHeatmap(calData) {
     const startMonday = new Date(firstDate);
     startMonday.setDate(firstDate.getDate() - ((firstDate.getDay() + 6) % 7));
 
-    const values = Object.values(calData).filter(v => v > 0);
+    const values = Object.values(filteredCalData).filter(v => v > 0);
     const maxVal = Math.max(...values, 1);
     const p33 = maxVal * 0.2, p66 = maxVal * 0.4, p80 = maxVal * 0.65, p95 = maxVal * 0.85;
+
+    // Stats for this view
+    const totalDays = values.length;
+    const avgMin = totalDays ? Math.round(values.reduce((s, v) => s + v, 0) / totalDays) : 0;
 
     const weeks = [];
     let current = new Date(startMonday);
@@ -88,7 +160,7 @@ function buildCalendarHeatmap(calData) {
             const m = String(current.getMonth() + 1).padStart(2, '0');
             const day = String(current.getDate()).padStart(2, '0');
             const dateStr = `${y}-${m}-${day}`;
-            const mins = calData[dateStr] || 0;
+            const mins = filteredCalData[dateStr] || 0;
             let level = 0;
             if (mins > 0) {
                 if (mins > p95) level = 5;
@@ -108,8 +180,12 @@ function buildCalendarHeatmap(calData) {
     }
 
     const monthRow = monthLabels.map(m => `<span style="min-width:15px;display:inline-block">${m}</span>`).join('');
+    const yearBtns = [`<button class="cal-year-btn ${calendarYear === null ? 'active' : ''}" data-year="all">All</button>`]
+        .concat(years.map(y => `<button class="cal-year-btn ${calendarYear === y ? 'active' : ''}" data-year="${y}">${y}</button>`))
+        .join('');
 
     return `<div class="heatmap-section"><h3>Listening Calendar</h3>
+        <div class="cal-year-nav">${yearBtns}<span class="cal-year-stats">${totalDays} active days · ${avgMin} avg min/day</span></div>
         <div class="calendar-heatmap">
             <div class="heatmap-months">${monthRow}</div>
             <div class="heatmap-grid">${weeks.join('')}</div>

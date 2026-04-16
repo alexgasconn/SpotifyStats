@@ -46,6 +46,46 @@ export function renderCompareTab() {
 
     const weeklyRows = cmp.duel.weekly.slice().reverse().slice(0, 24).map(w => `<tr><td>${w.week}</td><td>${w.aMinutes}</td><td>${w.bMinutes}</td><td>${w.winner === 'A' ? esc(cmp.artistA) : w.winner === 'B' ? esc(cmp.artistB) : 'Tie'}</td></tr>`).join('');
 
+    // Compute shared tracks/albums overlap
+    const aData = data.filter(d => d.artistName === compareArtistA);
+    const bData = data.filter(d => d.artistName === compareArtistB);
+    const aAlbums = new Set(aData.map(d => d.albumName).filter(Boolean));
+    const bAlbums = new Set(bData.map(d => d.albumName).filter(Boolean));
+    const sharedAlbums = [...aAlbums].filter(a => bAlbums.has(a));
+
+    // Platform breakdown for each artist
+    const aPlatMap = {}, bPlatMap = {};
+    aData.forEach(d => { if (d.platform) aPlatMap[d.platform] = (aPlatMap[d.platform] || 0) + 1; });
+    bData.forEach(d => { if (d.platform) bPlatMap[d.platform] = (bPlatMap[d.platform] || 0) + 1; });
+    const allPlats = [...new Set([...Object.keys(aPlatMap), ...Object.keys(bPlatMap)])].sort((a, b) => ((bPlatMap[b] || 0) + (aPlatMap[b] || 0)) - ((bPlatMap[a] || 0) + (aPlatMap[a] || 0))).slice(0, 6);
+    const platformRows = allPlats.map(p => `<tr><td>${esc(p)}</td><td>${aPlatMap[p] || 0}</td><td>${bPlatMap[p] || 0}</td></tr>`).join('');
+
+    // First & last listen dates
+    const aFirst = aData.length ? aData[0].date : '—';
+    const aLast = aData.length ? aData[aData.length - 1].date : '—';
+    const bFirst = bData.length ? bData[0].date : '—';
+    const bLast = bData.length ? bData[bData.length - 1].date : '—';
+
+    const overlapSection = `
+        <div class="chart-container full-width">
+            <h3>📋 Additional Comparison</h3>
+            <div class="compare-extra-grid">
+                <div class="compare-extra-card">
+                    <h4>📅 Timeline</h4>
+                    <div class="ce-row"><span>${esc(cmp.artistA)}</span><strong>${aFirst} → ${aLast}</strong></div>
+                    <div class="ce-row"><span>${esc(cmp.artistB)}</span><strong>${bFirst} → ${bLast}</strong></div>
+                </div>
+                <div class="compare-extra-card">
+                    <h4>💿 Shared Albums (${sharedAlbums.length})</h4>
+                    ${sharedAlbums.length ? `<div class="ce-list">${sharedAlbums.slice(0, 10).map(a => `<span class="ce-tag">${esc(a)}</span>`).join('')}${sharedAlbums.length > 10 ? `<span class="ce-more">+${sharedAlbums.length - 10} more</span>` : ''}</div>` : '<p style="color:var(--text-muted);font-size:0.82rem">No shared albums</p>'}
+                </div>
+                <div class="compare-extra-card">
+                    <h4>💻 Platform Breakdown</h4>
+                    ${allPlats.length ? `<table class="compare-table compare-table-compact"><thead><tr><th>Platform</th><th>${esc(cmp.artistA)}</th><th>${esc(cmp.artistB)}</th></tr></thead><tbody>${platformRows}</tbody></table>` : '<p style="color:var(--text-muted);font-size:0.82rem">No platform data</p>'}
+                </div>
+            </div>
+        </div>`;
+
     const buildKpi = (name, s, pts, wins) => `<div class="compare-kpi-card"><h4>${esc(name)}</h4><div class="compare-kpi-list"><div><span>Minutes</span><strong>${s.totalMinutes.toLocaleString()}</strong></div><div><span>Plays</span><strong>${s.plays.toLocaleString()}</strong></div><div><span>Duel Pts</span><strong>${pts}</strong></div><div><span>Weekly Wins</span><strong>${wins}</strong></div><div><span>Streak</span><strong>${s.longestStreak}d</strong></div><div><span>Unique Tracks</span><strong>${s.uniqueTracks}</strong></div><div><span>Skip Rate</span><strong>${s.skipRate}%</strong></div><div><span>Avg min/play</span><strong>${s.avgMinutesPerPlay}</strong></div></div></div>`;
 
     container.innerHTML = `
@@ -71,6 +111,7 @@ export function renderCompareTab() {
             <div class="chart-container"><h3>Weekday Profile</h3><div class="chart-wrapper"><canvas id="compare-weekday-chart"></canvas></div></div>
             <div class="chart-container"><h3>Time of Day Segments</h3><div class="chart-wrapper"><canvas id="compare-daypart-chart"></canvas></div></div>
             <div class="chart-container full-width"><h3>Weekly Head-to-Head (recent 24 weeks)</h3><div style="overflow:auto"><table class="compare-table"><thead><tr><th>Week</th><th>${esc(cmp.artistA)} min</th><th>${esc(cmp.artistB)} min</th><th>Winner</th></tr></thead><tbody>${weeklyRows}</tbody></table></div></div>
+            ${overlapSection}
         </div>`;
 
     const selA = container.querySelector('#compare-artist-a');
