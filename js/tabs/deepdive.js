@@ -373,4 +373,4 @@ function buildSessionPatterns(sessions) {
             </ul>
         </div>`;
 }
-}
+
