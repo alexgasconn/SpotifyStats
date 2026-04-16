@@ -674,25 +674,38 @@ export function calculateListeningStreaks(data) {
 }
 
 export function calculateArtistDailyStreaks(data, topN = 15) {
-    // Build map: date -> Set of artists
+    return _calcItemStreaks(data, d => d.artistName, topN);
+}
+
+export function calculateTrackDailyStreaks(data, topN = 15) {
+    return _calcItemStreaks(data, d => d.trackName, topN);
+}
+
+export function calculateAlbumDailyStreaks(data, topN = 15) {
+    return _calcItemStreaks(data, d => d.albumName, topN);
+}
+
+function _calcItemStreaks(data, keyFn, topN) {
+    // Build map: date -> Set of items
     const byDate = {};
     data.forEach(d => {
-        if (!d.artistName) return;
+        const k = keyFn(d);
+        if (!k) return;
         if (!byDate[d.date]) byDate[d.date] = new Set();
-        byDate[d.date].add(d.artistName);
+        byDate[d.date].add(k);
     });
     const dates = Object.keys(byDate).sort();
 
-    // Get unique artists with at least some plays
-    const artistPlays = {};
-    data.forEach(d => { if (d.artistName) artistPlays[d.artistName] = (artistPlays[d.artistName] || 0) + 1; });
-    const topArtists = Object.entries(artistPlays).sort((a, b) => b[1] - a[1]).slice(0, 200).map(a => a[0]);
+    // Get top items by play count
+    const plays = {};
+    data.forEach(d => { const k = keyFn(d); if (k) plays[k] = (plays[k] || 0) + 1; });
+    const topItems = Object.entries(plays).sort((a, b) => b[1] - a[1]).slice(0, 300).map(a => a[0]);
 
     const result = [];
-    topArtists.forEach(artist => {
+    topItems.forEach(item => {
         let longest = 0, cur = 0, tempStart = null, bestStart = null, bestEnd = null;
         for (let i = 0; i < dates.length; i++) {
-            if (byDate[dates[i]].has(artist)) {
+            if (byDate[dates[i]].has(item)) {
                 if (cur === 0) tempStart = dates[i];
                 const diff = i > 0 ? (new Date(dates[i]) - new Date(dates[i - 1])) / 86400000 : 1;
                 if (diff > 1 && cur > 0) { cur = 1; tempStart = dates[i]; }
@@ -702,10 +715,67 @@ export function calculateArtistDailyStreaks(data, topN = 15) {
                 cur = 0;
             }
         }
-        if (longest > 1) result.push({ artist, streak: longest, from: bestStart, to: bestEnd });
+        if (longest > 1) result.push({ name: item, streak: longest, from: bestStart, to: bestEnd });
     });
 
     return result.sort((a, b) => b.streak - a.streak).slice(0, topN);
+}
+
+// Longest GAP (consecutive listening days WITHOUT each item) for top items
+export function calculateItemGapStreaks(data, keyFn, topN = 15) {
+    // Get all days in the full range
+    const allDaySet = new Set(data.map(d => d.date));
+    const allDates = [...allDaySet].sort();
+    if (!allDates.length) return [];
+
+    // Build map: date -> Set of items
+    const byDate = {};
+    data.forEach(d => {
+        const k = keyFn(d);
+        if (!k) return;
+        if (!byDate[d.date]) byDate[d.date] = new Set();
+        byDate[d.date].add(k);
+    });
+
+    // Get top items by total minutes
+    const totals = {};
+    data.forEach(d => { const k = keyFn(d); if (k) totals[k] = (totals[k] || 0) + d.durationMin; });
+    const topItems = Object.entries(totals).sort((a, b) => b[1] - a[1]).slice(0, topN).map(a => a[0]);
+
+    const result = [];
+    topItems.forEach(item => {
+        // Find first and last day the item was heard to bound the gap search
+        const activeDays = allDates.filter(d => byDate[d] && byDate[d].has(item));
+        if (activeDays.length < 2) return;
+        const firstDay = activeDays[0];
+        const lastDay = activeDays[activeDays.length - 1];
+        const boundedDates = allDates.filter(d => d >= firstDay && d <= lastDay);
+
+        let longest = 0, cur = 0, tempStart = null, bestStart = null, bestEnd = null;
+        for (let i = 0; i < boundedDates.length; i++) {
+            const has = byDate[boundedDates[i]] && byDate[boundedDates[i]].has(item);
+            if (!has) {
+                if (cur === 0) tempStart = boundedDates[i];
+                cur++;
+                if (cur > longest) { longest = cur; bestStart = tempStart; bestEnd = boundedDates[i]; }
+            } else {
+                cur = 0;
+            }
+        }
+        if (longest > 0) result.push({ name: item, gap: longest, from: bestStart, to: bestEnd });
+    });
+
+    return result.sort((a, b) => b.gap - a.gap);
+}
+
+export function calculateArtistGapStreaks(data, topN = 15) {
+    return calculateItemGapStreaks(data, d => d.artistName, topN);
+}
+export function calculateTrackGapStreaks(data, topN = 15) {
+    return calculateItemGapStreaks(data, d => d.trackName, topN);
+}
+export function calculateAlbumGapStreaks(data, topN = 15) {
+    return calculateItemGapStreaks(data, d => d.albumName, topN);
 }
 
 export function calculateBestPeriods(data) {

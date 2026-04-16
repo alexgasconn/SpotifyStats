@@ -318,6 +318,11 @@ export function renderStreaksTab() {
 
     const streaks = store.calculateListeningStreaks(data);
     const artistStreaks = store.calculateArtistDailyStreaks(data);
+    const trackStreaks = store.calculateTrackDailyStreaks(data);
+    const albumStreaks = store.calculateAlbumDailyStreaks(data);
+    const artistGaps = store.calculateArtistGapStreaks(data);
+    const trackGaps = store.calculateTrackGapStreaks(data);
+    const albumGaps = store.calculateAlbumGapStreaks(data);
     const best = store.calculateBestPeriods(data);
     const calData = store.buildCalendarData(data);
 
@@ -364,23 +369,55 @@ export function renderStreaksTab() {
 
     const calHtml = buildCalendarHeatmap(calData);
 
-    const artistStreakHtml = `
+    function streakRows(items, valKey, unit) {
+        return items.slice(0, 15).map((a, i) => `
+            <div class="streak-row">
+                <span class="sr-rank">${i + 1}</span>
+                <span class="sr-name">${esc(a.name || a.artist)}</span>
+                <span class="sr-val">${a[valKey]} ${unit}</span>
+                <span class="sr-dates" style="font-size:0.7rem;color:var(--text-muted)">${a.from} → ${a.to}</span>
+            </div>
+        `).join('');
+    }
+
+    const streakListHtml = `
         <div class="streak-list-grid">
             <div class="streak-list-card">
-                <h4>🎤 Longest Artist Streaks (consecutive days)</h4>
-                ${artistStreaks.slice(0, 15).map((a, i) => `
-                    <div class="streak-row">
-                        <span class="sr-rank">${i + 1}</span>
-                        <span class="sr-name">${esc(a.artist)}</span>
-                        <span class="sr-val">${a.streak} days</span>
-                        <span class="sr-dates" style="font-size:0.7rem;color:var(--text-muted)">${a.from} → ${a.to}</span>
-                    </div>
-                `).join('')}
+                <h4>🎤 Artist Streaks (consecutive days)</h4>
+                ${streakRows(artistStreaks, 'streak', 'days')}
+            </div>
+            <div class="streak-list-card">
+                <h4>🎵 Track Streaks (consecutive days)</h4>
+                ${streakRows(trackStreaks, 'streak', 'days')}
+            </div>
+            <div class="streak-list-card">
+                <h4>💿 Album Streaks (consecutive days)</h4>
+                ${streakRows(albumStreaks, 'streak', 'days')}
             </div>
         </div>
     `;
 
-    container.innerHTML = heroHtml + calHtml + artistStreakHtml;
+    // Gap streaks (longest days WITHOUT listening to each top item)
+    const gapListHtml = `
+        <h3 style="margin-top:2rem">Longest absences (top listened items)</h3>
+        <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:1rem">Longest gap of consecutive days without listening to each of your most played artists, tracks and albums (bounded between their first and last play).</p>
+        <div class="streak-list-grid">
+            <div class="streak-list-card">
+                <h4>🎤 Artist – Longest absence</h4>
+                ${streakRows(artistGaps, 'gap', 'days')}
+            </div>
+            <div class="streak-list-card">
+                <h4>🎵 Track – Longest absence</h4>
+                ${streakRows(trackGaps, 'gap', 'days')}
+            </div>
+            <div class="streak-list-card">
+                <h4>💿 Album – Longest absence</h4>
+                ${streakRows(albumGaps, 'gap', 'days')}
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = heroHtml + calHtml + streakListHtml + gapListHtml;
 }
 
 function buildCalendarHeatmap(calData) {
