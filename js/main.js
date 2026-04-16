@@ -5,6 +5,7 @@ import { showLoading, hideLoading, setLoadingProgress, renderUI, renderStreaksTa
 import { setupGame } from './game.js';
 import * as podcasts from './podcasts.js';
 import { openDetail, closeDetail } from './detail.js';
+import { renderCalendarTab } from './calendar.js';
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -185,6 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (tabId === 'explorer-tab') renderExplorerTab(window.spotifyData.filtered);
                 if (tabId === 'viewer-tab') renderViewerTab();
                 if (tabId === 'compare-tab') renderCompareTab();
+                if (tabId === 'calendar-tab') renderCalendarTab();
             });
         });
     }
