@@ -2266,3 +2266,106 @@ export function calculateWrappedStats(year, fullData) {
         }
     };
 }
+
+// ─────────────────────────────────────────────
+//  LISTENING CHAINS & SESSIONS
+// ─────────────────────────────────────────────
+
+const SESSION_GAP_MS = 30 * 60 * 1000; // 30 min
+
+export function calculateListeningSessions(data, gapMinutes = 30) {
+    const gapMs = gapMinutes * 60 * 1000;
+    const sorted = [...data].filter(d => !d.isPodcast && d.trackName).sort((a, b) => a.ts - b.ts);
+    if (!sorted.length) return [];
+
+    const sessions = [];
+    let currentSession = { tracks: [sorted[0]], startDate: sorted[0].date, durationMin: sorted[0].durationMin };
+
+    for (let i = 1; i < sorted.length; i++) {
+        const gap = sorted[i].ts - sorted[i - 1].ts;
+        if (gap <= gapMs) {
+            currentSession.tracks.push(sorted[i]);
+            currentSession.durationMin += sorted[i].durationMin;
+        } else {
+            currentSession.trackCount = currentSession.tracks.length;
+            sessions.push(currentSession);
+            currentSession = { tracks: [sorted[i]], startDate: sorted[i].date, durationMin: sorted[i].durationMin };
+        }
+    }
+    currentSession.trackCount = currentSession.tracks.length;
+    sessions.push(currentSession);
+
+    return sessions;
+}
+
+export function calculateListeningChains(data) {
+    const sorted = [...data].filter(d => !d.isPodcast && d.trackName).sort((a, b) => a.ts - b.ts);
+    if (sorted.length < 2) return { trackChains: [], artistChains: [], albumChains: [], sessions: [] };
+
+    // Build transitions (only count within session = gap < 30 min)
+    const trackTransitions = {};
+    const artistTransitions = {};
+    const albumTransitions = {};
+    const trackFromCounts = {};
+    const artistFromCounts = {};
+    const albumFromCounts = {};
+
+    for (let i = 1; i < sorted.length; i++) {
+        const prev = sorted[i - 1];
+        const curr = sorted[i];
+        const gap = curr.ts - prev.ts;
+        if (gap > SESSION_GAP_MS) continue;
+
+        // Track chains
+        if (prev.trackName && curr.trackName && prev.trackName !== curr.trackName) {
+            const key = `${prev.trackName}|||${prev.artistName || ''}|||${curr.trackName}|||${curr.artistName || ''}`;
+            trackTransitions[key] = (trackTransitions[key] || 0) + 1;
+            trackFromCounts[prev.trackName] = (trackFromCounts[prev.trackName] || 0) + 1;
+        }
+
+        // Artist chains
+        if (prev.artistName && curr.artistName && prev.artistName !== curr.artistName) {
+            const key = `${prev.artistName}|||${curr.artistName}`;
+            artistTransitions[key] = (artistTransitions[key] || 0) + 1;
+            artistFromCounts[prev.artistName] = (artistFromCounts[prev.artistName] || 0) + 1;
+        }
+
+        // Album chains
+        if (prev.albumName && curr.albumName && prev.albumName !== curr.albumName) {
+            const key = `${prev.albumName}|||${prev.artistName || ''}|||${curr.albumName}|||${curr.artistName || ''}`;
+            albumTransitions[key] = (albumTransitions[key] || 0) + 1;
+            albumFromCounts[`${prev.albumName}|||${prev.artistName || ''}`] = (albumFromCounts[`${prev.albumName}|||${prev.artistName || ''}`] || 0) + 1;
+        }
+    }
+
+    const trackChains = Object.entries(trackTransitions)
+        .map(([key, count]) => {
+            const [from, fromArtist, to, toArtist] = key.split('|||');
+            const total = trackFromCounts[from] || 1;
+            return { from, fromArtist, to, toArtist, count, pct: +((count / total) * 100).toFixed(1) };
+        })
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 30);
+
+    const artistChains = Object.entries(artistTransitions)
+        .map(([key, count]) => {
+            const [from, to] = key.split('|||');
+            const total = artistFromCounts[from] || 1;
+            return { from, fromArtist: '', to, toArtist: '', count, pct: +((count / total) * 100).toFixed(1) };
+        })
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 30);
+
+    const albumChains = Object.entries(albumTransitions)
+        .map(([key, count]) => {
+            const [from, fromArtist, to, toArtist] = key.split('|||');
+            const total = albumFromCounts[`${from}|||${fromArtist}`] || 1;
+            return { from, fromArtist, to, toArtist, count, pct: +((count / total) * 100).toFixed(1) };
+        })
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 30);
+
+    const sessions = calculateListeningSessions(data, 30);
+
+    return { trackChains, artistChains, albumChains, sessions };
+}
