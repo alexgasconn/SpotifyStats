@@ -72,14 +72,14 @@ function renderFunFacts(data) {
 
     // 2. Most played hour
     const hourMap = {};
-    music.forEach(d => { const h = new Date(d.endTime).getHours(); hourMap[h] = (hourMap[h] || 0) + 1; });
+    music.forEach(d => { hourMap[d.hour] = (hourMap[d.hour] || 0) + 1; });
     const peakHour = Object.entries(hourMap).sort((a, b) => b[1] - a[1])[0];
     if (peakHour) facts.push({ icon: '🕐', text: `Your peak hour is <strong>${peakHour[0]}:00</strong> with ${Number(peakHour[1]).toLocaleString()} plays` });
 
-    // 3. Most listened day of week
-    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    // 3. Most listened day of week (weekday: Mon=0 .. Sun=6)
+    const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const dowMap = {};
-    music.forEach(d => { const dow = new Date(d.endTime).getDay(); dowMap[dow] = (dowMap[dow] || 0) + d.durationMin; });
+    music.forEach(d => { dowMap[d.weekday] = (dowMap[d.weekday] || 0) + d.durationMin; });
     const peakDay = Object.entries(dowMap).sort((a, b) => b[1] - a[1])[0];
     if (peakDay) facts.push({ icon: '📅', text: `<strong>${dayNames[peakDay[0]]}</strong> is your most musical day (${Math.round(peakDay[1]).toLocaleString()} min total)` });
 
@@ -98,8 +98,8 @@ function renderFunFacts(data) {
     const totalArtists = Object.keys(artistTrackMap).length;
     if (totalArtists) facts.push({ icon: '🎯', text: `<strong>${oneHits}</strong> of ${totalArtists} artists have only 1 track played (${((oneHits / totalArtists) * 100).toFixed(0)}%)` });
 
-    // 6. Weekend vs weekday
-    const weekendMin = music.filter(d => { const dow = new Date(d.endTime).getDay(); return dow === 0 || dow === 6; }).reduce((s, d) => s + d.durationMin, 0);
+    // 6. Weekend vs weekday (weekday field: Mon=0..Sun=6, so Sat=5, Sun=6)
+    const weekendMin = music.filter(d => d.weekday >= 5).reduce((s, d) => s + d.durationMin, 0);
     const weekdayMin = totalMin - weekendMin;
     const weekendPct = ((weekendMin / totalMin) * 100).toFixed(0);
     facts.push({ icon: weekendMin > weekdayMin * (2 / 5) ? '🎉' : '💼', text: `Weekend listening: <strong>${weekendPct}%</strong> of total (${Math.round(weekendMin).toLocaleString()} min)` });

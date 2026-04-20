@@ -260,7 +260,7 @@ function buildSessionPatterns(sessions) {
     const timeSlots = { morning: 0, afternoon: 0, evening: 0, night: 0 };
     sessions.forEach(se => {
         if (!se.tracks.length) return;
-        const h = new Date(se.tracks[0].endTime).getHours();
+        const h = se.tracks[0].hour;
         if (h >= 6 && h < 12) timeSlots.morning++;
         else if (h >= 12 && h < 18) timeSlots.afternoon++;
         else if (h >= 18) timeSlots.evening++;

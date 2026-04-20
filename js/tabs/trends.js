@@ -38,13 +38,13 @@ function renderTrendsInsights(data) {
 
     // Peak hour
     const hourMap = {};
-    music.forEach(d => { const h = new Date(d.endTime).getHours(); hourMap[h] = (hourMap[h] || 0) + 1; });
+    music.forEach(d => { hourMap[d.hour] = (hourMap[d.hour] || 0) + 1; });
     const peakHour = Object.entries(hourMap).sort((a, b) => b[1] - a[1])[0];
 
-    // Peak weekday
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    // Peak weekday (weekday field: Mon=0..Sun=6)
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const dowMap = {};
-    music.forEach(d => { const dow = new Date(d.endTime).getDay(); dowMap[dow] = (dowMap[dow] || 0) + d.durationMin; });
+    music.forEach(d => { dowMap[d.weekday] = (dowMap[d.weekday] || 0) + d.durationMin; });
     const peakDay = Object.entries(dowMap).sort((a, b) => b[1] - a[1])[0];
 
     // Platform leader

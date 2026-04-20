@@ -39,12 +39,6 @@ export function renderExplorerTab(data) {
             </div>
         </div>
 
-        <!-- Word Cloud -->
-        <div class="chart-container">
-            <h3>☁️ Track Word Cloud</h3>
-            <div id="word-cloud-container" class="word-cloud-container"><canvas id="word-cloud-canvas"></canvas></div>
-        </div>
-
         <!-- Top First Plays by Year -->
         <div class="chart-container">
             <h3>🆕 Discovery Timeline</h3>
@@ -88,7 +82,6 @@ export function renderExplorerTab(data) {
         </div>
     `;
 
-    renderWordCloud(data);
     currentPage = 0;
     currentQuery = '';
     currentSort = 'date-desc';
