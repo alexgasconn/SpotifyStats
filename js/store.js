@@ -14,9 +14,11 @@ let _cfg = {
     includeIncognito: true,
     topN: 10,
     streakGapDays: 1,
+    f1MinutesWeight: 50,
 };
 
 export function getConfig() { return { ..._cfg }; }
+export function setF1Weight(minutesWeight) { _cfg.f1MinutesWeight = Math.max(0, Math.min(100, Number(minutesWeight) || 50)); }
 
 function formatLocalDate(dateObj) {
     const year = dateObj.getFullYear();
@@ -299,9 +301,11 @@ export function calculateTopItems(data, key, metric = 'plays', topN = 10) {
         }));
         const maxMinutes = Math.max(...rows.map(r => r.minutes), 1);
         const maxPlays = Math.max(...rows.map(r => r.plays), 1);
+        const wMin = _cfg.f1MinutesWeight / 100;
+        const wPlay = 1 - wMin;
 
         rows.forEach(r => {
-            r.weekScore = ((r.minutes / maxMinutes) * 0.5) + ((r.plays / maxPlays) * 0.5);
+            r.weekScore = ((r.minutes / maxMinutes) * wMin) + ((r.plays / maxPlays) * wPlay);
         });
 
         rows
@@ -1554,9 +1558,11 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
 
         const maxMinutes = Math.max(...ranking.map(r => r.minutes), 1);
         const maxPlays = Math.max(...ranking.map(r => r.plays), 1);
+        const wMin = _cfg.f1MinutesWeight / 100;
+        const wPlay = 1 - wMin;
 
         ranking.forEach(r => {
-            r.weekScore = ((r.minutes / maxMinutes) * 0.5) + ((r.plays / maxPlays) * 0.5);
+            r.weekScore = ((r.minutes / maxMinutes) * wMin) + ((r.plays / maxPlays) * wPlay);
         });
 
         ranking.sort((a, b) => {

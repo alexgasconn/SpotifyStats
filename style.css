@@ -1476,6 +1476,104 @@ header {
     box-shadow: 0 0 0 2px rgba(29, 185, 84, 0.2);
 }
 
+/* F1 Weight Slider — shared between settings & F1 tab */
+.f1-weight-slider-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+}
+
+.f1-weight-label-left,
+.f1-weight-label-right {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    min-width: 3.2rem;
+}
+
+.f1-weight-label-left {
+    color: #f59e0b;
+    text-align: right;
+}
+
+.f1-weight-label-right {
+    color: var(--green);
+    text-align: left;
+}
+
+.f1-weight-range {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(to right, #f59e0b, var(--green));
+    outline: none;
+    cursor: pointer;
+}
+
+.f1-weight-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--white);
+    border: 3px solid var(--green);
+    cursor: pointer;
+    box-shadow: 0 0 6px rgba(29, 185, 84, 0.4);
+    transition: box-shadow 0.2s, transform 0.15s;
+}
+
+.f1-weight-range::-webkit-slider-thumb:hover {
+    box-shadow: 0 0 12px rgba(29, 185, 84, 0.6);
+    transform: scale(1.15);
+}
+
+.f1-weight-range::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--white);
+    border: 3px solid var(--green);
+    cursor: pointer;
+    box-shadow: 0 0 6px rgba(29, 185, 84, 0.4);
+}
+
+.f1-weight-value-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.82rem;
+    font-weight: 700;
+    padding: 0 0.2rem;
+}
+
+.f1-weight-value-row span:first-child {
+    color: #f59e0b;
+}
+
+.f1-weight-value-row span:last-child {
+    color: var(--green);
+}
+
+/* Weight control inside F1 tab controls row */
+.f1-weight-control {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 220px;
+    flex: 1;
+    max-width: 340px;
+}
+
+/* Settings page wide item */
+.setting-item-wide {
+    grid-column: 1 / -1;
+}
+
 .f1-help {
     margin-bottom: 1rem;
     border: 1px dashed rgba(29, 185, 84, 0.35);

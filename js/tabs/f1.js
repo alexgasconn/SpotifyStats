@@ -40,6 +40,9 @@ export function renderF1Tab() {
     const activeWeekIndex = resolveF1WeekIndex(stats.weekly.length, f1WeekIndex);
     const sortMark = (state, key) => state.key === key ? (state.dir === 'asc' ? ' ▲' : ' ▼') : '';
 
+    const currentWeight = store.getConfig().f1MinutesWeight;
+    const currentPlaysWeight = 100 - currentWeight;
+
     container.innerHTML = `
         <div class="f1-controls">
             <div><label for="f1-mode">Championship</label><select id="f1-mode">
@@ -50,10 +53,22 @@ export function renderF1Tab() {
             <div><label for="f1-year">Season</label><select id="f1-year">
                 ${stats.years.map(y => `<option value="${y}" ${y === stats.selectedYear ? 'selected' : ''}>${y}</option>`).join('')}
             </select></div>
+            <div class="f1-weight-control">
+                <label>Score Weight</label>
+                <div class="f1-weight-slider-wrap">
+                    <span class="f1-weight-label-left">Plays</span>
+                    <input type="range" id="f1-weight-slider" min="0" max="100" value="${currentWeight}" class="f1-weight-range">
+                    <span class="f1-weight-label-right">Minutes</span>
+                </div>
+                <div class="f1-weight-value-row">
+                    <span id="f1-weight-plays">${currentPlaysWeight}%</span>
+                    <span id="f1-weight-minutes">${currentWeight}%</span>
+                </div>
+            </div>
         </div>
         <details class="f1-help"><summary>How this F1 mode works (quick glossary)</summary><div>
             Weekly ranking: every Monday-Sunday week, the Top 10 by mixed score gets F1 points (25-18-15-12-10-8-6-4-2-1).<br>
-            Mixed score: 50% normalized minutes + 50% normalized plays (within that week).<br>
+            Mixed score: ${currentWeight}% normalized minutes + ${currentPlaysWeight}% normalized plays (within that week).<br>
             Fast Lap (⚡): +1 bonus point for the biggest single listening session of that week (only if that entry is in the Top 10).<br>
             Wins: number of weeks finishing P1. Podiums: Top 3. Streak Top 10: best consecutive weeks in Top 10.
         </div></details>
@@ -124,6 +139,30 @@ export function renderF1Tab() {
     document.getElementById('f1-week-prev')?.addEventListener('click', () => { const r = resolveF1WeekIndex(stats.weekly.length, f1WeekIndex); if (r <= 0) return; f1WeekIndex = r - 1; renderF1Tab(); });
     document.getElementById('f1-week-next')?.addEventListener('click', () => { const r = resolveF1WeekIndex(stats.weekly.length, f1WeekIndex); if (r >= stats.weekly.length - 1) return; const next = r + 1; f1WeekIndex = next === stats.weekly.length - 1 ? -1 : next; renderF1Tab(); });
 
+    // F1 weight slider (in-tab)
+    const f1Slider = document.getElementById('f1-weight-slider');
+    const f1SliderPlays = document.getElementById('f1-weight-plays');
+    const f1SliderMinutes = document.getElementById('f1-weight-minutes');
+    f1Slider?.addEventListener('input', () => {
+        const v = parseInt(f1Slider.value) || 50;
+        if (f1SliderPlays) f1SliderPlays.textContent = (100 - v) + '%';
+        if (f1SliderMinutes) f1SliderMinutes.textContent = v + '%';
+    });
+    f1Slider?.addEventListener('change', () => {
+        const v = parseInt(f1Slider.value) || 50;
+        store.setF1Weight(v);
+        // Also sync the initial settings slider if visible
+        const cfgSlider = document.getElementById('cfg-f1-weight');
+        if (cfgSlider) {
+            cfgSlider.value = v;
+            const cp = document.getElementById('cfg-f1-weight-plays');
+            const cm = document.getElementById('cfg-f1-weight-minutes');
+            if (cp) cp.textContent = (100 - v) + '%';
+            if (cm) cm.textContent = v + '%';
+        }
+        renderF1Tab();
+    });
+
     container.querySelectorAll('#f1EvolutionControls .timeline-btn').forEach(btn => {
         btn.addEventListener('click', () => { f1EvolutionUnit = btn.dataset.unit || 'month'; container.querySelectorAll('#f1EvolutionControls .timeline-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); renderF1Evolution(stats); });
     });
@@ -169,6 +208,9 @@ function renderF1WeekDetails(stats, weekIdx, sortState = { key: 'rank', dir: 'as
 
     const weekSortMark = (key) => sortState.key === key ? (sortState.dir === 'asc' ? ' ▲' : ' ▼') : '';
 
+    const wCfg = store.getConfig().f1MinutesWeight;
+    const scoreLabel = `${wCfg}/${100 - wCfg} Score`;
+
     container.innerHTML = `
         <div style="padding:0.8rem;margin-bottom:1rem;background:rgba(29,185,84,0.08);border-radius:var(--radius);text-align:center;">
             <div style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Week of <strong style="color:var(--green);font-size:1rem">${targetWeek.weekStart}</strong> ${weekLabel}</div>
@@ -178,7 +220,7 @@ function renderF1WeekDetails(stats, weekIdx, sortState = { key: 'rank', dir: 'as
             <th class="f1-sortable-th" data-f1-table="week" data-sort-key="name">Name${weekSortMark('name')}</th>
             <th class="f1-sortable-th" data-f1-table="week" data-sort-key="minutes">Minutes${weekSortMark('minutes')}</th>
             <th class="f1-sortable-th" data-f1-table="week" data-sort-key="plays">Plays${weekSortMark('plays')}</th>
-            <th class="f1-sortable-th" data-f1-table="week" data-sort-key="weightedScore">50/50 Score${weekSortMark('weightedScore')}</th>
+            <th class="f1-sortable-th" data-f1-table="week" data-sort-key="weightedScore">${scoreLabel}${weekSortMark('weightedScore')}</th>
             <th class="f1-sortable-th" data-f1-table="week" data-sort-key="basePoints">Base Pts${weekSortMark('basePoints')}</th>
             <th class="f1-sortable-th" data-f1-table="week" data-sort-key="bonusPoints">⚡ Bonus${weekSortMark('bonusPoints')}</th>
             <th class="f1-sortable-th" data-f1-table="week" data-sort-key="points">Total${weekSortMark('points')}</th>

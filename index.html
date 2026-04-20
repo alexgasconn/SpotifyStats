@@ -87,6 +87,20 @@
                             <small>Max days without listening before a streak breaks.</small>
                         </div>
 
+                        <div class="setting-item setting-item-wide">
+                            <label>F1 Score Weight</label>
+                            <div class="f1-weight-slider-wrap">
+                                <span class="f1-weight-label-left">Plays</span>
+                                <input type="range" id="cfg-f1-weight" min="0" max="100" value="50" class="f1-weight-range">
+                                <span class="f1-weight-label-right">Minutes</span>
+                            </div>
+                            <div class="f1-weight-value-row">
+                                <span id="cfg-f1-weight-plays">50%</span>
+                                <span id="cfg-f1-weight-minutes">50%</span>
+                            </div>
+                            <small>Balance between play count and listening time for F1 rankings.</small>
+                        </div>
+
                         <div class="settings-checks">
                             <label class="setting-check">
                                 <input type="checkbox" id="cfg-podcasts" checked>

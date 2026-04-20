@@ -1,6 +1,6 @@
 // js/main.js — Application bootstrap & filter management
 
-import { processSpotifyZip } from './store.js';
+import { processSpotifyZip, setF1Weight } from './store.js';
 import { showLoading, hideLoading, setLoadingProgress, renderUI, renderStreaksTab, renderDeepDiveTab, renderF1Tab, renderExplorerTab, renderViewerTab, renderCompareTab, populateWrappedFilter, renderWrappedContent } from './ui.js';
 import { setupGame } from './tabs/game.js';
 import * as podcasts from './tabs/podcasts.js';
@@ -77,8 +77,19 @@ document.addEventListener('DOMContentLoaded', () => {
             includePodcasts: document.getElementById('cfg-podcasts')?.checked ?? true,
             includeOffline: document.getElementById('cfg-offline')?.checked ?? true,
             includeIncognito: document.getElementById('cfg-incognito')?.checked ?? false,
+            f1MinutesWeight: parseInt(document.getElementById('cfg-f1-weight')?.value) || 50,
         };
     }
+
+    // ── F1 WEIGHT SLIDER (initial settings) ────
+    const cfgF1Weight = document.getElementById('cfg-f1-weight');
+    const cfgF1Plays = document.getElementById('cfg-f1-weight-plays');
+    const cfgF1Minutes = document.getElementById('cfg-f1-weight-minutes');
+    cfgF1Weight?.addEventListener('input', () => {
+        const v = parseInt(cfgF1Weight.value) || 50;
+        if (cfgF1Plays) cfgF1Plays.textContent = (100 - v) + '%';
+        if (cfgF1Minutes) cfgF1Minutes.textContent = v + '%';
+    });
 
     // ── UPLOAD ──────────────────────────────────
     uploadButton.addEventListener('click', () => zipInput.click());
