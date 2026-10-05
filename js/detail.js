@@ -1,8 +1,14 @@
 // js/detail.js — Detail modal for tracks, artists, albums
 
 import * as store from './store.js';
+import { forecastPlaySeries } from './forecast.js';
+import { forecastPlaysChartConfig } from './charts.js';
 
 let detailChartInstances = {};
+let detailForecastWorker = null;
+let detailForecastSource = null;
+let detailForecastRequest = 0;
+let detailForecastContext = null;
 
 function createDetailChart(canvasId, config) {
     if (detailChartInstances[canvasId]) detailChartInstances[canvasId].destroy();
@@ -25,9 +31,16 @@ export function openDetail(name, type, extra, fullData) {
 
     const modal = document.getElementById('detail-modal');
     const body = document.getElementById('detail-modal-body');
+    detailForecastRequest++;
+    detailForecastContext = null;
+    for (const id of ['detail-forecast-cumulative', 'detail-forecast-monthly']) {
+        detailChartInstances[id]?.destroy();
+        delete detailChartInstances[id];
+    }
     body.innerHTML = buildDetailHTML(stats);
     modal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+    setupDetailForecast(stats, fullData);
 
     // Render charts after DOM update
     requestAnimationFrame(() => {
@@ -180,9 +193,82 @@ function buildDetailHTML(s) {
         </div>
         ${kpiHtml}
         ${chartsHtml}
+        ${s.type === 'artist' || s.type === 'track' ? '<details id="detail-forecast" class="detail-forecast"><summary>Forecast · plays</summary><div id="detail-forecast-content"></div></details>' : ''}
         ${yearHtml}
         ${extraHtml}
     `;
+}
+
+function setupDetailForecast(stats, fullData) {
+    const section = document.getElementById('detail-forecast');
+    if (!section) return;
+    const context = { entity: stats.type === 'artist' ? 'artists' : 'tracks', entityKey: stats.type === 'artist' ? stats.name.trim() : `${stats.name.trim()}|||${(stats.subtitle || '').trim()}`, result: null, year: null, scope: 'annual', requested: false };
+    detailForecastContext = context;
+    section.addEventListener('toggle', () => {
+        if (!section.open || context !== detailForecastContext) return;
+        if (!context.requested) {
+            context.requested = true;
+            requestDetailForecast(fullData);
+        } else if (context.result) {
+            detailChartInstances['detail-forecast-cumulative']?.resize();
+            detailChartInstances['detail-forecast-monthly']?.resize();
+        }
+    });
+}
+
+function requestDetailForecast(fullData) {
+    const source = store.getForecastData().length ? store.getForecastData() : fullData;
+    const context = detailForecastContext;
+    if (!context) return;
+    if (detailForecastSource !== source || !detailForecastWorker) {
+        detailForecastWorker?.terminate();
+        detailForecastSource = source;
+        detailForecastWorker = new Worker(new URL('./forecast-worker.js', import.meta.url), { type: 'module' });
+        detailForecastWorker.onmessage = event => {
+            const message = event.data;
+            if (message.id !== detailForecastRequest || !detailForecastContext) return;
+            const content = document.getElementById('detail-forecast-content');
+            if (!content) return;
+            if (message.type === 'progress') content.innerHTML = `<div class="forecast-status" role="status">${esc(message.status)}${message.fraction === undefined ? '' : ` · ${Math.round(message.fraction * 100)}%`}<progress aria-label="Entity forecast computation" ${message.fraction === undefined ? '' : `max="1" value="${message.fraction}"`}></progress></div>`;
+            else if (message.type === 'result') {
+                if (!message.result) { content.innerHTML = '<p>No forecast data available for this entity.</p>'; return; }
+                detailForecastContext.result = message.result;
+                detailForecastContext.year = message.result.periods[0].year;
+                renderDetailForecast(message.cached);
+            } else if (message.type === 'error') showDetailForecastError(message.message, fullData);
+        };
+        detailForecastWorker.onerror = event => showDetailForecastError(event.message || 'Entity forecast failed.', fullData);
+        detailForecastWorker.postMessage({ type: 'init', data: source.map(entry => ({ ts: entry.ts, trackName: entry.trackName, artistName: entry.artistName, msPlayed: entry.msPlayed, durationMin: entry.durationMin, skipped: entry.skipped, isPodcast: entry.isPodcast })) });
+    }
+    document.getElementById('detail-forecast-content').innerHTML = '<div class="forecast-status" role="status">Preparing entity forecast…<progress aria-label="Entity forecast computation"></progress></div>';
+    detailForecastWorker.postMessage({ type: 'entityForecast', id: ++detailForecastRequest, options: { entity: context.entity, entityKey: context.entityKey, simulations: 5000, yearsAhead: 3, minutesWeight: store.getConfig().f1MinutesWeight, seed: 1729 } });
+}
+
+function showDetailForecastError(message, fullData) {
+    const content = document.getElementById('detail-forecast-content');
+    if (!content || !detailForecastContext) return;
+    content.innerHTML = `<div class="forecast-status" role="alert">${esc(message)}<button type="button" id="detail-forecast-retry" class="secondary-btn">Retry</button></div>`;
+    document.getElementById('detail-forecast-retry').addEventListener('click', () => requestDetailForecast(fullData));
+}
+
+function renderDetailForecast(cached = false) {
+    const context = detailForecastContext;
+    const result = context.result;
+    document.getElementById('detail-forecast-content').innerHTML = `<div class="forecast-status" role="status">As of ${result.asOf} · ${result.simulations.toLocaleString()} simulations · ${result.validation.selected === 'hybrid' ? 'Validated hybrid' : 'Fixed-share baseline'}${cached ? ' · Cached' : ''}</div>
+        <div class="forecast-controls">
+            <label for="detail-forecast-year">Year<select id="detail-forecast-year">${result.periods.map(period => `<option value="${period.year}" ${period.year === context.year ? 'selected' : ''}>${period.year}</option>`).join('')}</select></label>
+            <label for="detail-forecast-scope">Totals<select id="detail-forecast-scope"><option value="annual" ${context.scope === 'annual' ? 'selected' : ''}>Selected year only</option><option value="allTime" ${context.scope === 'allTime' ? 'selected' : ''}>All time to year end</option></select></label>
+        </div>
+        <div class="forecast-chart-grid">
+            <section class="forecast-section"><h3>Cumulative plays</h3><div class="forecast-canvas"><canvas id="detail-forecast-cumulative" role="img" aria-label="Actual and predicted cumulative plays for this entity"></canvas></div></section>
+            <section class="forecast-section"><h3>Monthly plays</h3><div class="forecast-canvas"><canvas id="detail-forecast-monthly" role="img" aria-label="Actual and predicted monthly plays for this entity"></canvas></div></section>
+        </div>`;
+    document.getElementById('detail-forecast-year').addEventListener('change', event => { context.year = Number(event.target.value); renderDetailForecast(cached); });
+    document.getElementById('detail-forecast-scope').addEventListener('change', event => { context.scope = event.target.value; renderDetailForecast(cached); });
+    for (const [id, cumulative] of [['detail-forecast-cumulative', true], ['detail-forecast-monthly', false]]) {
+        const series = forecastPlaySeries(result, { year: context.year, scope: context.scope, cumulative });
+        createDetailChart(id, forecastPlaysChartConfig(series));
+    }
 }
 
 function renderDetailCharts(s) {
@@ -266,6 +352,8 @@ function setupDetailListClicks(fullData) {
 }
 
 export function closeDetail() {
+    detailForecastRequest++;
+    detailForecastContext = null;
     const modal = document.getElementById('detail-modal');
     modal.classList.add('hidden');
     document.body.style.overflow = '';

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { aggregateWeekly, mondayKey, scoreF1, seasonalIndices, entityRhythm, discoveryPrior, simulateForecast, evaluateRanking, chooseModel, backtest, buildForecast } from '../js/forecast.js';
+import { aggregateWeekly, mondayKey, scoreF1, seasonalIndices, entityRhythm, discoveryPrior, simulateForecast, forecastPlaySeries, evaluateRanking, chooseModel, backtest, buildForecast, buildEntityForecast } from '../js/forecast.js';
 import { getForecastData, processSpotifyZip } from '../js/store.js';
 
 function entry(date, artist = 'Artist', track = 'Song', minutes = 2) {
@@ -58,7 +58,7 @@ test('EWMA weights recent weeks and zeros out idle weeks', () => {
 });
 
 test('short-lived track peaks decay; long-term artists keep a background floor', () => {
-    const data = Array.from({ length: 40 }, (_, index) => { const date = new Date(2025, 0, 6 + index * 7); return entry(`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`); });
+    const data = Array.from({ length: 40 }, (_, index) => { const date = new Date(2025, 0, 6 + index * 7); return entry(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`); });
     const rhythm = entityRhythm(aggregateWeekly(data), 'Artist', '2025-10-20');
     assert.ok(rhythm.floor > 0); assert.equal(rhythm.decayHalfLife, null);
     const peak = aggregateWeekly([entry('2025-09-01', 'Artist', 'New', 100)], { entity: 'tracks' });
@@ -71,6 +71,9 @@ test('Monte Carlo is deterministic, conserves volume and returns position probab
     const first = simulateForecast(aggregate, options), second = simulateForecast(aggregate, options);
     assert.deepEqual(first, second);
     assert.equal(first.periods.length, 4);
+    assert.equal(first.playFan[0].allTime, first.playHistory.reduce((sum, month) => sum + month.plays, 0));
+    assert.equal(first.playFan.at(-1).allTime, first.periods.at(-1).allPlays.p50);
+    assert.equal(first.playFan.at(-1).annual, first.periods.at(-1).plays.p50);
     for (const period of first.periods) {
         assert.ok(period.minutes.p10 <= period.minutes.p50 && period.minutes.p50 <= period.minutes.p90);
         assert.ok(period.allMinutes.p50 >= period.minutes.p50);
@@ -157,6 +160,13 @@ test('worker caches identical requests and invalidates after new data', async ()
         send({ type: 'forecast', id: 3, options });
         assert.equal(messages.at(-1).cached, false);
         assert.equal(messages.at(-1).result.asOf, '2026-10-01');
+        const entityOptions = { ...options, entityKey: 'Artist' };
+        send({ type: 'entityForecast', id: 4, options: entityOptions });
+        assert.equal(messages.at(-1).cached, false);
+        assert.equal(messages.at(-1).result.entityKey, 'Artist');
+        send({ type: 'entityForecast', id: 5, options: entityOptions });
+        assert.equal(messages.at(-1).cached, true);
+        assert.equal(messages.at(-1).id, 5);
     } finally { globalThis.self = previous; }
 });
 
@@ -184,4 +194,80 @@ test('a persistent mid-year leader change beats the frozen-ranking baseline', ()
     assert.equal(result.periods[0].annual[0].name, 'Rising leader');
     assert.ok(result.periods[0].annual[0].positions);
     assert.ok(result.validation.hybrid.spearman > result.validation.baseline.spearman);
+});
+
+function playChartFixture() {
+    return {
+        asOf: '2025-10-04', periods: [{ year: 2025 }], playHistory: [{ month: '2024-12', plays: 10 }, { month: '2025-01', plays: 2 }, { month: '2025-03', plays: 3 }, { month: '2025-10', plays: 4 }], playFan: [
+            { date: '2025-10-04', allTime: 19, annual: 9 }, { date: '2025-10-31', allTime: 25, annual: 15 },
+            { date: '2025-11-30', allTime: 32, annual: 22 }, { date: '2025-12-31', allTime: 40, annual: 30 },
+            { date: '2026-01-31', allTime: 45, annual: 5 }, { date: '2026-12-31', allTime: 80, annual: 40 }
+        ]
+    };
+}
+
+test('plays chart separates actual and forecast, with a shared cutoff anchor', () => {
+    const result = playChartFixture();
+    const series = forecastPlaySeries(result, { year: 2025 });
+    const cutoff = series.dates.indexOf(result.asOf);
+    assert.equal(series.actual[cutoff], 9);
+    assert.equal(series.predicted[cutoff], 9);
+    assert.equal(series.actual.at(-1), null);
+    assert.equal(series.predicted.at(-1), 30);
+    assert.equal(series.predicted[0], null);
+    assert.equal(series.actual[series.dates.indexOf('2025-02-28')], 2);
+    const allTime = forecastPlaySeries(result, { year: 2025, scope: 'allTime' });
+    assert.equal(allTime.actual[0], 10); assert.equal(allTime.predicted.at(-1), 40);
+});
+
+test('monthly plays include observed partial month, not a cumulative total', () => {
+    const series = forecastPlaySeries(playChartFixture(), { year: 2025, cumulative: false });
+    assert.equal(series.actual[series.dates.indexOf('2025-02-28')], 0);
+    assert.equal(series.actual[series.dates.indexOf('2025-10-04')], 4);
+    assert.equal(series.predicted[series.dates.indexOf('2025-10-31')], 10);
+    assert.equal(series.predicted[series.dates.indexOf('2025-11-30')], 7);
+    assert.equal(series.predicted.at(-1), 8);
+});
+
+test('future annual plays reset to zero and do not fabricate observed data', () => {
+    const result = playChartFixture();
+    const series = forecastPlaySeries(result, { year: 2026 });
+    assert.equal(series.dates[0], '2026-01-01');
+    assert.equal(series.predicted[0], 0);
+    assert.ok(series.actual.every(value => value === null));
+    assert.equal(series.predicted.at(-1), 40);
+    const monthly = forecastPlaySeries(result, { year: 2026, cumulative: false });
+    assert.equal(monthly.predicted[0], 5);
+});
+
+test('entity forecast distinguishes same-named songs and keeps the global cutoff', () => {
+    const data = [entry('2025-01-01', 'Artist', 'Same'), entry('2025-01-02', 'Other', 'Same'), entry('2026-10-04', 'Other', 'Latest')];
+    const result = buildEntityForecast(data, { entity: 'tracks', entityKey: 'Same|||Artist', simulations: 5, yearsAhead: 1 });
+    assert.equal(result.asOf, '2026-10-04');
+    assert.equal(result.playHistory.reduce((sum, row) => sum + row.plays, 0), 1);
+    assert.equal(result.playFan[0].allTime, 1);
+    assert.equal(result.playFan[0].annual, 0);
+    assert.equal(result.playFan.at(-1).allTime, 1);
+    assert.equal(buildEntityForecast(data, { entity: 'tracks', entityKey: 'Missing|||Artist', simulations: 5 }), null);
+});
+
+test('artist forecast keeps short plays and returns anchored cumulative/monthly series', () => {
+    const data = [entry('2026-09-01', 'Artist'), entry('2026-09-02', 'Artist', 'Short', 0.1), entry('2026-10-04', 'Other')];
+    const result = buildEntityForecast(data, { entityKey: 'Artist', simulations: 5, yearsAhead: 0 });
+    assert.equal(result.playFan[0].allTime, 2);
+    const series = forecastPlaySeries(result);
+    const anchor = series.dates.indexOf(result.asOf);
+    assert.equal(series.actual[anchor], 2);
+    assert.equal(series.predicted[anchor], 2);
+    assert.ok(series.predicted.at(-1) >= 2);
+    const monthly = forecastPlaySeries(result, { cumulative: false });
+    assert.equal(monthly.actual[monthly.dates.indexOf('2026-09-30')], 2);
+});
+
+test('entity request forces a rare artist into the simulation pool', () => {
+    const data = Array.from({ length: 100 }, (_, index) => entry('2026-09-28', `Artist ${index}`, 'Song', 101 - index));
+    const result = simulateForecast(aggregateWeekly(data), { metric: 'plays', entityKey: 'Artist 99', asOf: '2026-10-04', simulations: 3, yearsAhead: 0 });
+    assert.ok(result.entityPlayFan);
+    assert.equal(result.entityPlayFan[0].allTime, 1);
+    assert.ok(result.periods[0].allTime.some(row => row.key === 'Artist 99'));
 });

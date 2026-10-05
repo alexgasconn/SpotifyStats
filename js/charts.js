@@ -344,6 +344,32 @@ export function renderF1EvolutionChart(labels, series) {
     });
 }
 
+export function forecastPlaysChartConfig(series) {
+    return {
+        type: 'line',
+        data: {
+            labels: series.dates,
+            datasets: [
+                { label: 'Actual plays', data: series.actual, borderColor: GREEN, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, fill: false },
+                { label: 'Predicted plays', data: series.predicted, borderColor: '#17a2b8', borderWidth: 2, borderDash: [7, 5], pointRadius: 0, pointHoverRadius: 4, fill: false }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, animation: false,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                x: { ticks: { color: TICK, maxTicksLimit: 6, maxRotation: 0 }, grid: { display: false } },
+                y: { beginAtZero: true, ticks: { color: TICK }, grid: { color: GRID }, title: { display: true, text: 'Plays', color: TICK } }
+            },
+            plugins: {
+                datalabels: false,
+                legend: { labels: { color: TICK, boxWidth: 20 } },
+                tooltip: { callbacks: { label: context => `${context.dataset.label}: ${Math.round(context.raw).toLocaleString()} plays` } }
+            }
+        }
+    };
+}
+
 // ── WRAPPED ───────────────────────────────────────────────────────────────────
 
 export function renderWrappedMonthlyChart(monthlyData, previousData = null, year = '', monthlyPlays = []) {

@@ -1,6 +1,8 @@
 import { getConfig, getForecastData } from '../store.js';
 import { esc } from '../utils.js';
 import { openDetail } from '../detail.js';
+import { forecastPlaySeries } from '../forecast.js';
+import { forecastPlaysChartConfig } from '../charts.js';
 
 let worker = null, sourceData = null, result = null;
 let requestId = 0, selectedYear = null, probabilityLimit = 2;
@@ -54,7 +56,7 @@ function renderShell() {
 function requestForecast() {
     result = null;
     renderShell();
-    document.querySelectorAll('.forecast-controls select').forEach(control => { control.disabled = true; });
+    document.querySelectorAll('#forecast-content .forecast-controls select').forEach(control => { control.disabled = true; });
     document.getElementById('forecast-status').innerHTML = '<span>Preparing weekly history and backtesting…</span><progress aria-label="Forecast computation"></progress>';
     worker.postMessage({ type: 'forecast', id: ++requestId, options: { entity, metric, simulations: 5000, yearsAhead: 3, minutesWeight: getConfig().f1MinutesWeight, seed: 1729 } });
 }
@@ -78,7 +80,7 @@ function showError(message) {
     const status = document.getElementById('forecast-status');
     if (status) status.innerHTML = `<span role="alert">${esc(message)}</span><button type="button" id="forecast-retry" class="secondary-btn">Retry</button>`;
     document.getElementById('forecast-retry')?.addEventListener('click', requestForecast);
-    document.querySelectorAll('.forecast-controls select').forEach(control => { control.disabled = false; });
+    document.querySelectorAll('#forecast-content .forecast-controls select').forEach(control => { control.disabled = false; });
 }
 
 function renderResult() {
@@ -96,18 +98,18 @@ function renderResult() {
         <div><span>Remaining minutes · ${result.periods[0].year}</span><strong>${format(result.remainingMinutes.p50)}</strong><small>P10–P90: ${range(result.remainingMinutes)}</small></div>
         <div><span>Historical Q4 newcomers in top 10</span><strong>${percent(result.discoveryPrior.top10Share)}</strong><small>${result.discoveryPrior.years} prior years</small></div>
     </div><div class="forecast-chart-grid">
-        <section class="forecast-section"><h3>Cumulative minutes · ${scope === 'annual' ? selectedYear : 'all time'}</h3><div class="forecast-canvas"><canvas id="forecast-fan-chart" role="img" aria-label="Cumulative listening minutes with P10 to P90 simulation range"></canvas></div></section>
-        <section class="forecast-section"><h3>Year-end volume · P10–P90</h3><div class="forecast-canvas"><canvas id="forecast-volume-chart" role="img" aria-label="Year-end listening volume for four years"></canvas></div></section>
+        <section class="forecast-section"><h3>Cumulative plays · ${scope === 'annual' ? selectedYear : 'all time'}</h3><div class="forecast-canvas"><canvas id="forecast-fan-chart" role="img" aria-label="Actual and predicted cumulative plays"></canvas></div></section>
+        <section class="forecast-section"><h3>Monthly plays · ${scope === 'annual' ? selectedYear : 'all time'}</h3><div class="forecast-canvas"><canvas id="forecast-volume-chart" role="img" aria-label="Actual and predicted monthly plays"></canvas></div></section>
     </div><section class="forecast-section"><div class="forecast-section-heading"><h3>Predicted top 10 ${entity === 'artists' ? 'artists' : 'songs'} · ${selectedYear}</h3><span>${scope === 'annual' ? 'Annual' : 'All time'} · ${unit}${metric === 'points' ? ` · ${result.minutesWeight}% minutes / ${100 - result.minutesWeight}% plays` : ''}</span></div>
         ${hybrid ? '' : '<p class="forecast-caveat">Hybrid did not beat the validated baseline. Ranking is held fixed; position probabilities are unavailable, not 100% certainty.</p>'}
         <ol class="forecast-ranking">${ranking.map((row, index) => {
-            const probability = row.positions ? row.positions.slice(0, probabilityLimit).reduce((sum, value) => sum + value, 0) : null;
-            return `<li><div class="forecast-rank-line"><span class="forecast-rank">${index + 1}</span>${row.unknown ? `<strong>${esc(row.name)}</strong>` : `<button type="button" class="forecast-detail" data-forecast-key="${esc(row.key)}">${esc(row.name)}${row.artist ? `<small>${esc(row.artist)}</small>` : ''}</button>`}<span class="forecast-range">${format(row.p50)} ${unit}<small>${range(row)} ${unit}</small></span></div>${probability === null ? '' : `<div class="forecast-probability"><span>${percent(probability)} to finish top ${probabilityLimit}</span><span>Top 10: ${percent(row.top10)}</span><div class="forecast-probability-track"><div style="width:${probability * 100}%"></div></div></div><details class="forecast-positions"><summary>Position probabilities</summary><div>${row.positions.map((value, position) => `<span>P${position + 1}<strong>${percent(value)}</strong></span>`).join('')}<span>Outside top 10<strong>${percent(1 - row.top10)}</strong></span></div></details>`}</li>`;
-        }).join('')}</ol></section>
+        const probability = row.positions ? row.positions.slice(0, probabilityLimit).reduce((sum, value) => sum + value, 0) : null;
+        return `<li><div class="forecast-rank-line"><span class="forecast-rank">${index + 1}</span>${row.unknown ? `<strong>${esc(row.name)}</strong>` : `<button type="button" class="forecast-detail" data-forecast-key="${esc(row.key)}">${esc(row.name)}${row.artist ? `<small>${esc(row.artist)}</small>` : ''}</button>`}<span class="forecast-range">${format(row.p50)} ${unit}<small>${range(row)} ${unit}</small></span></div>${probability === null ? '' : `<div class="forecast-probability"><span>${percent(probability)} to finish top ${probabilityLimit}</span><span>Top 10: ${percent(row.top10)}</span><div class="forecast-probability-track"><div style="width:${probability * 100}%"></div></div></div><details class="forecast-positions"><summary>Position probabilities</summary><div>${row.positions.map((value, position) => `<span>P${position + 1}<strong>${percent(value)}</strong></span>`).join('')}<span>Outside top 10<strong>${percent(1 - row.top10)}</strong></span></div></details>`}</li>`;
+    }).join('')}</ol></section>
         <section class="forecast-section"><h3>Four-year outlook</h3><div class="forecast-table-wrap"><table class="df-table"><thead><tr><th>Year</th><th>Annual minutes</th><th>Annual P10–P90</th><th>All-time minutes</th><th>All-time P10–P90</th><th>Annual plays</th></tr></thead><tbody>${result.periods.map(item => `<tr><td>${item.year}</td><td>${format(item.minutes.p50)}</td><td>${range(item.minutes)}</td><td>${format(item.allMinutes.p50)}</td><td>${range(item.allMinutes)}</td><td>${format(item.plays.p50)}</td></tr>`).join('')}</tbody></table></div></section>
         <section class="forecast-section"><h3>Backtesting · October 1 → December 31</h3><p class="forecast-caveat">${esc(result.validation.reason)} Spearman: union of both top-10 lists, tied ranks for missing entries.</p><div class="forecast-table-wrap"><table class="df-table"><thead><tr><th>Year</th><th>Hybrid top 3</th><th>Baseline top 3</th><th>Hybrid top 10</th><th>Baseline top 10</th><th>Hybrid ρ</th><th>Baseline ρ</th></tr></thead><tbody>${result.validation.rows.map(row => row.available ? `<tr><td>${row.year}</td><td>${percent(row.hybrid.top3)}</td><td>${percent(row.baseline.top3)}</td><td>${percent(row.hybrid.top10)}</td><td>${percent(row.baseline.top10)}</td><td>${row.hybrid.spearman.toFixed(3)}</td><td>${row.baseline.spearman.toFixed(3)}</td></tr>` : `<tr><td>${row.year}</td><td colspan="6">${esc(row.reason)}</td></tr>`).join('')}</tbody></table></div>
         ${result.validation.rows.filter(row => row.available).map(row => `<details class="forecast-validation-detail"><summary>${row.year} predicted vs actual top 10</summary><div class="forecast-table-wrap"><table class="df-table"><thead><tr><th>#</th><th>Hybrid</th><th>Baseline</th><th>Actual</th></tr></thead><tbody>${Array.from({ length: Math.max(row.actualTop10.length, row.predictedTop10.length) }, (_, index) => `<tr><td>${index + 1}</td>${[row.predictedTop10, row.baselineTop10, row.actualTop10].map(keys => `<td>${esc((keys[index] || '—').split('|||').join(' · '))}</td>`).join('')}</tr>`).join('')}</tbody></table></div></details>`).join('')}</section>
-        <details class="forecast-method"><summary>Model & data</summary><p>Monday–Sunday weeks. Plays include short listens; minutes exclude plays under 30 seconds. Import privacy/podcast/offline settings still apply. Full imported history, not dashboard filters.</p><p>Volume: last 8 complete weeks × historical monthly seasonality. Entity EWMA half-life: 4 weeks; short-lived peaks decay over 8–10 weeks. Simulations include historical variance, obsession spikes and anonymous Q4 newcomers.</p><p>${result.candidateCount} known candidates from ${format(result.knownEntities)} entities: annual/all-time leaders and recent movers. Remaining entities contribute to the volume tail, not individual position probabilities. P10–P90 ranges are conditional simulations, not calibrated confidence guarantees. F1 uses the current weight and a historical-session proxy for future fastest laps.</p><p>Monthly fan allocations at week boundaries are approximate. Annual F1 attribution follows the week's Monday; year-end snapshots include the then-observed partial week. The hybrid must improve average validation without reducing top-3 or top-10 overlap. Long-horizon accuracy is not validated by the October backtest.</p></details>`;
+        <details class="forecast-method"><summary>Model & data</summary><p>Monday–Sunday weeks. Plays include short listens; minutes exclude plays under 30 seconds. Import privacy/podcast/offline settings still apply. Full imported history, not dashboard filters.</p><p>Volume: last 8 complete weeks × historical monthly seasonality. Entity EWMA half-life: 4 weeks; short-lived peaks decay over 8–10 weeks. Simulations include historical variance, obsession spikes and anonymous Q4 newcomers.</p><p>${result.candidateCount} known candidates from ${format(result.knownEntities)} entities: annual/all-time leaders and recent movers. Remaining entities contribute to the volume tail, not individual position probabilities. P10–P90 ranges are conditional simulations, not calibrated confidence guarantees. F1 uses the current weight and a historical-session proxy for future fastest laps.</p><p>Monthly allocations at week boundaries are approximate; the latest observed month may be partial. Annual F1 attribution follows the week's Monday; year-end snapshots include the then-observed partial week. The hybrid must improve average validation without reducing top-3 or top-10 overlap. Long-horizon accuracy is not validated by the October backtest.</p></details>`;
     document.querySelectorAll('[data-forecast-key]').forEach(button => button.addEventListener('click', () => {
         const row = ranking.find(item => item.key === button.dataset.forecastKey);
         openDetail(row.name, entity === 'artists' ? 'artist' : 'track', row.artist, sourceData);
@@ -117,19 +119,10 @@ function renderResult() {
 
 function drawCharts(period) {
     fanChart?.destroy(); volumeChart?.destroy();
-    let fan = result.fan;
-    if (scope === 'annual') {
-        fan = fan.filter(point => Number(point.date.slice(0, 4)) === period.year).map(point => ({ date: point.date, ...point.annual }));
-        if (period.year !== result.periods[0].year) fan.unshift({ date: `${period.year}-01-01`, p10: 0, p50: 0, p90: 0 });
-    } else fan = fan.filter(point => Number(point.date.slice(0, 4)) <= period.year);
-    const scales = { x: { ticks: { color: '#b3b3b3', maxTicksLimit: 8, maxRotation: 0 }, grid: { display: false } }, y: { beginAtZero: true, ticks: { color: '#b3b3b3' }, grid: { color: '#282828' } } };
-    fanChart = new Chart(document.getElementById('forecast-fan-chart'), { type: 'line', data: { labels: fan.map(point => point.date.slice(0, 7)), datasets: [
-        { label: 'P10', data: fan.map(point => point.p10), borderColor: '#17a2b8', borderWidth: 1, pointRadius: 0 },
-        { label: 'P10–P90', data: fan.map(point => point.p90), borderColor: '#17a2b8', backgroundColor: 'rgba(23,162,184,0.2)', borderWidth: 1, fill: '-1', pointRadius: 0 },
-        { label: 'Median minutes', data: fan.map(point => point.p50), borderColor: '#1db954', borderWidth: 2, pointRadius: 0 }
-    ] }, options: { responsive: true, maintainAspectRatio: false, animation: false, interaction: { mode: 'index', intersect: false }, scales, plugins: { datalabels: false, legend: { labels: { color: '#b3b3b3', filter: item => item.text !== 'P10', boxWidth: 12 } }, tooltip: { callbacks: { label: context => `${context.dataset.label}: ${format(context.raw)} min` } } } } });
-    volumeChart = new Chart(document.getElementById('forecast-volume-chart'), { type: 'bar', data: { labels: result.periods.map(item => String(item.year)), datasets: [
-        { label: 'P10–P90 minutes', data: result.periods.map(item => { const volume = scope === 'annual' ? item.minutes : item.allMinutes; return [volume.p10, volume.p90]; }), backgroundColor: 'rgba(255,193,7,0.35)', borderColor: '#ffc107', borderWidth: 1, borderRadius: 3 },
-        { type: 'line', label: 'Median minutes', data: result.periods.map(item => (scope === 'annual' ? item.minutes : item.allMinutes).p50), borderColor: '#1db954', pointRadius: 4, showLine: false }
-    ] }, options: { responsive: true, maintainAspectRatio: false, animation: false, scales, plugins: { datalabels: false, legend: { labels: { color: '#b3b3b3', boxWidth: 12 } } } } });
+    const makeChart = (id, cumulative) => {
+        const series = forecastPlaySeries(result, { year: period.year, scope, cumulative });
+        return new Chart(document.getElementById(id), forecastPlaysChartConfig(series));
+    };
+    fanChart = makeChart('forecast-fan-chart', true);
+    volumeChart = makeChart('forecast-volume-chart', false);
 }

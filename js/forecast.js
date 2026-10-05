@@ -205,13 +205,14 @@ function futureIntervals(asOf, finalYear) {
     return result;
 }
 
-export function simulateForecast(aggregate, { asOf = aggregate.lastDate, metric = 'minutes', simulations = 5000, yearsAhead = 3, seed = 1729, candidateLimit = 80, onProgress = null } = {}) {
+export function simulateForecast(aggregate, { asOf = aggregate.lastDate, metric = 'minutes', simulations = 5000, yearsAhead = 3, seed = 1729, candidateLimit = 80, entityKey = null, onProgress = null } = {}) {
     if (!aggregate.lastDate) return null;
     if (!['minutes', 'plays', 'points'].includes(metric)) throw new Error('Unknown forecast metric');
     if (!Number.isInteger(simulations) || simulations < 1) throw new Error('Invalid simulation count');
     const year = Number(asOf.slice(0, 4));
     const rhythms = new Map([...aggregate.entities.keys()].map(key => [key, entityRhythm(aggregate, key, asOf)]));
     const selected = new Set();
+    if (entityKey && aggregate.entities.has(entityKey)) selected.add(entityKey);
     for (const list of [topObserved(aggregate, metric, year).slice(0, 20), topObserved(aggregate, metric).slice(0, 20)]) for (const info of list) selected.add(info.key);
     const recent = [...aggregate.entities.values()].sort((first, second) => rhythms.get(second.key)[metric === 'plays' ? 'plays' : 'minutes'] - rhythms.get(first.key)[metric === 'plays' ? 'plays' : 'minutes']);
     for (const info of recent) { if (selected.size >= candidateLimit) break; selected.add(info.key); }
@@ -222,6 +223,7 @@ export function simulateForecast(aggregate, { asOf = aggregate.lastDate, metric 
         for (let slot = 0; slot < 10; slot++) candidates.push({ key: `__new_${futureYear}_${slot}`, name: `Undiscovered ${aggregate.entity === 'artists' ? 'artist' : 'song'} ${futureYear} #${slot + 1}`, artist: '', years: {}, firstDate: asOf, unknown: true, arrivalYear: futureYear, rhythm: { minutes: prior.weeklyMinutes || typicalRate, plays: (prior.weeklyMinutes || typicalRate) / 3, variance: typicalRate ** 2, floor: 0, decayHalfLife: aggregate.entity === 'tracks' ? 8 : null, bestSession: 3 } });
     }
     const count = candidates.length;
+    const targetIndex = candidates.findIndex(info => info.key === entityKey);
     const steps = futureIntervals(asOf, year + yearsAhead);
     const minuteSeason = seasonalIndices(aggregate, year), playSeason = seasonalIndices(aggregate, year, 'plays');
     const lastMonday = mondayKey(parseDate(addDays(asOf, 1)));
@@ -247,6 +249,10 @@ export function simulateForecast(aggregate, { asOf = aggregate.lastDate, metric 
     const fanMonths = [...new Set(steps.map(step => step.end.slice(0, 7)))];
     const fanSamples = fanMonths.map(() => new Float64Array(simulations));
     const fanAnnualSamples = fanMonths.map(() => new Float64Array(simulations));
+    const playSamples = fanMonths.map(() => new Float64Array(simulations));
+    const annualPlaySamples = fanMonths.map(() => new Float64Array(simulations));
+    const targetPlaySamples = targetIndex >= 0 ? fanMonths.map(() => new Float64Array(simulations)) : [];
+    const targetAnnualPlaySamples = targetIndex >= 0 ? fanMonths.map(() => new Float64Array(simulations)) : [];
     const initialMinutes = [...aggregate.months.values()].reduce((sum, month) => sum + month.minutes, 0);
     const initialPlays = [...aggregate.months.values()].reduce((sum, month) => sum + month.plays, 0);
     const observedYearMinutes = [...aggregate.months.entries()].filter(([month]) => month.startsWith(`${year}-`)).reduce((sum, [, month]) => sum + month.minutes, 0);
@@ -347,18 +353,84 @@ export function simulateForecast(aggregate, { asOf = aggregate.lastDate, metric 
                 const monthIndex = fanMonths.indexOf(step.end.slice(0, 7));
                 fanSamples[monthIndex][run] = cumulativeMinutes;
                 fanAnnualSamples[monthIndex][run] = annualMinutes;
+                playSamples[monthIndex][run] = cumulativePlays;
+                annualPlaySamples[monthIndex][run] = annualPlays;
+                if (targetIndex >= 0 && metric === 'plays') {
+                    targetPlaySamples[monthIndex][run] = cumulative[targetIndex];
+                    targetAnnualPlaySamples[monthIndex][run] = annual[targetIndex];
+                }
             }
         }
         record(periods[periodIndex], run, annual, cumulative, annualMinutes, annualPlays, cumulativeMinutes, cumulativePlays);
         if (run % 100 === 0) onProgress?.(run / simulations);
     }
     const summarize = (samples, positions) => candidates.map((info, index) => ({ key: info.key, name: info.name, artist: info.artist, unknown: info.unknown, observed: observed(info, metric), ...interval(samples[index]), positions: Array.from(positions[index], countAtPosition => countAtPosition / simulations), top10: positions[index].reduce((sum, value) => sum + value, 0) / simulations })).sort((first, second) => second.p50 - first.p50 || second.top10 - first.top10 || first.key.localeCompare(second.key));
-    const resultPeriods = periods.map(period => ({ year: period.year,
+    const resultPeriods = periods.map(period => ({
+        year: period.year,
         annual: summarize(period.annual, period.annualPositions), allTime: summarize(period.allTime, period.allTimePositions),
         minutes: interval(period.minutes), plays: interval(period.plays), allMinutes: interval(period.allMinutes), allPlays: interval(period.allPlays)
     }));
+    const playHistory = [...aggregate.months.entries()].sort(([first], [second]) => first.localeCompare(second)).map(([month, totals]) => ({ month, plays: totals.plays }));
+    const playFan = [{ date: asOf, allTime: initialPlays, annual: observedYearPlays }, ...playSamples.map((samples, index) => ({ date: `${fanMonths[index]}-${new Date(Number(fanMonths[index].slice(0, 4)), Number(fanMonths[index].slice(5, 7)), 0).getDate()}`, allTime: interval(samples).p50, annual: interval(annualPlaySamples[index]).p50 }))];
+    const entityPlayFan = targetIndex >= 0 && metric === 'plays' ? [{ date: asOf, allTime: observed(candidates[targetIndex], 'plays'), annual: observed(candidates[targetIndex], 'plays', year) }, ...targetPlaySamples.map((samples, index) => ({ date: playFan[index + 1].date, allTime: interval(samples).p50, annual: interval(targetAnnualPlaySamples[index]).p50 }))] : null;
     onProgress?.(1);
-    return { asOf, metric, entity: aggregate.entity, minutesWeight: aggregate.minutesWeight, simulations, periods: resultPeriods, fan: [{ date: asOf, p10: initialMinutes, p50: initialMinutes, p90: initialMinutes, annual: { p10: observedYearMinutes, p50: observedYearMinutes, p90: observedYearMinutes } }, ...fanSamples.map((samples, index) => ({ date: `${fanMonths[index]}-${new Date(Number(fanMonths[index].slice(0, 4)), Number(fanMonths[index].slice(5, 7)), 0).getDate()}`, ...interval(samples), annual: interval(fanAnnualSamples[index]) }))], remainingMinutes: { p10: resultPeriods[0].minutes.p10 - observedYearMinutes, p50: resultPeriods[0].minutes.p50 - observedYearMinutes, p90: resultPeriods[0].minutes.p90 - observedYearMinutes }, currentYearMinutes: observedYearMinutes, allTimeMinutes: initialMinutes, discoveryPrior: prior, candidateCount: selected.size, knownEntities: aggregate.entities.size, baselineAnnual: topObserved(aggregate, metric, year).map(info => info.key), baselineAllTime: topObserved(aggregate, metric).map(info => info.key) };
+    return { entityPlayFan, playHistory, playFan, asOf, metric, entity: aggregate.entity, minutesWeight: aggregate.minutesWeight, simulations, periods: resultPeriods, fan: [{ date: asOf, p10: initialMinutes, p50: initialMinutes, p90: initialMinutes, annual: { p10: observedYearMinutes, p50: observedYearMinutes, p90: observedYearMinutes } }, ...fanSamples.map((samples, index) => ({ date: `${fanMonths[index]}-${new Date(Number(fanMonths[index].slice(0, 4)), Number(fanMonths[index].slice(5, 7)), 0).getDate()}`, ...interval(samples), annual: interval(fanAnnualSamples[index]) }))], remainingMinutes: { p10: resultPeriods[0].minutes.p10 - observedYearMinutes, p50: resultPeriods[0].minutes.p50 - observedYearMinutes, p90: resultPeriods[0].minutes.p90 - observedYearMinutes }, currentYearMinutes: observedYearMinutes, allTimeMinutes: initialMinutes, discoveryPrior: prior, candidateCount: selected.size, knownEntities: aggregate.entities.size, baselineAnnual: topObserved(aggregate, metric, year).map(info => info.key), baselineAllTime: topObserved(aggregate, metric).map(info => info.key) };
+}
+
+export function buildEntityForecast(data, { entity = 'artists', entityKey, ...options } = {}) {
+    const matching = data.filter(entry => {
+        const key = entity === 'artists' ? (entry.artistName || '').trim() : `${(entry.trackName || '').trim()}|||${(entry.artistName || '').trim()}`;
+        return key === entityKey;
+    });
+    const history = aggregateWeekly(matching, { entity, cutoff: options.asOf || localDate(new Date()) });
+    if (!history.entities.has(entityKey)) return null;
+    const result = buildForecast(data, { ...options, entity, entityKey, metric: 'plays' });
+    if (!result) return null;
+    const year = Number(result.asOf.slice(0, 4));
+    const allTime = [...history.months.values()].reduce((sum, month) => sum + month.plays, 0);
+    const annual = [...history.months.entries()].filter(([month]) => month.startsWith(`${year}-`)).reduce((sum, [, month]) => sum + month.plays, 0);
+    const share = result.playFan[0].annual ? annual / result.playFan[0].annual : 0;
+    const playFan = result.validation.selected === 'hybrid' ? result.entityPlayFan : result.playFan.map(point => ({
+        date: point.date,
+        allTime: allTime + Math.max(0, point.allTime - result.playFan[0].allTime) * share,
+        annual: Number(point.date.slice(0, 4)) === year ? annual + Math.max(0, point.annual - result.playFan[0].annual) * share : point.annual * share
+    }));
+    return { asOf: result.asOf, entity, entityKey, simulations: result.simulations, validation: { selected: result.validation.selected, reason: result.validation.reason }, periods: result.periods.map(period => ({ year: period.year })), playHistory: [...history.months.entries()].sort(([first], [second]) => first.localeCompare(second)).map(([month, totals]) => ({ month, plays: totals.plays })), playFan };
+}
+
+export function forecastPlaySeries(result, { year = result.periods[0].year, scope = 'annual', cumulative = true } = {}) {
+    const history = new Map(result.playHistory.map(row => [row.month, row.plays]));
+    const firstMonth = scope === 'allTime' ? result.playHistory[0]?.month : `${year}-01`;
+    const cutoffMonth = result.asOf.slice(0, 7);
+    const endMonth = `${year}-12`;
+    const points = [];
+    let running = 0;
+    if (firstMonth) {
+        let month = firstMonth;
+        while (month <= cutoffMonth && month <= endMonth) {
+            const plays = history.get(month) || 0;
+            running += plays;
+            const monthEnd = `${month}-${new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0).getDate()}`;
+            points.push({ date: month === cutoffMonth ? result.asOf : monthEnd, actual: cumulative ? running : plays, predicted: null });
+            const next = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 1);
+            month = localDate(next).slice(0, 7);
+        }
+    }
+    let previous = result.playFan[0];
+    const projected = [];
+    for (const point of result.playFan.slice(1)) {
+        const month = point.date.slice(0, 7);
+        const monthly = point.allTime - previous.allTime + (month === cutoffMonth ? history.get(month) || 0 : 0);
+        previous = point;
+        if (Number(point.date.slice(0, 4)) > year || (scope === 'annual' && Number(point.date.slice(0, 4)) !== year)) continue;
+        projected.push({ date: point.date, actual: null, predicted: cumulative ? point[scope] : Math.max(0, monthly) });
+    }
+    if (projected.length) {
+        if (points.length) points[points.length - 1].predicted = points[points.length - 1].actual;
+        else if (cumulative && scope === 'annual') points.push({ date: `${year}-01-01`, actual: null, predicted: 0 });
+    }
+    points.push(...projected);
+    return { dates: points.map(point => point.date), actual: points.map(point => point.actual), predicted: points.map(point => point.predicted) };
 }
 
 export function evaluateRanking(predicted, actual) {
