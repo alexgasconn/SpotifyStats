@@ -2196,6 +2196,47 @@ header {
     align-items: center;
 }
 
+#explorer-tab .chart-container {
+    min-width: 0;
+}
+
+.history-filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+    align-items: end;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.history-filters label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.history-filters input, .history-filters select {
+    width: 100%;
+    min-width: 0;
+    height: 38px;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--gray-light);
+    border-radius: 6px;
+    background: var(--gray);
+    color: var(--text);
+    font: inherit;
+    color-scheme: dark;
+}
+
+.history-filters input:focus-visible, .history-filters select:focus-visible {
+    outline: 2px solid var(--green);
+    outline-offset: 1px;
+}
+
+#table-reset-filters { min-height: 38px; font-size: 0.8rem; }
+
 .search-input {
     background: var(--gray);
     border: 1px solid var(--gray-light);

@@ -10,6 +10,7 @@ const PAGE_SIZE = 200;
 let currentQuery = '';
 let currentSort = 'date-desc';
 let currentTypeFilter = 'all';
+let currentFilters = { platform: '', dateFrom: '', dateTo: '', hourFrom: '', hourTo: '', artist: '', track: '', album: '' };
 
 export function renderExplorerTab(data) {
     explorerData = [...data].filter(d => !d.isPodcast && d.trackName);
@@ -22,6 +23,8 @@ export function renderExplorerTab(data) {
     // Build new enhanced HTML for explorer container
     const explorerContent = container.querySelector('.charts-grid');
     if (!explorerContent) return;
+    const platforms = [...new Set(explorerData.map(d => d.platform).filter(Boolean))].sort();
+    const hourOptions = Array.from({ length: 24 }, (_, hour) => `<option value="${hour}">${String(hour).padStart(2, '0')}:00–${String(hour).padStart(2, '0')}:59</option>`).join('');
 
     explorerContent.innerHTML = `
         <!-- Stats Summary -->
@@ -61,21 +64,28 @@ export function renderExplorerTab(data) {
         <div class="chart-container full-width">
             <h3>📜 Full Streaming History</h3>
             <div class="explorer-controls">
-                <input type="text" id="table-search" placeholder="Search tracks, artists, albums..." class="search-input">
-                <select id="table-sort">
+                <input type="search" id="table-search" aria-label="Search streaming history" placeholder="Search tracks, artists, albums..." class="search-input">
+                <select id="table-sort" aria-label="Sort streaming history">
                     <option value="date-desc">Newest first</option>
                     <option value="date-asc">Oldest first</option>
                     <option value="minutes-desc">Longest plays</option>
                     <option value="artist-asc">Artist A-Z</option>
                     <option value="track-asc">Track A-Z</option>
                 </select>
-                <select id="table-type-filter">
-                    <option value="all">All types</option>
-                    <option value="completed">Completed only</option>
-                    <option value="skipped">Skipped only</option>
-                </select>
                 <span id="table-row-count" class="row-count"></span>
                 <button id="table-export-btn" class="secondary-btn" style="margin-left:auto;font-size:0.8rem">Export CSV</button>
+            </div>
+            <div class="history-filters">
+                <label for="table-platform-filter">Platform<select id="table-platform-filter" data-history-filter="platform"><option value="">All platforms</option>${platforms.map(platform => `<option value="${esc(platform)}">${esc(platform)}</option>`).join('')}</select></label>
+                <label for="table-date-from">From date<input type="date" id="table-date-from" data-history-filter="dateFrom"></label>
+                <label for="table-date-to">To date<input type="date" id="table-date-to" data-history-filter="dateTo"></label>
+                <label for="table-hour-from">From hour<select id="table-hour-from" data-history-filter="hourFrom"><option value="">Any hour</option>${hourOptions}</select></label>
+                <label for="table-hour-to">To hour<select id="table-hour-to" data-history-filter="hourTo"><option value="">Any hour</option>${hourOptions}</select></label>
+                <label for="table-artist-filter">Artist<input type="search" id="table-artist-filter" data-history-filter="artist" placeholder="All artists"></label>
+                <label for="table-track-filter">Song<input type="search" id="table-track-filter" data-history-filter="track" placeholder="All songs"></label>
+                <label for="table-album-filter">Album<input type="search" id="table-album-filter" data-history-filter="album" placeholder="All albums"></label>
+                <label for="table-type-filter">Status<select id="table-type-filter"><option value="all">All statuses</option><option value="completed">Completed only</option><option value="skipped">Skipped only</option></select></label>
+                <button type="button" id="table-reset-filters" class="secondary-btn">&#8634; Reset filters</button>
             </div>
             <div class="table-container"><table id="data-table" class="df-table"></table></div>
             <div class="explorer-pagination" id="table-pagination"></div>
@@ -86,6 +96,7 @@ export function renderExplorerTab(data) {
     currentQuery = '';
     currentSort = 'date-desc';
     currentTypeFilter = 'all';
+    currentFilters = Object.fromEntries(Object.keys(currentFilters).map(key => [key, '']));
     renderDataTable();
 
     // Wire up controls
@@ -115,6 +126,25 @@ export function renderExplorerTab(data) {
             renderDataTable();
         });
     }
+
+    container.querySelectorAll('[data-history-filter]').forEach(field => {
+        field.addEventListener(field.tagName === 'SELECT' ? 'change' : 'input', () => {
+            currentFilters[field.dataset.historyFilter] = field.value;
+            currentPage = 0;
+            renderDataTable();
+        });
+    });
+
+    document.getElementById('table-reset-filters')?.addEventListener('click', () => {
+        currentQuery = '';
+        currentTypeFilter = 'all';
+        currentFilters = Object.fromEntries(Object.keys(currentFilters).map(key => [key, '']));
+        document.getElementById('table-search').value = '';
+        document.getElementById('table-type-filter').value = 'all';
+        container.querySelectorAll('[data-history-filter]').forEach(field => { field.value = ''; });
+        currentPage = 0;
+        renderDataTable();
+    });
 
     const exportBtn = document.getElementById('table-export-btn');
     if (exportBtn) {
@@ -189,19 +219,29 @@ function buildSessionList(sessions) {
 }
 
 function getFilteredSorted() {
-    let filtered = explorerData;
-
-    if (currentTypeFilter === 'completed') filtered = filtered.filter(d => !d.skipped);
-    else if (currentTypeFilter === 'skipped') filtered = filtered.filter(d => d.skipped);
-
-    if (currentQuery) {
-        const q = currentQuery.toLowerCase();
-        filtered = filtered.filter(d =>
-            (d.trackName && d.trackName.toLowerCase().includes(q)) ||
-            (d.artistName && d.artistName.toLowerCase().includes(q)) ||
-            (d.albumName && d.albumName.toLowerCase().includes(q))
-        );
-    }
+    const query = currentQuery.trim().toLowerCase();
+    const artist = currentFilters.artist.trim().toLowerCase();
+    const track = currentFilters.track.trim().toLowerCase();
+    const album = currentFilters.album.trim().toLowerCase();
+    const hourFrom = currentFilters.hourFrom === '' ? null : Number(currentFilters.hourFrom);
+    const hourTo = currentFilters.hourTo === '' ? null : Number(currentFilters.hourTo);
+    let filtered = explorerData.filter(d => {
+        if (currentTypeFilter === 'completed' && d.skipped) return false;
+        if (currentTypeFilter === 'skipped' && !d.skipped) return false;
+        if (currentFilters.platform && d.platform !== currentFilters.platform) return false;
+        if (currentFilters.dateFrom && d.date < currentFilters.dateFrom) return false;
+        if (currentFilters.dateTo && d.date > currentFilters.dateTo) return false;
+        if (hourFrom !== null && hourTo !== null && hourFrom > hourTo) {
+            if (!(d.hour >= hourFrom || d.hour <= hourTo)) return false;
+        } else {
+            if (hourFrom !== null && d.hour < hourFrom) return false;
+            if (hourTo !== null && d.hour > hourTo) return false;
+        }
+        if (artist && !(d.artistName || '').toLowerCase().includes(artist)) return false;
+        if (track && !(d.trackName || '').toLowerCase().includes(track)) return false;
+        if (album && !(d.albumName || '').toLowerCase().includes(album)) return false;
+        return !query || [d.trackName, d.artistName, d.albumName].some(value => (value || '').toLowerCase().includes(query));
+    });
 
     switch (currentSort) {
         case 'date-asc': filtered = [...filtered].sort((a, b) => a.ts - b.ts); break;
@@ -224,7 +264,7 @@ function renderDataTable() {
     const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
     currentPage = Math.min(currentPage, Math.max(0, totalPages - 1));
 
-    if (countEl) countEl.textContent = `${filtered.length.toLocaleString()} rows`;
+    if (countEl) countEl.textContent = `${filtered.length.toLocaleString()} / ${explorerData.length.toLocaleString()} rows`;
 
     const start = currentPage * PAGE_SIZE;
     const slice = filtered.slice(start, start + PAGE_SIZE);
@@ -240,7 +280,7 @@ function renderDataTable() {
         <td>${d.skipped ? '<span class="skip-badge">skipped</span>' : '<span class="ok-badge">✓</span>'}</td>
     </tr>`).join('');
 
-    tableEl.innerHTML = `${headers}<tbody>${rows}</tbody>`;
+    tableEl.innerHTML = `${headers}<tbody>${rows || '<tr><td colspan="7">No matching plays.</td></tr>'}</tbody>`;
 
     // Click handlers for track/artist names
     tableEl.querySelectorAll('.explorer-clickable').forEach(el => {
