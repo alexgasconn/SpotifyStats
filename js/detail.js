@@ -193,7 +193,7 @@ function buildDetailHTML(s) {
         </div>
         ${kpiHtml}
         ${chartsHtml}
-        ${s.type === 'artist' || s.type === 'track' ? '<details id="detail-forecast" class="detail-forecast"><summary>Forecast · plays</summary><div id="detail-forecast-content"></div></details>' : ''}
+        ${s.type === 'artist' || s.type === 'track' ? `<details id="detail-forecast" class="detail-forecast"><summary>Forecast · ${s.type === 'artist' ? 'artist' : 'song'} plays</summary><div id="detail-forecast-content"></div></details>` : ''}
         ${yearHtml}
         ${extraHtml}
     `;

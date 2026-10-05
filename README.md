@@ -783,14 +783,14 @@ A robust rules-based and statistics-driven analytics layer provides:
 
 ## Forecast
 
-The Forecast tab uses the last available listening date (not an invented current-year snapshot) and projects that year-end plus the following three years. Select artists/songs, minutes/plays/F1 points, annual/all-time totals, and top-1/2/3/10 finish probability. Forecast uses full imported history rather than dashboard filters. Upload a new ZIP to invalidate the cache.
+The Forecast tab uses the last available listening date (not an invented current-year snapshot) and projects that year-end plus the following three years. Select artists/songs, minutes/plays/F1 points and annual/all-time totals. Finish probability is always top 5, with no selector. Forecast uses full imported history rather than dashboard filters. Upload a new ZIP to invalidate the cache.
 
 - `js/forecast.js`: pure weekly aggregation, EWMA, seasonal volume projection, Monte Carlo and backtesting.
 - `js/forecast-worker.js`: background computation and per-dataset/metric/entity/weight result cache.
 - `js/tabs/forecast.js`: controls, rankings, simulation ranges, actual/predicted plays charts and validation tables.
 - `tests/forecast.test.mjs`: synthetic tests; run `node --test tests/forecast.test.mjs` (Node 22+).
 
-Artist and song detail modals have an optional, initially collapsed **Forecast - plays** section. Expanding it computes that entity's cumulative and monthly actual/predicted plays, with year and annual/all-time controls. The entity is included even when outside the main simulation candidate pool; same-named songs are distinguished by artist. Predictions use the full history's cutoff and validated model/baseline, run in a background worker, and are cached by entity and import settings. Closing or changing the detail invalidates pending UI requests without discarding reusable cached results.
+Artist and song detail modals have an optional, initially collapsed **Forecast - artist/song plays** section. Expanding it computes that entity's cumulative and monthly actual/predicted plays, with year and annual/all-time controls. The entity is included even when outside the main simulation candidate pool; same-named songs are distinguished by artist. Predictions use the full history's cutoff and validated model/baseline, run in a background worker, and are cached by entity and import settings. Closing or changing the detail invalidates pending UI requests without discarding reusable cached results.
 
 Weekly buckets use local Mondays through Sundays. Short plays are retained for Forecast plays/skips, but plays under 30 seconds contribute zero minutes. Other import settings still apply. The eight latest complete weeks drive total volume, multiplied by prior-year monthly indices. Entity EWMA has a four-week half-life, brief peaks decay over eight to ten weeks, and 5,000 seeded simulations include variance, persistent shocks, obsession spikes and anonymous Q4 newcomers estimated from earlier annual top tens. Unknown future names cannot be predicted.
 

@@ -5,7 +5,8 @@ import { forecastPlaySeries } from '../forecast.js';
 import { forecastPlaysChartConfig } from '../charts.js';
 
 let worker = null, sourceData = null, result = null;
-let requestId = 0, selectedYear = null, probabilityLimit = 2;
+let requestId = 0, selectedYear = null;
+const probabilityLimit = 5;
 let entity = 'artists', metric = 'minutes', scope = 'annual';
 let fanChart = null, volumeChart = null;
 const format = value => Math.round(value).toLocaleString();
@@ -44,13 +45,11 @@ function renderShell() {
         <label for="forecast-metric">Metric<select id="forecast-metric">${options([['minutes', 'Minutes'], ['plays', 'Plays'], ['points', 'F1 points']], metric)}</select></label>
         <label for="forecast-year">Year<select id="forecast-year">${options(years.map(year => [year, year]), selectedYear)}</select></label>
         <label for="forecast-scope">Totals<select id="forecast-scope">${options([['annual', 'Selected year only'], ['allTime', 'All time to year end']], scope)}</select></label>
-        <label for="forecast-probability">Finish probability<select id="forecast-probability">${options([1, 2, 3, 10].map(limit => [limit, `Top ${limit}`]), probabilityLimit)}</select></label>
     </div><div id="forecast-status" class="forecast-status" role="status" aria-live="polite"></div><div id="forecast-results"></div>`;
     document.getElementById('forecast-entity').addEventListener('change', event => { entity = event.target.value; requestForecast(); });
     document.getElementById('forecast-metric').addEventListener('change', event => { metric = event.target.value; requestForecast(); });
     document.getElementById('forecast-year').addEventListener('change', event => { selectedYear = Number(event.target.value); renderResult(); });
     document.getElementById('forecast-scope').addEventListener('change', event => { scope = event.target.value; renderResult(); });
-    document.getElementById('forecast-probability').addEventListener('change', event => { probabilityLimit = Number(event.target.value); renderResult(); });
 }
 
 function requestForecast() {
