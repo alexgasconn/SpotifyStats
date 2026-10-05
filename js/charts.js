@@ -346,19 +346,28 @@ export function renderF1EvolutionChart(labels, series) {
 
 // ── WRAPPED ───────────────────────────────────────────────────────────────────
 
-export function renderWrappedMonthlyChart(monthlyData) {
+export function renderWrappedMonthlyChart(monthlyData, previousData = null, year = '', monthlyPlays = []) {
+    const peak = monthlyData.indexOf(Math.max(...monthlyData));
     make('wrapped-monthly-chart', {
         type: 'bar',
         data: {
-            labels: ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'],
-            datasets: [{ data: monthlyData, backgroundColor: GREEN, borderRadius: 3 }]
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+            datasets: [
+                ...(previousData ? [{ label: String(year - 1), data: previousData, backgroundColor: '#656565', borderRadius: 4 }] : []),
+                { label: String(year), data: monthlyData, backgroundColor: monthlyData.map((_, index) => index === peak ? '#FFC107' : GREEN), borderRadius: 4 }
+            ]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false }, datalabels: false },
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: true, position: 'bottom', labels: { color: TICK, usePointStyle: true, boxWidth: 8 } },
+                datalabels: false,
+                tooltip: { callbacks: { label: context => `${context.dataset.label}: ${context.raw.toLocaleString()} min${context.dataset.label === String(year) && monthlyPlays.length ? ` · ${monthlyPlays[context.dataIndex].toLocaleString()} plays` : ''}` } }
+            },
             scales: {
-                y: { display: false, grid: { display: false } },
-                x: { ticks: { color: TICK }, grid: { display: false } }
+                y: { beginAtZero: true, ticks: { color: TICK }, grid: { color: GRID }, title: { display: true, text: 'Minutes', color: TICK } },
+                x: { ticks: { color: TICK, maxRotation: 0, autoSkip: false, font: { size: 10 } }, grid: { display: false } }
             }
         }
     });

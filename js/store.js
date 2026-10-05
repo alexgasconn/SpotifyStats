@@ -2154,6 +2154,10 @@ export function calculateWrappedStats(year, fullData) {
 
     // Compare with previous year
     const prevYearData = fullData.filter(d => d.year === (year - 1) && !d.isPodcast && d.trackName);
+    const prevMonthlyMinutes = Array(12).fill(0);
+    prevYearData.forEach(d => { prevMonthlyMinutes[d.month] += d.durationMin; });
+    const prevSkipped = prevYearData.filter(d => d.skipped).length;
+    const prevSkipRate = prevYearData.length ? (prevSkipped / prevYearData.length) * 100 : null;
     const prevMinutes = prevYearData.reduce((s, d) => s + d.durationMin, 0);
     const prevPlays = prevYearData.length;
     const prevArtistsCount = new Set(prevYearData.map(d => d.artistName).filter(Boolean)).size;
@@ -2256,6 +2260,7 @@ export function calculateWrappedStats(year, fullData) {
         topArtistMain,
         topAlbumMain,
         monthlyMinutes: monthlyMinutes.map(m => Math.round(m)),
+        prevMonthlyMinutes: prevMonthlyMinutes.map(m => Math.round(m)),
         monthlyPlays,
         quarterMinutes: quarterMinutes.map(v => Math.round(v)),
         uniques: { tracks: uniqueTracks.size, artists: uniqueArtists.size, albums: uniqueAlbums.size },
@@ -2264,6 +2269,9 @@ export function calculateWrappedStats(year, fullData) {
             artists: Math.round((newArtists / uniqueArtists.size) * 100)
         },
         monthlyNewArtists,
+        newArtists,
+        newTracks,
+        skipped,
         skipRate: ((skipped / yearData.length) * 100).toFixed(1),
         peakMonth: monthNames[peakMonth],
         peakMonthMinutes: Math.round(monthlyMinutes[peakMonth] || 0),
@@ -2293,7 +2301,10 @@ export function calculateWrappedStats(year, fullData) {
             available: prevYearData.length > 0,
             minutesPct: deltaPct(currentMinutes, prevMinutes),
             playsPct: deltaPct(currentPlays, prevPlays),
-            artistsPct: deltaPct(currentArtists, prevArtistsCount)
+            artistsPct: deltaPct(currentArtists, prevArtistsCount),
+            skipsPct: deltaPct(skipped, prevSkipped),
+            skipsDelta: prevYearData.length ? skipped - prevSkipped : null,
+            skipRatePoints: prevSkipRate === null ? null : +((skipped / currentPlays) * 100 - prevSkipRate).toFixed(1)
         }
     };
 }
