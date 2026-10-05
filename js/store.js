@@ -61,6 +61,7 @@ export async function processSpotifyZip(zipFile, config = {}, onProgress = null)
         const file = historyFiles[i];
         const filePct = 16 + Math.round(((i + 1) / historyFiles.length) * 54);
         report(filePct, `Parsing file ${i + 1}/${historyFiles.length}: ${file.name}`);
+        await new Promise(resolve => setTimeout(resolve, 0));
 
         let parsed;
         try {
@@ -73,9 +74,21 @@ export async function processSpotifyZip(zipFile, config = {}, onProgress = null)
     }
 
     report(74, 'Transforming entries and applying filters...');
-    const processedData = allEntries.flat().map(processEntry).filter(Boolean);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const entries = allEntries.flat();
+    const processedData = [];
+    for (let offset = 0; offset < entries.length; offset += 5000) {
+        const end = Math.min(offset + 5000, entries.length);
+        for (let index = offset; index < end; index++) {
+            const processed = processEntry(entries[index]);
+            if (processed) processedData.push(processed);
+        }
+        report(74 + Math.round((end / entries.length) * 11), `Processing entries: ${end.toLocaleString()} / ${entries.length.toLocaleString()}`);
+        await new Promise(resolve => setTimeout(resolve, 0));
+    }
 
     report(86, 'Sorting timeline and finalizing data...');
+    await new Promise(resolve => setTimeout(resolve, 0));
     const sorted = processedData.sort((a, b) => a.ts - b.ts);
 
     report(90, 'Data processing complete. Preparing dashboard...');
@@ -872,12 +885,14 @@ export function calculateDeepInsights(data) {
 
     // 3. Hidden gems: at least 20 plays but each play < 3 min avg
     const trackStats = {};
+    const trackSkipCounts = {};
     music.forEach(d => {
         if (!d.trackName) return;
         const k = `${d.trackName}|||${d.artistName}`;
         if (!trackStats[k]) trackStats[k] = { name: d.trackName, artist: d.artistName, plays: 0, minutes: 0 };
         trackStats[k].plays++;
         trackStats[k].minutes += d.durationMin;
+        if (d.skipped) trackSkipCounts[k] = (trackSkipCounts[k] || 0) + 1;
     });
 
     const hiddenGems = Object.values(trackStats)
@@ -889,8 +904,8 @@ export function calculateDeepInsights(data) {
     // 4. Most abandoned (high skip rate) — min 10 plays
     const abandonedTracks = Object.entries(trackStats)
         .filter(([, t]) => t.plays >= 10)
-        .map(([, t]) => {
-            const skips = music.filter(d => d.trackName === t.name && d.artistName === t.artist && d.skipped).length;
+        .map(([key, t]) => {
+            const skips = trackSkipCounts[key] || 0;
             return { name: t.name, artist: t.artist, plays: t.plays, skipRate: (skips / t.plays) * 100 };
         })
         .filter(t => t.skipRate >= 50)

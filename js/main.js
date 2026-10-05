@@ -110,6 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
             window.spotifyData.filtered = data;
 
             setLoadingProgress(88, 'Preparing filters and tabs...');
+            await new Promise(resolve => setTimeout(resolve, 0));
 
             uploadSection.classList.add('hidden');
             dashboardSection.classList.remove('hidden');
@@ -122,14 +123,8 @@ document.addEventListener('DOMContentLoaded', () => {
             wrappedYearFilter?.addEventListener('change', renderWrappedContent);
 
             setLoadingProgress(93, 'Rendering overview and trends...');
+            await new Promise(resolve => setTimeout(resolve, 0));
             renderUI();
-
-            setLoadingProgress(97, 'Rendering advanced tabs...');
-            renderStreaksTab();
-            renderDeepDiveTab();
-            renderExplorerTab(data);
-            renderCompareTab();
-            podcasts.renderPodcastUI(data);
 
             setLoadingProgress(100, 'Done! Launching dashboard...');
 
