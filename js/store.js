@@ -15,6 +15,7 @@ let _cfg = {
     topN: 10,
     streakGapDays: 1,
     f1MinutesWeight: 50,
+    mergeTrackVersions: false,
 };
 
 let _forecastData = [];
@@ -27,6 +28,12 @@ function formatLocalDate(dateObj) {
     const month = String(dateObj.getMonth() + 1).padStart(2, '0');
     const day = String(dateObj.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+}
+
+function normalizeTrackVersionName(trackName) {
+    const original = String(trackName || '').trim();
+    const normalized = original.replace(/(?:\s*(?:-\s*remastered(?:\s+\d{4})?|\(\s*remastered(?:\s+\d{4})?\s*\)|\(\s*taylor['’]s\s+version\s*\)))+$/i, '').trim();
+    return normalized || original;
 }
 
 export async function processSpotifyZip(zipFile, config = {}, onProgress = null) {
@@ -155,7 +162,9 @@ function processEntry(entry, minPlayMs = _cfg.minPlayMs) {
     return {
         ts,
         date: formatLocalDate(ts),
-        trackName: entry.master_metadata_track_name || null,
+        trackName: entry.master_metadata_track_name
+            ? (_cfg.mergeTrackVersions ? normalizeTrackVersionName(entry.master_metadata_track_name) : entry.master_metadata_track_name)
+            : null,
         artistName: entry.master_metadata_album_artist_name || null,
         albumName: entry.master_metadata_album_album_name || null,
         episodeName: entry.episode_name || null,

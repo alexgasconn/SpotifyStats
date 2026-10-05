@@ -78,6 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
             includePodcasts: document.getElementById('cfg-podcasts')?.checked ?? true,
             includeOffline: document.getElementById('cfg-offline')?.checked ?? true,
             includeIncognito: document.getElementById('cfg-incognito')?.checked ?? false,
+            mergeTrackVersions: document.getElementById('cfg-merge-track-versions')?.checked ?? false,
             f1MinutesWeight: parseInt(document.getElementById('cfg-f1-weight')?.value) || 50,
         };
     }

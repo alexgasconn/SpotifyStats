@@ -126,6 +126,34 @@ test('Forecast import retains short plays without changing existing dashboard fi
     } finally { globalThis.JSZip = previous; }
 });
 
+test('track version merging is opt-in and removes only supported trailing version labels', async () => {
+    const previous = globalThis.JSZip;
+    const raw = [
+        'Wonderwall',
+        'Wonderwall - Remastered',
+        "All Too Well (Taylor's Version)",
+        'All Too Well (Taylor’s Version)',
+    ].map(master_metadata_track_name => ({
+        ts: '2025-01-01T12:00:00Z',
+        ms_played: 60000,
+        master_metadata_track_name,
+        master_metadata_album_artist_name: 'Oasis',
+    }));
+    globalThis.JSZip = class { async loadAsync() { return { forEach: callback => callback('endsong_0.json', { name: 'endsong_0.json', async: async () => JSON.stringify(raw) }) }; } };
+    try {
+        const merged = await processSpotifyZip({}, { minPlayMs: 0, mergeTrackVersions: true });
+        assert.deepEqual(merged.map(entry => entry.trackName), [
+            'Wonderwall',
+            'Wonderwall',
+            'All Too Well',
+            'All Too Well',
+        ]);
+
+        const separate = await processSpotifyZip({}, { minPlayMs: 0, mergeTrackVersions: false });
+        assert.deepEqual(separate.map(entry => entry.trackName), raw.map(entry => entry.master_metadata_track_name));
+    } finally { globalThis.JSZip = previous; }
+});
+
 test('model selection cannot use future validation labels beyond the forecast cutoff', () => {
     const data = syntheticHistory();
     const options = { asOf: '2023-10-01', simulations: 8, yearsAhead: 0 };
