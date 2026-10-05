@@ -267,7 +267,7 @@ function renderDetailForecast(cached = false) {
     document.getElementById('detail-forecast-scope').addEventListener('change', event => { context.scope = event.target.value; renderDetailForecast(cached); });
     for (const [id, cumulative] of [['detail-forecast-cumulative', true], ['detail-forecast-monthly', false]]) {
         const series = forecastPlaySeries(result, { year: context.year, scope: context.scope, cumulative });
-        createDetailChart(id, forecastPlaysChartConfig(series));
+        createDetailChart(id, forecastPlaysChartConfig(series, { cumulative }));
     }
 }
 

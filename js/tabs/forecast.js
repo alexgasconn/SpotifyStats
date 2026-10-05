@@ -121,7 +121,7 @@ function drawCharts(period) {
     fanChart?.destroy(); volumeChart?.destroy();
     const makeChart = (id, cumulative) => {
         const series = forecastPlaySeries(result, { year: period.year, scope, cumulative });
-        return new Chart(document.getElementById(id), forecastPlaysChartConfig(series));
+        return new Chart(document.getElementById(id), forecastPlaysChartConfig(series, { cumulative }));
     };
     fanChart = makeChart('forecast-fan-chart', true);
     volumeChart = makeChart('forecast-volume-chart', false);

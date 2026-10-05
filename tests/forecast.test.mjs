@@ -271,3 +271,23 @@ test('entity request forces a rare artist into the simulation pool', () => {
     assert.equal(result.entityPlayFan[0].allTime, 1);
     assert.ok(result.periods[0].allTime.some(row => row.key === 'Artist 99'));
 });
+
+test('monthly chart uses bars with one category per month; cumulative stays a dashed forecast line', async () => {
+    const previousChart = globalThis.Chart, previousLabels = globalThis.ChartDataLabels;
+    globalThis.Chart = { register() { } }; globalThis.ChartDataLabels = {};
+    try {
+        const { forecastPlaysChartConfig } = await import('../js/charts.js');
+        const fixture = playChartFixture();
+        const cumulative = forecastPlaysChartConfig(forecastPlaySeries(fixture));
+        assert.equal(cumulative.type, 'line');
+        assert.deepEqual(cumulative.data.datasets[1].borderDash, [7, 5]);
+        const monthly = forecastPlaysChartConfig(forecastPlaySeries(fixture, { cumulative: false }), { cumulative: false });
+        assert.equal(monthly.type, 'bar');
+        assert.equal(monthly.data.labels.length, 12);
+        const october = monthly.data.labels.indexOf('2025-10');
+        assert.equal(monthly.data.datasets[0].data[october], 4);
+        assert.equal(monthly.data.datasets[1].data[october], 10);
+        assert.equal(monthly.data.datasets[1].data[0], null);
+        assert.equal(monthly.data.datasets[1].data.at(-1), 8);
+    } finally { globalThis.Chart = previousChart; globalThis.ChartDataLabels = previousLabels; }
+});

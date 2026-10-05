@@ -344,14 +344,28 @@ export function renderF1EvolutionChart(labels, series) {
     });
 }
 
-export function forecastPlaysChartConfig(series) {
+export function forecastPlaysChartConfig(series, { cumulative = true } = {}) {
+    let labels = series.dates, actual = series.actual, predicted = series.predicted;
+    if (!cumulative) {
+        const months = new Map();
+        series.dates.forEach((date, index) => {
+            const month = date.slice(0, 7);
+            if (!months.has(month)) months.set(month, { actual: null, predicted: null });
+            const values = months.get(month);
+            if (series.actual[index] !== null) values.actual = series.actual[index];
+            if (series.predicted[index] !== null && series.actual[index] === null) values.predicted = series.predicted[index];
+        });
+        labels = [...months.keys()];
+        actual = [...months.values()].map(month => month.actual);
+        predicted = [...months.values()].map(month => month.predicted);
+    }
     return {
-        type: 'line',
+        type: cumulative ? 'line' : 'bar',
         data: {
-            labels: series.dates,
+            labels,
             datasets: [
-                { label: 'Actual plays', data: series.actual, borderColor: GREEN, borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, fill: false },
-                { label: 'Predicted plays', data: series.predicted, borderColor: '#17a2b8', borderWidth: 2, borderDash: [7, 5], pointRadius: 0, pointHoverRadius: 4, fill: false }
+                { label: 'Actual plays', data: actual, borderColor: GREEN, backgroundColor: 'rgba(29,185,84,0.75)', borderWidth: 2, borderRadius: 3, skipNull: true, pointRadius: 0, pointHoverRadius: 4, fill: false },
+                { label: 'Predicted plays', data: predicted, borderColor: '#17a2b8', backgroundColor: 'rgba(23,162,184,0.25)', borderWidth: 2, borderRadius: 3, skipNull: true, borderDash: cumulative ? [7, 5] : [], pointRadius: 0, pointHoverRadius: 4, fill: false }
             ]
         },
         options: {
