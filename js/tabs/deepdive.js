@@ -16,9 +16,6 @@ export function renderDeepDiveTab() {
     const timeDesc = { morning: 'Most of your listening happens in the morning (6–12).', afternoon: 'Most of your listening happens in the afternoon (12–18).', evening: 'Most of your listening happens in the evening (18–midnight).', night: 'You listen mostly late at night (midnight–6).' };
     const totalTime = Object.values(ins.timeMap).reduce((a, b) => a + b, 0) || 1;
 
-    // Build listening habits summary
-    const habitsHtml = buildListeningHabits(data);
-
     // Build chain HTML sections
     const trackChainsHtml = buildChainSection('🔗 Track Chains', 'After listening to a track, which track do you play next most often?', chains.trackChains, 'track');
     const artistChainsHtml = buildChainSection('🎤 Artist Flow', 'After an artist, which artist comes next in your sessions?', chains.artistChains, 'artist');
@@ -77,8 +74,9 @@ export function renderDeepDiveTab() {
             <ul class="insight-list">
                 ${ins.abandonedTracks.slice(0, 10).map((t, i) => `
                     <li data-detail-type="track" data-detail-name="${t.name.replace(/"/g, '&quot;')}" data-detail-extra="${(t.artist || '').replace(/"/g, '&quot;')}">
-                        <span class="il-rank">${i + 1}</span><span class="il-name">${esc(t.name)}</span><span class="il-val">${t.skipRate}% skipped</span>
+                        <span class="il-rank">${i + 1}</span><span class="il-name">${esc(t.name)}</span><span class="il-val">${t.skipRate}% skipped · ${t.plays} plays</span>
                     </li>`).join('')}
+                ${ins.abandonedTracks.length ? '' : '<li>No qualifying tracks</li>'}
             </ul>
         </div>
 
@@ -91,17 +89,6 @@ export function renderDeepDiveTab() {
                     <li data-detail-type="track" data-detail-name="${r.track.replace(/"/g, '&quot;')}" data-detail-extra="${(r.artist || '').replace(/"/g, '&quot;')}">
                         <span class="il-rank">${i + 1}</span><span class="il-name">${esc(r.track)}</span><span class="il-val">${r.count}x on ${r.date}</span>
                     </li>`).join('')}
-            </ul>
-        </div>
-
-        <!-- One-hit wonders -->
-        <div class="insight-card">
-            <h4><span class="ic-icon">🎯</span> One-Track Artists</h4>
-            <p class="insight-desc">Artists where you've only heard one track.</p>
-            <ul class="insight-list">
-                ${ins.oneHitWonders.slice(0, 10).map((o, i) => `
-                    <li><span class="il-rank">${i + 1}</span><span class="il-name">${esc(o.artist)}</span><span class="il-val" style="font-size:0.75rem;color:var(--text-muted)">${esc(o.track)}</span></li>
-                `).join('')}
             </ul>
         </div>
 
@@ -135,9 +122,6 @@ export function renderDeepDiveTab() {
             </div>
         </div>
 
-        <!-- ═══════ LISTENING HABITS SUMMARY ═══════ -->
-        ${habitsHtml}
-
         <!-- ═══════ LISTENING CHAINS SECTION ═══════ -->
         <div class="insight-card chain-section" style="grid-column:1/-1">
             <h4><span class="ic-icon">🔗</span> Listening Chains & Session Flow</h4>
@@ -158,49 +142,6 @@ export function renderDeepDiveTab() {
             openDetail(el.dataset.detailName, el.dataset.detailType, el.dataset.detailExtra || '', window.spotifyData.full);
         });
     });
-}
-
-function buildListeningHabits(data) {
-    const music = data.filter(d => !d.isPodcast && d.trackName);
-    if (!music.length) return '';
-
-    // Compute shuffle vs on-demand ratio
-    const shuffled = music.filter(d => d.shuffle === true).length;
-    const shufflePct = ((shuffled / music.length) * 100).toFixed(0);
-
-    // Offline vs online
-    const offline = music.filter(d => d.offline === true).length;
-    const offlinePct = ((offline / music.length) * 100).toFixed(0);
-
-    // Average track duration
-    const avgDur = (music.reduce((s, d) => s + d.durationMin, 0) / music.length).toFixed(1);
-
-    // Complete listen rate (non-skipped)
-    const completed = music.filter(d => !d.skipped).length;
-    const completionRate = ((completed / music.length) * 100).toFixed(0);
-
-    // Unique tracks per month average
-    const monthMap = {};
-    music.forEach(d => {
-        const key = d.date?.slice(0, 7) || 'unknown';
-        if (!monthMap[key]) monthMap[key] = new Set();
-        monthMap[key].add(d.trackName);
-    });
-    const months = Object.values(monthMap);
-    const avgUniqPerMonth = months.length ? Math.round(months.reduce((s, set) => s + set.size, 0) / months.length) : 0;
-
-    return `
-        <div class="insight-card" style="grid-column:1/-1">
-            <h4><span class="ic-icon">📋</span> Listening Habits Summary</h4>
-            <p class="insight-desc">A quick snapshot of how you listen to music.</p>
-            <div class="habits-grid">
-                <div class="habit-item"><span class="hi-val">${shufflePct}%</span><span class="hi-label">Shuffle plays</span></div>
-                <div class="habit-item"><span class="hi-val">${offlinePct}%</span><span class="hi-label">Offline plays</span></div>
-                <div class="habit-item"><span class="hi-val">${avgDur}</span><span class="hi-label">Avg min/play</span></div>
-                <div class="habit-item"><span class="hi-val">${completionRate}%</span><span class="hi-label">Completion rate</span></div>
-                <div class="habit-item"><span class="hi-val">${avgUniqPerMonth}</span><span class="hi-label">Unique tracks/month</span></div>
-            </div>
-        </div>`;
 }
 
 function buildChainSection(title, description, chains, type) {

@@ -33,7 +33,7 @@ export function renderStreaksTab() {
             <div class="streak-card"><div class="sc-icon">🏆</div><div class="sc-value">${best.bestYear ? best.bestYear.minutes : 0}</div><div class="sc-label">Best Year (min)</div><div class="sc-dates">${best.bestYear ? best.bestYear.year : '—'}</div></div>
         </div>`;
 
-    const calHtml = buildCalendarHeatmap(calData, data);
+    const calHtml = buildCalendarHeatmap(calData);
 
     function streakRows(items, valKey, unit) {
         return items.slice(0, 15).map((a, i) => `
@@ -115,9 +115,12 @@ function buildMilestones(streaks, best, data) {
         </div>`;
 }
 
-function buildCalendarHeatmap(calData, data) {
+function buildCalendarHeatmap(calData) {
     // Get available years for navigation
-    const years = [...new Set(data.map(d => new Date(d.endTime).getFullYear()))].sort();
+    const years = [...new Set(Object.keys(calData).map(date => Number(date.slice(0, 4))))]
+        .filter(Number.isInteger)
+        .sort((a, b) => a - b);
+    if (calendarYear !== null && !years.includes(calendarYear)) calendarYear = null;
 
     // Filter calData by selected year
     let filteredCalData = calData;
@@ -131,8 +134,8 @@ function buildCalendarHeatmap(calData, data) {
     const allDates = Object.keys(filteredCalData).sort();
     if (!allDates.length) return '<p style="color:var(--text-muted)">No data</p>';
 
-    const firstDate = new Date(allDates[0]);
-    const lastDate = new Date(allDates[allDates.length - 1]);
+    const firstDate = new Date(`${allDates[0]}T00:00:00`);
+    const lastDate = new Date(`${allDates[allDates.length - 1]}T00:00:00`);
     const startMonday = new Date(firstDate);
     startMonday.setDate(firstDate.getDate() - ((firstDate.getDay() + 6) % 7));
 

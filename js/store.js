@@ -891,10 +891,12 @@ export function calculateDeepInsights(data) {
         .filter(([, t]) => t.plays >= 10)
         .map(([, t]) => {
             const skips = music.filter(d => d.trackName === t.name && d.artistName === t.artist && d.skipped).length;
-            return { name: t.name, artist: t.artist, plays: t.plays, skipRate: +((skips / t.plays) * 100).toFixed(1) };
+            return { name: t.name, artist: t.artist, plays: t.plays, skipRate: (skips / t.plays) * 100 };
         })
-        .sort((a, b) => b.skipRate - a.skipRate)
-        .slice(0, 10);
+        .filter(t => t.skipRate >= 50)
+        .sort((a, b) => b.skipRate - a.skipRate || b.plays - a.plays)
+        .slice(0, 10)
+        .map(t => ({ ...t, skipRate: +t.skipRate.toFixed(1) }));
 
     // 5. One-hit wonders (artists heard only 1 unique track)
     const artistTracks = {};
