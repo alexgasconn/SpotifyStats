@@ -17,6 +17,8 @@ let _cfg = {
     f1MinutesWeight: 50,
 };
 
+let _forecastData = [];
+export function getForecastData() { return _forecastData; }
 export function getConfig() { return { ..._cfg }; }
 export function setF1Weight(minutesWeight) { _cfg.f1MinutesWeight = Math.max(0, Math.min(100, Number(minutesWeight) || 50)); }
 
@@ -77,11 +79,15 @@ export async function processSpotifyZip(zipFile, config = {}, onProgress = null)
     await new Promise(resolve => setTimeout(resolve, 0));
     const entries = allEntries.flat();
     const processedData = [];
+    const forecastEntries = [];
     for (let offset = 0; offset < entries.length; offset += 5000) {
         const end = Math.min(offset + 5000, entries.length);
         for (let index = offset; index < end; index++) {
-            const processed = processEntry(entries[index]);
-            if (processed) processedData.push(processed);
+            const processed = processEntry(entries[index], 0);
+            if (processed) {
+                forecastEntries.push(processed);
+                if (processed.msPlayed >= _cfg.minPlayMs) processedData.push(processed);
+            }
         }
         report(74 + Math.round((end / entries.length) * 11), `Processing entries: ${end.toLocaleString()} / ${entries.length.toLocaleString()}`);
         await new Promise(resolve => setTimeout(resolve, 0));
@@ -90,6 +96,7 @@ export async function processSpotifyZip(zipFile, config = {}, onProgress = null)
     report(86, 'Sorting timeline and finalizing data...');
     await new Promise(resolve => setTimeout(resolve, 0));
     const sorted = processedData.sort((a, b) => a.ts - b.ts);
+    _forecastData = forecastEntries.sort((a, b) => a.ts - b.ts);
 
     report(90, 'Data processing complete. Preparing dashboard...');
     return sorted;
@@ -118,9 +125,9 @@ function normalizePlatform(raw) {
     return raw.charAt(0).toUpperCase() + raw.slice(1).split(/[\s_-]/)[0];
 }
 
-function processEntry(entry) {
+function processEntry(entry, minPlayMs = _cfg.minPlayMs) {
     const msPlayed = entry.ms_played ?? 0;
-    if (msPlayed < _cfg.minPlayMs) return null;
+    if (msPlayed < minPlayMs) return null;
     const ts = new Date(entry.ts);
     if (isNaN(ts)) return null;
 

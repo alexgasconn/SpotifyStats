@@ -781,6 +781,21 @@ A robust rules-based and statistics-driven analytics layer provides:
 
 ---
 
+## Forecast
+
+The Forecast tab uses the last available listening date (not an invented current-year snapshot) and projects that year-end plus the following three years. Select artists/songs, minutes/plays/F1 points, annual/all-time totals, and top-1/2/3/10 finish probability. Forecast uses full imported history rather than dashboard filters. Upload a new ZIP to invalidate the cache.
+
+- `js/forecast.js`: pure weekly aggregation, EWMA, seasonal volume projection, Monte Carlo and backtesting.
+- `js/forecast-worker.js`: background computation and per-dataset/metric/entity/weight result cache.
+- `js/tabs/forecast.js`: controls, rankings, simulation ranges, fan chart and validation tables.
+- `tests/forecast.test.mjs`: synthetic tests; run `node --test tests/forecast.test.mjs` (Node 22+).
+
+Weekly buckets use local Mondays through Sundays. Short plays are retained for Forecast plays/skips, but plays under 30 seconds contribute zero minutes. Other import settings still apply. The eight latest complete weeks drive total volume, multiplied by prior-year monthly indices. Entity EWMA has a four-week half-life, brief peaks decay over eight to ten weeks, and 5,000 seeded simulations include variance, persistent shocks, obsession spikes and anonymous Q4 newcomers estimated from earlier annual top tens. Unknown future names cannot be predicted.
+
+The simulation pool contains up to 80 known entities, including annual/all-time leaders and recent movers, plus newcomer slots. Other known entities remain a volume tail; their individual position probabilities are not simulated. Ranges are conditional P10-P90 simulations, not empirically calibrated confidence intervals. Monthly fan allocations are approximate at week boundaries; annual volume boundaries are exact. Future F1 fastest laps use historical session-size proxies.
+
+Backtesting predicts 2023, 2024 and 2025 from data through October 1 inclusive and compares with observed December 31 rankings. Incomplete years are explicitly unavailable. Top-3/top-10 set overlap and tie-aware Spearman on the union of top tens are displayed against the frozen-current-ranking baseline. The hybrid is selected only if its average weighted score improves without reducing top-3 or top-10 overlap; otherwise the ranking and entity shares are kept at baseline, with position probabilities unavailable rather than fictitious certainty. Seasonal volume simulation still runs. This short-horizon validation does not establish three-year forecast accuracy.
+
 ## Technical Stack
 
 ### Frontend

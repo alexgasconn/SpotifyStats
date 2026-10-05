@@ -6,6 +6,7 @@ import { setupGame } from './tabs/game.js';
 import * as podcasts from './tabs/podcasts.js';
 import { openDetail, closeDetail } from './detail.js';
 import { renderCalendarTab } from './tabs/calendar.js';
+import { renderForecastTab, resetForecast } from './tabs/forecast.js';
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -108,6 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             window.spotifyData.full = data;
             window.spotifyData.filtered = data;
+            resetForecast();
 
             setLoadingProgress(88, 'Preparing filters and tabs...');
             await new Promise(resolve => setTimeout(resolve, 0));
@@ -158,6 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
         dashboardSection.classList.add('hidden');
         uploadSection.classList.remove('hidden');
         window.spotifyData = { full: [], filtered: [] };
+        resetForecast();
         zipInput.value = '';
     });
 
@@ -201,6 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (tabId === 'viewer-tab') renderViewerTab();
                 if (tabId === 'compare-tab') renderCompareTab();
                 if (tabId === 'calendar-tab') renderCalendarTab();
+                if (tabId === 'forecast-tab') renderForecastTab();
                 if (tabId === 'podcast-tab') podcasts.renderPodcastUI(window.spotifyData.filtered);
             });
         });
