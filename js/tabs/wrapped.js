@@ -78,8 +78,15 @@ export function renderWrappedContent() {
         </section>
         <section class="wrapped-section wrapped-wide-card wc-volume-section">
             <div class="wc-section-heading"><div><h3>Monthly listening volume</h3><p>${s.yearArc} · ${s.activeDays} active days</p></div><div class="wc-peak"><span>Peak month</span><strong>${s.peakMonth}</strong><span>${number(s.peakMonthMinutes)} min</span></div></div>
-            <div class="wc-monthly-canvas"><canvas id="wrapped-monthly-chart" role="img" aria-label="Monthly listening minutes for ${year}${s.comparePrev.available ? ` and ${year - 1}` : ''}"></canvas></div>
+            <div class="wc-monthly-canvas"><canvas id="wrapped-monthly-chart" role="img" aria-label="Monthly listening minutes for ${year}"></canvas></div>
             <div class="wc-volume-footer"><span>${s.quarterPeak} was your strongest quarter</span><span>${s.playsPerActiveDay} plays / active day</span><span>${Math.round(s.minutesPerActiveDay)} min / active day</span></div>
+        </section>
+        <section class="wrapped-section wrapped-wide-card">
+            <div class="wc-section-heading"><h3>Top 3 songs each month</h3><span>By plays · ${year}</span></div>
+            <div class="wc-monthly-songs">${s.monthlyTopSongs.map(({ month, songs }) => `
+                <section class="wc-month-songs"><h4>${month}</h4>
+                    ${songs.length ? rankList(songs, 'track', 'plays') : '<p class="wc-month-empty">No songs played this month.</p>'}
+                </section>`).join('')}</div>
         </section>
         <section class="wrapped-section"><div class="wc-section-heading"><h3>Top songs</h3><span>By plays · ${year}</span></div>${rankList(s.topSong, 'track', 'plays')}</section>
         <section class="wrapped-section"><div class="wc-section-heading"><h3>Top artists</h3><span>By plays · ${year}</span></div>${rankList(s.topArtist, 'artist', 'plays')}</section>
@@ -100,5 +107,5 @@ export function renderWrappedContent() {
         el.addEventListener('click', () => openDetail(el.dataset.detailName, el.dataset.detailType, el.dataset.detailExtra || '', window.spotifyData.full));
     });
 
-    charts.renderWrappedMonthlyChart(s.monthlyMinutes, s.comparePrev.available ? s.prevMonthlyMinutes : null, year, s.monthlyPlays);
+    charts.renderWrappedMonthlyChart(s.monthlyMinutes, year, s.monthlyPlays);
 }

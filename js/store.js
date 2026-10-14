@@ -2222,6 +2222,10 @@ export function calculateWrappedStats(year, fullData) {
     const topSong = calculateTopItems(yearData, 'trackName', 'plays', 10);
     const topArtist = calculateTopItems(yearData, 'artistName', 'plays', 10);
     const topAlbum = calculateTopItems(yearData, 'albumName', 'plays', 10);
+    const monthlyTopSongs = monthNames.map((month, index) => ({
+        month,
+        songs: calculateTopItems(yearData.filter(d => d.month === index), 'trackName', 'plays', 3)
+    }));
 
     // Quarters and year arc
     const quarterMinutes = [0, 0, 0, 0];
@@ -2293,6 +2297,7 @@ export function calculateWrappedStats(year, fullData) {
         monthlyMinutes: monthlyMinutes.map(m => Math.round(m)),
         prevMonthlyMinutes: prevMonthlyMinutes.map(m => Math.round(m)),
         monthlyPlays,
+        monthlyTopSongs,
         quarterMinutes: quarterMinutes.map(v => Math.round(v)),
         uniques: { tracks: uniqueTracks.size, artists: uniqueArtists.size, albums: uniqueAlbums.size },
         discoveries: {

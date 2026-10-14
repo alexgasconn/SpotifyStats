@@ -181,10 +181,13 @@
                             </select>
                         </div>
                         <div class="filter-group">
-                            <label>Country</label>
-                            <select id="country-filter">
-                                <option value="">All Countries</option>
-                            </select>
+                            <div class="filter-label-row">
+                                <label for="country-filter">Country</label>
+                                <span class="filter-meta" id="country-filter-meta">0 selected</span>
+                            </div>
+                            <input type="search" id="country-filter-search" class="filter-search"
+                                placeholder="Search countries...">
+                            <select id="country-filter" multiple size="3" aria-label="Countries (none selected means all)"></select>
                         </div>
                         <div class="filter-group">
                             <label>Time of Day</label>
@@ -216,6 +219,10 @@
                                 <label for="artist-filter">Artists</label>
                                 <span class="filter-meta" id="artist-filter-meta">0 selected</span>
                             </div>
+                            <select id="artist-filter-mode" aria-label="Artist filter mode">
+                                <option value="include">Include selected</option>
+                                <option value="exclude">Exclude selected</option>
+                            </select>
                             <input type="search" id="artist-filter-search" class="filter-search"
                                 placeholder="Search artists...">
                             <select id="artist-filter" multiple size="6"></select>
@@ -225,6 +232,10 @@
                                 <label for="album-filter">Albums</label>
                                 <span class="filter-meta" id="album-filter-meta">0 selected</span>
                             </div>
+                            <select id="album-filter-mode" aria-label="Album filter mode">
+                                <option value="include">Include selected</option>
+                                <option value="exclude">Exclude selected</option>
+                            </select>
                             <input type="search" id="album-filter-search" class="filter-search"
                                 placeholder="Search albums...">
                             <select id="album-filter" multiple size="6"></select>
@@ -234,14 +245,19 @@
                                 <label for="track-filter">Tracks</label>
                                 <span class="filter-meta" id="track-filter-meta">0 selected</span>
                             </div>
+                            <select id="track-filter-mode" aria-label="Track filter mode">
+                                <option value="include">Include selected</option>
+                                <option value="exclude">Exclude selected</option>
+                            </select>
                             <input type="search" id="track-filter-search" class="filter-search"
                                 placeholder="Search tracks...">
                             <select id="track-filter" multiple size="6"></select>
                         </div>
                     </div>
                     <div class="filter-actions filter-actions-row">
-                        <div class="filter-actions-copy">Multi-select is supported. Search narrows the list without
-                            clearing your current selection.</div>
+                        <div class="filter-actions-copy">Use Ctrl/Cmd-click to select multiple items. No selection means
+                            all. Choose Exclude selected for all except those artists, albums or tracks.
+                            Search keeps your selection.</div>
                         <div class="filter-actions-buttons">
                             <button id="apply-filter-btn">Apply</button>
                             <button id="reset-filters-btn" class="secondary-btn">Reset</button>

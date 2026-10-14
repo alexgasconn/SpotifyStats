@@ -244,10 +244,10 @@ Read from upload settings and injected into store config:
 - year
 - season
 - platform
-- country
+- countries (searchable multi-select; no selection means all countries)
 - time of day
 - skip state (all/completed/skipped)
-- multi-select entities: artists, albums, tracks (with search)
+- multi-select entities: artists, albums, tracks (with search and independent Include selected / Exclude selected modes; no selection means all)
 
 ### Filter processing
 
@@ -256,7 +256,9 @@ Read from upload settings and injected into store config:
 ### UX controls around filters
 
 - searchable multi-selects with retained selections during search
+- Ctrl/Cmd-click selects multiple countries or entities; Exclude selected keeps all entries except the chosen entities
 - active filter pills with one-click removal
+- removal and Reset clear selections, searches and exclusion modes; a new upload starts with fresh multi-select filters
 - panel collapse/expand mechanics
 
 ---
@@ -306,7 +308,7 @@ Filtered music events (`!isPodcast && trackName`).
 - listening clock (polar)
 - weekday/month/season distributions
 - start/end reason distributions
-- platform/country distributions
+- platform/country distributions (country plays use a logarithmic X axis, including countries with just one play)
 - yearly evolution
 - skip-rate trend chart with granularity controls
 - weekday-hour heatmap bubble plot
@@ -447,7 +449,8 @@ Filtered music events grouped weekly.
 - persona, peak, consistency/discovery cards
 - quarter momentum, daypart DNA, monthly new-artist rhythm
 - top songs/artists/albums lists
-- monthly chart
+- monthly listening volume chart for the selected year only (no previous-year series)
+- top 3 songs by plays for each month of the selected year, with artist names, play counts and clickable details; months without music are explicitly marked
 
 ### Data used
 

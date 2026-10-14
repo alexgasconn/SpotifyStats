@@ -362,7 +362,7 @@ header {
     border-color: var(--green);
 }
 
-.filter-group-large select {
+.filter-group-large select[multiple] {
     min-width: 100%;
     min-height: 150px;
     height: 150px;
@@ -403,6 +403,17 @@ header {
 .filter-group input[type="date"]:focus {
     outline: none;
     border-color: var(--green);
+}
+
+.filter-group select[multiple] {
+    height: auto;
+    background-image: none;
+    padding-right: 0.7rem;
+}
+
+.filters-grid-primary select[multiple] {
+    min-height: 0;
+    height: 100px;
 }
 
 .filter-actions {
@@ -1206,6 +1217,30 @@ header {
     position: relative;
     height: 300px;
     width: 100%;
+}
+
+.wc-monthly-songs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.wc-month-songs {
+    min-width: 0;
+    padding: 1rem;
+    border: 1px solid var(--gray-light);
+    border-radius: 6px;
+}
+
+.wc-month-songs h4 {
+    color: var(--green);
+}
+
+.wc-month-empty {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-top: 1rem;
 }
 
 .wc-volume-footer {
@@ -3301,7 +3336,7 @@ header {
         flex-wrap: wrap;
     }
 
-    .filter-group-large select {
+    .filter-group-large select[multiple] {
         min-height: 220px;
         height: 220px;
     }

@@ -222,7 +222,7 @@ export function renderDistributionChart(canvasId, data, title) {
     });
 }
 
-export function renderBarChart(canvasId, data, title) {
+export function renderBarChart(canvasId, data, title, xScaleType = 'linear') {
     make(canvasId, {
         type: 'bar',
         data: {
@@ -235,7 +235,14 @@ export function renderBarChart(canvasId, data, title) {
             plugins: { ...noLegend, tooltip: { callbacks: { label: ctx => `${ctx.raw.toLocaleString()} plays` } } },
             scales: {
                 y: { ticks: { color: TICK }, grid: { display: false } },
-                x: { ticks: { color: TICK }, grid: { color: GRID } }
+                x: {
+                    type: xScaleType,
+                    ...(xScaleType === 'logarithmic' ? {
+                        min: 0.5,
+                        title: { display: true, text: 'Plays (log scale)', color: TICK }
+                    } : {}),
+                    ticks: { color: TICK }, grid: { color: GRID }
+                }
             }
         }
     });
@@ -386,14 +393,13 @@ export function forecastPlaysChartConfig(series, { cumulative = true } = {}) {
 
 // ── WRAPPED ───────────────────────────────────────────────────────────────────
 
-export function renderWrappedMonthlyChart(monthlyData, previousData = null, year = '', monthlyPlays = []) {
+export function renderWrappedMonthlyChart(monthlyData, year = '', monthlyPlays = []) {
     const peak = monthlyData.indexOf(Math.max(...monthlyData));
     make('wrapped-monthly-chart', {
         type: 'bar',
         data: {
             labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
             datasets: [
-                ...(previousData ? [{ label: String(year - 1), data: previousData, backgroundColor: '#656565', borderRadius: 4 }] : []),
                 { label: String(year), data: monthlyData, backgroundColor: monthlyData.map((_, index) => index === peak ? '#FFC107' : GREEN), borderRadius: 4 }
             ]
         },
@@ -403,7 +409,7 @@ export function renderWrappedMonthlyChart(monthlyData, previousData = null, year
             plugins: {
                 legend: { display: true, position: 'bottom', labels: { color: TICK, usePointStyle: true, boxWidth: 8 } },
                 datalabels: false,
-                tooltip: { callbacks: { label: context => `${context.dataset.label}: ${context.raw.toLocaleString()} min${context.dataset.label === String(year) && monthlyPlays.length ? ` · ${monthlyPlays[context.dataIndex].toLocaleString()} plays` : ''}` } }
+                tooltip: { callbacks: { label: context => `${context.dataset.label}: ${context.raw.toLocaleString()} min${monthlyPlays.length ? ` · ${monthlyPlays[context.dataIndex].toLocaleString()} plays` : ''}` } }
             },
             scales: {
                 y: { beginAtZero: true, ticks: { color: TICK }, grid: { color: GRID }, title: { display: true, text: 'Minutes', color: TICK } },

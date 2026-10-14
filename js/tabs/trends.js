@@ -15,7 +15,7 @@ export function renderTrends(data) {
     charts.renderDistributionChart('reason-start-chart', store.calculateDistributionPercent(data, 'reasonStart').slice(0, 8), 'Start Reason');
     charts.renderDistributionChart('reason-end-chart', store.calculateDistributionPercent(data, 'reasonEnd').slice(0, 8), 'End Reason');
     charts.renderDistributionChart('platform-chart', store.calculateDistributionPercent(data, 'platform').slice(0, 10), 'Platform');
-    charts.renderBarChart('country-chart', store.calculateDistributionPercent(data, 'country').slice(0, 15), 'Country');
+    charts.renderBarChart('country-chart', store.calculateDistributionPercent(data, 'country').slice(0, 15), 'Country', 'logarithmic');
     charts.renderYearlyChart(store.calculateTemporalDistribution(data, 'year'));
     setupSkipRateTrendControls();
     charts.renderSkipRateTrendChart(store.calculateSkipRateTrend(data, currentSkipTrendUnit), currentSkipTrendUnit);
