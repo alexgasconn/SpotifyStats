@@ -1,7 +1,8 @@
 select[multiple] {
     height: auto;
     padding: 0.65rem 0.7rem;
-    min-height: 220px;
+    min-height: 34px;
+    height: 34px;
 }
 
 select[multiple] option {
@@ -364,8 +365,8 @@ header {
 
 .filter-group-large select[multiple] {
     min-width: 100%;
-    min-height: 150px;
-    height: 150px;
+    min-height: 34px;
+    height: 34px;
     border-radius: 10px;
     background-image: none;
     padding-right: 0.7rem;
@@ -412,8 +413,8 @@ header {
 }
 
 .filters-grid-primary select[multiple] {
-    min-height: 0;
-    height: 100px;
+    min-height: 34px;
+    height: 34px;
 }
 
 .filter-actions {
@@ -1221,7 +1222,7 @@ header {
 
 .wc-monthly-songs {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 1rem;
     margin-top: 1rem;
 }
@@ -1235,6 +1236,18 @@ header {
 
 .wc-month-songs h4 {
     color: var(--green);
+}
+
+@media (max-width: 900px) {
+    .wc-monthly-songs {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 600px) {
+    .wc-monthly-songs {
+        grid-template-columns: 1fr;
+    }
 }
 
 .wc-month-empty {

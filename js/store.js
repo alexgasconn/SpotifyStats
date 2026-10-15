@@ -2222,6 +2222,18 @@ export function calculateWrappedStats(year, fullData) {
     const topSong = calculateTopItems(yearData, 'trackName', 'plays', 10);
     const topArtist = calculateTopItems(yearData, 'artistName', 'plays', 10);
     const topAlbum = calculateTopItems(yearData, 'albumName', 'plays', 10);
+    const yearPodcasts = fullData.filter(d => d.year === year && d.isPodcast && d.episodeShowName);
+    const podcastMap = new Map();
+    yearPodcasts.forEach(d => {
+        const show = podcastMap.get(d.episodeShowName) || { name: d.episodeShowName, plays: 0, minutes: 0 };
+        show.plays++;
+        show.minutes += d.durationMin;
+        podcastMap.set(d.episodeShowName, show);
+    });
+    const topPodcasts = [...podcastMap.values()]
+        .sort((a, b) => b.plays - a.plays || a.name.localeCompare(b.name))
+        .slice(0, 5);
+    const podcastMinutes = yearPodcasts.reduce((sum, d) => sum + d.durationMin, 0);
     const monthlyTopSongs = monthNames.map((month, index) => ({
         month,
         songs: calculateTopItems(yearData.filter(d => d.month === index), 'trackName', 'plays', 3)
@@ -2291,6 +2303,8 @@ export function calculateWrappedStats(year, fullData) {
         topSong,
         topArtist,
         topAlbum,
+        topPodcasts,
+        podcastMinutes: Math.round(podcastMinutes),
         topSongMain,
         topArtistMain,
         topAlbumMain,

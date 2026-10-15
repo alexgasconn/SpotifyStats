@@ -33,7 +33,7 @@ export function renderWrappedContent() {
         return `<ol class="wc-ranking wc-${type}-ranking">${items.map((item, index) => `
             <li><button type="button" class="wc-rank-button" data-detail-type="${type}" data-detail-name="${esc(item.name)}" data-detail-extra="${esc(item.artistName || '')}">
                 <span class="wc-rank">${String(index + 1).padStart(2, '0')}</span>
-                <span class="wc-rank-info"><strong>${esc(item.name)}</strong><small>${type === 'artist' ? `${number(item.plays)} plays` : esc(item.artistName || '')}</small>
+                <span class="wc-rank-info"><strong>${esc(item.name)}</strong><small>${type === 'artist' ? `${number(item.plays)} plays` : type === 'podcast' ? `${number(item.minutes)} min listened` : esc(item.artistName || '')}</small>
                     <span class="wc-rank-track"><span style="width:${Math.round(item[metric] / max * 100)}%"></span></span>
                 </span>
                 <span class="wc-rank-metric">${number(item[metric])}<small>${metric === 'minutes' ? 'min' : 'plays'}</small></span>
@@ -90,6 +90,7 @@ export function renderWrappedContent() {
         </section>
         <section class="wrapped-section"><div class="wc-section-heading"><h3>Top songs</h3><span>By plays · ${year}</span></div>${rankList(s.topSong, 'track', 'plays')}</section>
         <section class="wrapped-section"><div class="wc-section-heading"><h3>Top artists</h3><span>By plays · ${year}</span></div>${rankList(s.topArtist, 'artist', 'plays')}</section>
+        <section class="wrapped-section"><div class="wc-section-heading"><h3>Top podcasts</h3><span>${Math.floor(s.podcastMinutes / 60)} h ${s.podcastMinutes % 60} min total</span></div>${s.topPodcasts.length ? rankList(s.topPodcasts, 'podcast', 'plays') : '<p class="wc-month-empty">No podcasts played this year.</p>'}</section>
         ${milestonesHtml}
         <section class="wrapped-section"><div class="wc-section-heading"><h3>Top albums</h3><span>By plays · ${year}</span></div>${rankList(s.topAlbum, 'album', 'plays')}</section>
         <section class="wrapped-section wc-year-notes"><h3>Your listening signature</h3>
