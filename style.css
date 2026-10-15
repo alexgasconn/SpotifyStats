@@ -8,6 +8,8 @@ select[multiple] {
 select[multiple] option {
     padding: 0.45rem 0.5rem;
     border-radius: 3px;
+    background-color: var(--gray);
+    color: var(--text);
 }
 
 select[multiple] option:checked {
