@@ -1,5 +1,5 @@
 import { getConfig, getForecastData } from '../store.js';
-import { esc } from '../utils.js';
+import { esc, formatDate } from '../utils.js';
 import { openDetail } from '../detail.js';
 import { forecastPlaySeries } from '../forecast.js';
 import { forecastPlaysChartConfig } from '../charts.js';
@@ -89,7 +89,7 @@ function renderResult() {
     const plays = scope === 'annual' ? period.plays : period.allPlays;
     const hybrid = result.validation.selected === 'hybrid';
     const unit = metric === 'points' ? 'pts' : metric === 'plays' ? 'plays' : 'min';
-    document.getElementById('forecast-status').textContent = `As of ${result.asOf} · ${format(result.simulations)} simulations · ${hybrid ? 'Validated hybrid' : 'Fixed-ranking baseline'}`;
+    document.getElementById('forecast-status').textContent = `As of ${formatDate(result.asOf)} · ${format(result.simulations)} simulations · ${hybrid ? 'Validated hybrid' : 'Fixed-ranking baseline'}`;
     const ranking = period[scope].filter(row => row.p50 > 0).slice(0, 10);
     document.getElementById('forecast-results').innerHTML = `<div class="forecast-kpis">
         <div><span>${selectedYear} ${scope === 'annual' ? 'minutes' : 'all-time minutes'}</span><strong>${format(volume.p50)}</strong><small>P10–P90: ${range(volume)}</small></div>

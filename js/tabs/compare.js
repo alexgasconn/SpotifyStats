@@ -2,7 +2,7 @@
 
 import * as store from '../store.js';
 import * as charts from '../charts.js';
-import { esc } from '../utils.js';
+import { esc, formatDate } from '../utils.js';
 
 let compareArtistA = '';
 let compareArtistB = '';
@@ -44,7 +44,7 @@ export function renderCompareTab() {
 
     const weightRows = cmp.scorecard.map(row => `<div class="compare-weight-row"><span>${esc(row.label)}</span><input type="number" min="0" step="0.25" data-weight-key="${row.key}" value="${Number(compareWeights[row.key] ?? row.weight)}"></div>`).join('');
 
-    const weeklyRows = cmp.duel.weekly.slice().reverse().slice(0, 24).map(w => `<tr><td>${w.week}</td><td>${w.aMinutes}</td><td>${w.bMinutes}</td><td>${w.winner === 'A' ? esc(cmp.artistA) : w.winner === 'B' ? esc(cmp.artistB) : 'Tie'}</td></tr>`).join('');
+    const weeklyRows = cmp.duel.weekly.slice().reverse().slice(0, 24).map(w => `<tr><td>${formatDate(w.week)}</td><td>${w.aMinutes}</td><td>${w.bMinutes}</td><td>${w.winner === 'A' ? esc(cmp.artistA) : w.winner === 'B' ? esc(cmp.artistB) : 'Tie'}</td></tr>`).join('');
 
     // Compute shared tracks/albums overlap
     const aData = data.filter(d => d.artistName === compareArtistA);
@@ -61,10 +61,10 @@ export function renderCompareTab() {
     const platformRows = allPlats.map(p => `<tr><td>${esc(p)}</td><td>${aPlatMap[p] || 0}</td><td>${bPlatMap[p] || 0}</td></tr>`).join('');
 
     // First & last listen dates
-    const aFirst = aData.length ? aData[0].date : '—';
-    const aLast = aData.length ? aData[aData.length - 1].date : '—';
-    const bFirst = bData.length ? bData[0].date : '—';
-    const bLast = bData.length ? bData[bData.length - 1].date : '—';
+    const aFirst = aData.length ? formatDate(aData[0].date) : '—';
+    const aLast = aData.length ? formatDate(aData[aData.length - 1].date) : '—';
+    const bFirst = bData.length ? formatDate(bData[0].date) : '—';
+    const bLast = bData.length ? formatDate(bData[bData.length - 1].date) : '—';
 
     const overlapSection = `
         <div class="chart-container full-width">

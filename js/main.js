@@ -7,6 +7,7 @@ import * as podcasts from './tabs/podcasts.js';
 import { openDetail, closeDetail } from './detail.js';
 import { renderCalendarTab } from './tabs/calendar.js';
 import { renderForecastTab, resetForecast } from './tabs/forecast.js';
+import { formatDate, parseDateInput } from './utils.js';
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -217,8 +218,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!data.length) return;
         const first = data[0].date;
         const last = data[data.length - 1].date;
-        dateFrom.min = first; dateFrom.max = last; dateFrom.value = first;
-        dateTo.min = first; dateTo.max = last; dateTo.value = last;
+        dateFrom.value = formatDate(first);
+        dateTo.value = formatDate(last);
+        dateFrom.setCustomValidity('');
+        dateTo.setCustomValidity('');
     }
 
     // ── POPULATE DROPDOWNS ──────────────────────
@@ -273,11 +276,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── APPLY FILTERS ───────────────────────────
     function applyFilters() {
+        const from = parseDateInput(dateFrom.value);
+        const to = parseDateInput(dateTo.value);
+        dateFrom.setCustomValidity(from === null ? 'Enter a valid date as dd/mm/yyyy.' : '');
+        dateTo.setCustomValidity(to === null ? 'Enter a valid date as dd/mm/yyyy.' : '');
+        if (from === null || to === null) {
+            (from === null ? dateFrom : dateTo).reportValidity();
+            return;
+        }
         showLoading('Applying filters...');
 
         setTimeout(() => {
-            const from = dateFrom.value;
-            const to = dateTo.value;
             const year = yearFilter.value;
             const season = seasonFilter.value;
             const artists = getSearchableMultiSelectValues(artistFilter);
@@ -320,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const trackLabel = entityLabel('track', tracks);
 
             renderFilterPills({
-                from, to, year, season,
+                from: formatDate(from), to: formatDate(to), year, season,
                 artist: artistLabel || null,
                 album: albumLabel || null,
                 track: trackLabel || null,
@@ -372,7 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const elMap = { from: dateFrom, to: dateTo, year: yearFilter, season: seasonFilter, platform: platformFilter, country: countryFilter, timeOfDay: timeOfDayFilter, skipMode: skipFilter };
                     const el = elMap[key];
                     if (el) {
-                        if (el.type === 'date') { const data = window.spotifyData.full; initDateFilters(data); }
+                        if (key === 'from' || key === 'to') { const data = window.spotifyData.full; initDateFilters(data); }
                         else el.value = '';
                     }
                 }

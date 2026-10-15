@@ -3,6 +3,7 @@
 // ─────────────────────────────────────────────
 //  ZIP PROCESSING
 // ─────────────────────────────────────────────
+import { formatDate, formatDateTime } from './utils.js';
 
 // Config is set per-load and used by processEntry via closure
 let _cfg = {
@@ -1870,7 +1871,7 @@ export function calculateTrackDetail(trackName, artistName, fullData) {
 
     // Recent plays
     const recent = sorted.slice(-20).reverse().map(e => ({
-        date: e.ts.toLocaleString(),
+        date: formatDateTime(e.ts),
         minutes: Math.round(e.durationMin * 10) / 10,
         skipped: e.skipped
     }));
@@ -1882,8 +1883,8 @@ export function calculateTrackDetail(trackName, artistName, fullData) {
         totalPlays,
         totalMinutes: Math.round(totalMinutes),
         skipRate,
-        firstPlay: firstPlay.toLocaleDateString(),
-        lastPlay: lastPlay.toLocaleDateString(),
+        firstPlay: formatDate(firstPlay),
+        lastPlay: formatDate(lastPlay),
         avgMinPerPlay: Math.round((totalMinutes / totalPlays) * 10) / 10,
         maxStreakDays: maxStreak,
         yearBreakdown,
@@ -1970,8 +1971,8 @@ export function calculateArtistDetail(artistName, fullData) {
         totalPlays,
         totalMinutes: Math.round(totalMinutes),
         skipRate,
-        firstPlay: firstPlay.toLocaleDateString(),
-        lastPlay: lastPlay.toLocaleDateString(),
+        firstPlay: formatDate(firstPlay),
+        lastPlay: formatDate(lastPlay),
         uniqueTracks,
         uniqueAlbums,
         maxStreakDays: maxStreak,
@@ -2038,8 +2039,8 @@ export function calculateAlbumDetail(albumName, artistName, fullData) {
         totalPlays,
         totalMinutes: Math.round(totalMinutes),
         skipRate,
-        firstPlay: firstPlay.toLocaleDateString(),
-        lastPlay: lastPlay.toLocaleDateString(),
+        firstPlay: formatDate(firstPlay),
+        lastPlay: formatDate(lastPlay),
         uniqueTracks,
         yearBreakdown,
         byHour,
@@ -2109,8 +2110,8 @@ export function calculatePodcastDetail(showName, fullData) {
         totalPlays,
         totalMinutes: Math.round(totalMinutes),
         skipRate,
-        firstPlay: firstPlay.toLocaleDateString(),
-        lastPlay: lastPlay.toLocaleDateString(),
+        firstPlay: formatDate(firstPlay),
+        lastPlay: formatDate(lastPlay),
         uniqueEpisodes,
         avgMinPerPlay: Math.round((totalMinutes / totalPlays) * 10) / 10,
         yearBreakdown,

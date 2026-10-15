@@ -1,4 +1,5 @@
 // js/calendar.js — Calendar tab: year / month / week view with daily play counts
+import { formatDate } from '../utils.js';
 
 // ─── State ───────────────────────────────────
 let calView = 'month';       // 'year' | 'month' | 'week'
@@ -151,8 +152,8 @@ function buildNavigation(dayMap) {
     } else {
         const mon = mondayOfWeek(calCursor);
         const sun = addDays(mon, 6);
-        const fmtShort = d => `${MONTH_NAMES[d.getMonth()].slice(0, 3)} ${d.getDate()}`;
-        label = `${fmtShort(mon)} – ${fmtShort(sun)}, ${sun.getFullYear()}`;
+        const fmtShort = d => formatDate(localDate(d));
+        label = `${fmtShort(mon)} – ${fmtShort(sun)}`;
     }
 
     // Today button
@@ -219,7 +220,7 @@ function buildMiniMonth(year, month, dayMap, globalMax) {
         const info = dayMap[key];
         const plays = info ? info.plays : 0;
         const lvl = getColorLevel(plays, globalMax);
-        const tip = plays ? `${key}: ${plays} plays, ${fmtDuration(info.minutes)}` : key;
+        const tip = plays ? `${formatDate(key)}: ${plays} plays, ${fmtDuration(info.minutes)}` : formatDate(key);
         cells += `<div class="cal-mini-cell ${lvl}" data-date="${key}" title="${tip}">${d}</div>`;
     }
 
@@ -283,7 +284,7 @@ function buildWeekView(dayMap) {
         html += `<div class="cal-week-day ${isToday ? 'cal-today' : ''} ${plays ? 'has-data' : ''}" data-date="${key}">
             <div class="cal-week-day-header">
                 <span class="cal-week-day-name">${DAY_ABBR[i]}</span>
-                <span class="cal-week-day-date">${MONTH_NAMES[d.getMonth()].slice(0, 3)} ${d.getDate()}</span>
+                <span class="cal-week-day-date">${formatDate(key)}</span>
             </div>
             <div class="cal-week-day-stats">
                 <span class="cal-week-plays">${plays ? `${plays} plays` : 'No plays'}</span>
@@ -324,7 +325,6 @@ function buildDayDetail(dayMap, dateKey) {
 
     const d = parseLocal(dateKey);
     const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d.getDay()];
-    const monthName = MONTH_NAMES[d.getMonth()];
 
     // Sort entries by time
     const sorted = [...info.entries].sort((a, b) => a.ts - b.ts);
@@ -339,7 +339,7 @@ function buildDayDetail(dayMap, dateKey) {
         <div class="cal-detail-panel">
             <div class="cal-detail-header">
                 <div>
-                    <h3>${dayName}, ${monthName} ${d.getDate()}, ${d.getFullYear()}</h3>
+                    <h3>${dayName}, ${formatDate(dateKey)}</h3>
                     <div class="cal-detail-summary">
                         ${info.plays} plays &middot; ${fmtDuration(info.minutes)} &middot; ${uniqueTracks} tracks &middot; ${uniqueArtists} artists &middot; ${skipped} skipped
                     </div>

@@ -1,7 +1,7 @@
 // js/tabs/streaks.js — Streaks tab
 
 import * as store from '../store.js';
-import { esc } from '../utils.js';
+import { esc, formatDate } from '../utils.js';
 
 let calendarYear = null; // null = all years
 
@@ -25,11 +25,11 @@ export function renderStreaksTab() {
 
     const heroHtml = `
         <div class="streaks-hero">
-            <div class="streak-card"><div class="sc-icon">🔥</div><div class="sc-value">${streaks.longest}</div><div class="sc-label">Longest Streak</div><div class="sc-dates">${streaks.longestStart || ''} → ${streaks.longestEnd || ''}</div></div>
+            <div class="streak-card"><div class="sc-icon">🔥</div><div class="sc-value">${streaks.longest}</div><div class="sc-label">Longest Streak</div><div class="sc-dates">${formatDate(streaks.longestStart)} → ${formatDate(streaks.longestEnd)}</div></div>
             <div class="streak-card"><div class="sc-icon">⚡</div><div class="sc-value">${streaks.current}</div><div class="sc-label">Current Streak</div><div class="sc-dates">${streaks.current > 0 ? 'Keep it up!' : 'Start today!'}</div></div>
-            <div class="streak-card"><div class="sc-icon">🗓</div><div class="sc-value">${best.bestDay ? best.bestDay.minutes : 0}</div><div class="sc-label">Best Day (min)</div><div class="sc-dates">${best.bestDay ? best.bestDay.date : '—'}</div></div>
-            <div class="streak-card"><div class="sc-icon">📅</div><div class="sc-value">${best.bestWeek ? best.bestWeek.minutes : 0}</div><div class="sc-label">Best Week (min)</div><div class="sc-dates">${best.bestWeek ? best.bestWeek.date : '—'}</div></div>
-            <div class="streak-card"><div class="sc-icon">🌟</div><div class="sc-value">${best.bestMonth ? best.bestMonth.minutes : 0}</div><div class="sc-label">Best Month (min)</div><div class="sc-dates">${best.bestMonth ? best.bestMonth.date : '—'}</div></div>
+            <div class="streak-card"><div class="sc-icon">🗓</div><div class="sc-value">${best.bestDay ? best.bestDay.minutes : 0}</div><div class="sc-label">Best Day (min)</div><div class="sc-dates">${best.bestDay ? formatDate(best.bestDay.date) : '—'}</div></div>
+            <div class="streak-card"><div class="sc-icon">📅</div><div class="sc-value">${best.bestWeek ? best.bestWeek.minutes : 0}</div><div class="sc-label">Best Week (min)</div><div class="sc-dates">${best.bestWeek ? formatDate(best.bestWeek.date) : '—'}</div></div>
+            <div class="streak-card"><div class="sc-icon">🌟</div><div class="sc-value">${best.bestMonth ? best.bestMonth.minutes : 0}</div><div class="sc-label">Best Month (min)</div><div class="sc-dates">${best.bestMonth ? formatDate(best.bestMonth.date) : '—'}</div></div>
             <div class="streak-card"><div class="sc-icon">🏆</div><div class="sc-value">${best.bestYear ? best.bestYear.minutes : 0}</div><div class="sc-label">Best Year (min)</div><div class="sc-dates">${best.bestYear ? best.bestYear.year : '—'}</div></div>
         </div>`;
 
@@ -41,7 +41,7 @@ export function renderStreaksTab() {
                 <span class="sr-rank">${i + 1}</span>
                 <span class="sr-name">${esc(a.name || a.artist)}</span>
                 <span class="sr-val">${a[valKey]} ${unit}</span>
-                <span class="sr-dates" style="font-size:0.7rem;color:var(--text-muted)">${a.from} → ${a.to}</span>
+                <span class="sr-dates" style="font-size:0.7rem;color:var(--text-muted)">${formatDate(a.from)} → ${formatDate(a.to)}</span>
             </div>`).join('');
     }
 
@@ -172,7 +172,7 @@ function buildCalendarHeatmap(calData) {
                 else if (mins > p33) level = 2;
                 else level = 1;
             }
-            const tooltip = mins > 0 ? `${dateStr}: ${Math.round(mins)} min` : dateStr;
+            const tooltip = mins > 0 ? `${formatDate(dateStr)}: ${Math.round(mins)} min` : formatDate(dateStr);
             weekDays.push(`<div class="heatmap-cell ${level > 0 ? 'l' + level : ''}" title="${tooltip}"></div>`);
             current.setDate(current.getDate() + 1);
         }

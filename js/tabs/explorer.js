@@ -1,7 +1,7 @@
 // js/tabs/explorer.js — Enhanced Explorer tab with sessions, stats & advanced table
 
 import * as store from '../store.js';
-import { esc } from '../utils.js';
+import { esc, formatDate, formatDateTime, parseDateInput } from '../utils.js';
 import { openDetail } from '../detail.js';
 
 let explorerData = [];
@@ -77,8 +77,8 @@ export function renderExplorerTab(data) {
             </div>
             <div class="history-filters">
                 <label for="table-platform-filter">Platform<select id="table-platform-filter" data-history-filter="platform"><option value="">All platforms</option>${platforms.map(platform => `<option value="${esc(platform)}">${esc(platform)}</option>`).join('')}</select></label>
-                <label for="table-date-from">From date<input type="date" id="table-date-from" data-history-filter="dateFrom"></label>
-                <label for="table-date-to">To date<input type="date" id="table-date-to" data-history-filter="dateTo"></label>
+                <label for="table-date-from">From date<input type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/yyyy" id="table-date-from" data-history-filter="dateFrom"></label>
+                <label for="table-date-to">To date<input type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/yyyy" id="table-date-to" data-history-filter="dateTo"></label>
                 <label for="table-hour-from">From hour<select id="table-hour-from" data-history-filter="hourFrom"><option value="">Any hour</option>${hourOptions}</select></label>
                 <label for="table-hour-to">To hour<select id="table-hour-to" data-history-filter="hourTo"><option value="">Any hour</option>${hourOptions}</select></label>
                 <label for="table-artist-filter">Artist<input type="search" id="table-artist-filter" data-history-filter="artist" placeholder="All artists"></label>
@@ -128,8 +128,14 @@ export function renderExplorerTab(data) {
     }
 
     container.querySelectorAll('[data-history-filter]').forEach(field => {
-        field.addEventListener(field.tagName === 'SELECT' ? 'change' : 'input', () => {
-            currentFilters[field.dataset.historyFilter] = field.value;
+        const isDate = field.dataset.historyFilter === 'dateFrom' || field.dataset.historyFilter === 'dateTo';
+        field.addEventListener(field.tagName === 'SELECT' || isDate ? 'change' : 'input', () => {
+            const date = isDate ? parseDateInput(field.value) : field.value;
+            if (isDate) {
+                field.setCustomValidity(date === null ? 'Enter a valid date as dd/mm/yyyy.' : '');
+                if (date === null) { field.reportValidity(); return; }
+            }
+            currentFilters[field.dataset.historyFilter] = date;
             currentPage = 0;
             renderDataTable();
         });
@@ -210,7 +216,7 @@ function buildSessionList(sessions) {
 
         return `<div class="session-card">
             <div class="session-header">
-                <span class="session-date">${se.startDate}</span>
+                <span class="session-date">${formatDate(se.startDate)}</span>
                 <span class="session-meta">${se.trackCount} tracks · ${Math.round(se.durationMin)} min</span>
             </div>
             <div class="session-flow">${trackList}${more}</div>
@@ -271,7 +277,7 @@ function renderDataTable() {
 
     const headers = `<thead><tr><th>Date & Time</th><th>Track</th><th>Artist</th><th>Album</th><th>Min</th><th>Platform</th><th>Status</th></tr></thead>`;
     const rows = slice.map(d => `<tr class="${d.skipped ? 'row-skipped' : ''}">
-        <td>${d.ts.toLocaleString()}</td>
+        <td>${formatDateTime(d.ts)}</td>
         <td class="td-track explorer-clickable" data-detail-type="track" data-detail-name="${(d.trackName || '').replace(/"/g, '&quot;')}" data-detail-extra="${(d.artistName || '').replace(/"/g, '&quot;')}">${esc(d.trackName || '')}</td>
         <td class="explorer-clickable" data-detail-type="artist" data-detail-name="${(d.artistName || '').replace(/"/g, '&quot;')}">${esc(d.artistName || '')}</td>
         <td>${esc(d.albumName || '')}</td>
@@ -321,7 +327,7 @@ function exportCSV() {
     const rows = filtered.map(d => {
         const csvEsc = (s) => `"${String(s || '').replace(/"/g, '""')}"`;
         return [
-            csvEsc(d.ts.toISOString()),
+            csvEsc(formatDateTime(d.ts)),
             csvEsc(d.trackName),
             csvEsc(d.artistName),
             csvEsc(d.albumName),

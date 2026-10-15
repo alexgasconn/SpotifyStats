@@ -8,6 +8,45 @@ import json
 from datetime import datetime
 import random
 
+
+def format_iso_week(week_id):
+    return iso_week_start(week_id).strftime('%d/%m/%Y')
+
+
+def iso_week_start(week_id):
+    year, week = str(week_id).split('-W')
+    return datetime.strptime(f'{year}-W{week}-1', '%G-W%V-%u')
+
+
+def format_period_label(period_id):
+    value = str(period_id)
+    if '/' in value:
+        value = value.split('/', 1)[0]
+    if '-W' in value:
+        return format_iso_week(value)
+    if len(value) == 7 and value[4] == '-':
+        value = f'{value}-01'
+    try:
+        return datetime.strptime(value, '%Y-%m-%d').strftime('%d/%m/%Y')
+    except ValueError:
+        return value
+
+
+def date_line_chart(data):
+    frame = data.to_frame(name=data.name or 'Minutes') if isinstance(data, pd.Series) else data.copy()
+    frame.index.name = 'Date'
+    chart_data = frame.reset_index()
+    fig = px.line(chart_data, x='Date', y=list(frame.columns))
+    fig.update_xaxes(tickformat='%d/%m/%Y')
+    fig.update_traces(hovertemplate='%{x|%d/%m/%Y}<br>%{y}<extra></extra>')
+    return fig
+
+
+def format_date_column(data, column):
+    display = data.copy()
+    display[column] = pd.to_datetime(display[column]).dt.strftime('%d/%m/%Y')
+    return display
+
 st.set_page_config(page_title="Spotify Extended Dashboard", layout="wide")
 st.markdown("### 📦 Spotify Extended Streaming History Dashboard")
 
@@ -55,7 +94,8 @@ if uploaded_file:
         "Filter by date range",
         [min_date, max_date],
         min_value=min_date,
-        max_value=max_date
+        max_value=max_date,
+        format="DD/MM/YYYY"
     )
 
     # Ensure dates are in the correct format before filtering
@@ -352,11 +392,15 @@ if uploaded_file:
             selected_track = st.selectbox("Choose a track to see its full history:", track_list)
             if selected_track != "Select a track...":
                 history_df = weekly_results_df[weekly_results_df['master_metadata_track_name'] == selected_track].sort_values('week_id')
-                fig = px.line(history_df, x='week_id', y='rank', title=f'Weekly Rank for "{selected_track}"', markers=True, labels={'week_id': 'Week', 'rank': 'Rank'})
+                history_df['week_start'] = history_df['week_id'].map(iso_week_start)
+                fig = px.line(history_df, x='week_start', y='rank', title=f'Weekly Rank for "{selected_track}"', markers=True, labels={'week_start': 'Week', 'rank': 'Rank'})
+                fig.update_xaxes(tickformat='%d/%m/%Y')
+                fig.update_traces(hovertemplate='%{x|%d/%m/%Y}<br>Rank: %{y}<extra></extra>')
                 fig.update_yaxes(autorange="reversed", tick0=1, dtick=1)
                 st.plotly_chart(fig, use_container_width=True)
                 st.write("#### Weekly Data")
                 history_display = history_df[['week_id', 'rank', 'minutes', 'points']].rename(columns={'week_id': 'Week', 'rank': 'Rank', 'minutes': 'Minutes Listened', 'points': 'Points Awarded'}).set_index('Week')
+                history_display.index = history_display.index.map(format_iso_week)
                 history_display['Minutes Listened'] = history_display['Minutes Listened'].round(1)
                 st.dataframe(history_display, use_container_width=True)
 
@@ -364,7 +408,7 @@ if uploaded_file:
             st.markdown("---")
             st.subheader("📅 View a Specific Week's Ranking")
             unique_weeks = sorted(weekly_results_df['week_id'].unique(), reverse=True)
-            selected_week = st.selectbox("Choose a week to inspect:", unique_weeks)
+            selected_week = st.selectbox("Choose a week to inspect:", unique_weeks, format_func=format_iso_week)
             if selected_week:
                 week_data = weekly_results_df[weekly_results_df['week_id'] == selected_week].sort_values('rank').copy()
                 week_data['Minutes Listened'] = week_data['minutes'].round(1)
@@ -374,11 +418,11 @@ if uploaded_file:
     with tabs[2]:
         st.subheader("📈 Monthly Evolution")
         monthly = filtered_df.set_index('ts').resample('M')['minutes'].sum()
-        st.line_chart(monthly)
+        st.plotly_chart(date_line_chart(monthly), use_container_width=True)
 
         st.subheader("📈 Weekly Evolution")
         weekly = filtered_df.set_index('ts').resample('W')['minutes'].sum()
-        st.line_chart(weekly)
+        st.plotly_chart(date_line_chart(weekly), use_container_width=True)
 
         # Selector for number of artists, albums, and tracks
         num_artists = st.number_input("Number of artists to show", min_value=1, max_value=20, value=5, step=1, key="artist_num")
@@ -390,21 +434,21 @@ if uploaded_file:
         top_artists = filtered_df.groupby('master_metadata_album_artist_name')['minutes'].sum().nlargest(num_artists).index
         artist_monthly = filtered_df[filtered_df['master_metadata_album_artist_name'].isin(top_artists)].copy()
         pivot_artist = artist_monthly.pivot_table(index=pd.Grouper(key='ts', freq='M'), columns='master_metadata_album_artist_name', values='minutes', aggfunc='sum', fill_value=0)
-        st.line_chart(pivot_artist)
+        st.plotly_chart(date_line_chart(pivot_artist), use_container_width=True)
 
         # Monthly evolution by album
         st.subheader("📈 Monthly Evolution by Album")
         top_albums = filtered_df.groupby('master_metadata_album_album_name')['minutes'].sum().nlargest(num_albums).index
         album_monthly = filtered_df[filtered_df['master_metadata_album_album_name'].isin(top_albums)].copy()
         pivot_album = album_monthly.pivot_table(index=pd.Grouper(key='ts', freq='M'), columns='master_metadata_album_album_name', values='minutes', aggfunc='sum', fill_value=0)
-        st.line_chart(pivot_album)
+        st.plotly_chart(date_line_chart(pivot_album), use_container_width=True)
 
         # Monthly evolution by track
         st.subheader("📈 Monthly Evolution by Track")
         top_tracks = filtered_df.groupby('master_metadata_track_name')['minutes'].sum().nlargest(num_tracks).index
         track_monthly = filtered_df[filtered_df['master_metadata_track_name'].isin(top_tracks)].copy()
         pivot_track = track_monthly.pivot_table(index=pd.Grouper(key='ts', freq='M'), columns='master_metadata_track_name', values='minutes', aggfunc='sum', fill_value=0)
-        st.line_chart(pivot_track)
+        st.plotly_chart(date_line_chart(pivot_track), use_container_width=True)
 
     with tabs[3]:
         st.subheader("📊 Distributions")
@@ -708,7 +752,7 @@ if uploaded_file:
             # 1. Busiest Day
             most_listened_day = wrapped_df.groupby('date')['minutes'].sum().idxmax()
             most_listened_day_minutes = wrapped_df.groupby('date')['minutes'].sum().max()
-            facts_cols[0].metric("Busiest Day", most_listened_day.strftime('%b %d'), f"{int(most_listened_day_minutes)} min")
+            facts_cols[0].metric("Busiest Day", most_listened_day.strftime('%d/%m/%Y'), f"{int(most_listened_day_minutes)} min")
             # 2. Unique Artists
             facts_cols[1].metric("Unique Artists", f"{wrapped_df['master_metadata_album_artist_name'].nunique():,}")
             # 3. Unique Tracks
@@ -861,17 +905,17 @@ if uploaded_file:
                 
                 # Agrupar por mes
                 monthly_data = item_df.set_index('ts').resample('ME').agg(minutes=('minutes', 'sum')).reset_index()
-                st.dataframe(monthly_data, use_container_width=True)
+                st.dataframe(format_date_column(monthly_data, 'ts'), use_container_width=True)
                 
                 # Rellenar meses faltantes para un año completo
                 all_months = pd.date_range(start=f'{selected_year}-01-01', end=f'{selected_year}-12-31', freq='ME')
                 monthly_data = monthly_data.set_index('ts').reindex(all_months, fill_value=0).reset_index()
                 monthly_data.rename(columns={'index': 'ts'}, inplace=True)
-                st.dataframe(monthly_data, use_container_width=True)
+                st.dataframe(format_date_column(monthly_data, 'ts'), use_container_width=True)
                 
                 monthly_data['month_name'] = monthly_data['ts'].dt.strftime('%b')
                 monthly_data['cumulative_minutes'] = monthly_data['minutes'].cumsum()
-                st.dataframe(monthly_data, use_container_width=True)
+                st.dataframe(format_date_column(monthly_data, 'ts'), use_container_width=True)
                 
                 fig_bar = px.bar(monthly_data, x='month_name', y='minutes', title=f"Monthly Listening for: {item_value}", labels={'month_name': 'Month', 'minutes': 'Minutes Listened'})
                 st.plotly_chart(fig_bar, use_container_width=True)
@@ -1172,15 +1216,19 @@ if uploaded_file:
         else:
             # Función para crear el gráfico con eje X dinámico
             def create_dynamic_race_chart(df, value_col, item_col, title, xaxis_title):
+                chart_df = df.copy()
+                chart_df['period_label'] = chart_df['period_id'].map(format_period_label)
+                period_labels = chart_df.sort_values('period_id')['period_label'].drop_duplicates().tolist()
                 fig = px.bar(
-                    df,
+                    chart_df,
                     x=value_col,
                     y='rank',
                     orientation='h',
                     color=item_col,
                     text=item_col,
-                    animation_frame='period_id',
+                    animation_frame='period_label',
                     animation_group=item_col,
+                    category_orders={'period_label': period_labels},
                     color_discrete_sequence=px.colors.qualitative.Vivid, # Paleta de colores variada
                     template='plotly_dark'
                 )
@@ -1188,12 +1236,12 @@ if uploaded_file:
                 # *** MEJORA CLAVE: EJE X DINÁMICO POR FOTOGRAMA ***
                 # Iteramos sobre cada frame para ajustar su rango de eje X individualmente.
                 for frame in fig.frames:
-                    max_value_frame = df[df['period_id'] == frame.name]['value'].max()
+                    max_value_frame = chart_df[chart_df['period_label'] == frame.name]['value'].max()
                     frame.layout.xaxis.range = [0, max_value_frame * 1.35] # Damos 35% de espacio extra para la etiqueta
 
                 # Ajustar el estado inicial del gráfico (el primer fotograma)
-                initial_period = df['period_id'].min()
-                max_value_initial = df[df['period_id'] == initial_period]['value'].max()
+                initial_period = period_labels[0]
+                max_value_initial = chart_df[chart_df['period_label'] == initial_period]['value'].max()
                 fig.update_layout(xaxis_range=[0, max_value_initial * 1.35])
 
                 # Estilizado general del gráfico

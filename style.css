@@ -383,7 +383,9 @@ header {
 }
 
 .filter-group input[type="date"],
+.filter-group input.date-input,
 .filter-group select {
+    .filter-group input.date-input:focus {
     background: var(--gray);
     border: 1px solid var(--gray-light);
     color: var(--text);

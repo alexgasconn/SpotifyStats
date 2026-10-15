@@ -1,6 +1,7 @@
 ﻿// js/tabs/podcasts.js — Enhanced Podcasts tab
 
 import { openDetail } from '../detail.js';
+import { formatDate } from '../utils.js';
 
 if (typeof ChartDataLabels !== 'undefined') Chart.register(ChartDataLabels);
 
@@ -126,7 +127,7 @@ export function renderPodcastUI(dataToRender) {
         <span class="disc-val">${fmtTime(y.minutes)}</span></div>`).join('');
 
     // Build binge days
-    const bingeHtml = a.bingeDays.map((d,i) => `<li><span class="il-rank">${i+1}</span><span class="il-name">${d.date}</span><span class="il-val">${fmtTime(d.minutes)}</span></li>`).join('');
+    const bingeHtml = a.bingeDays.map((d,i) => `<li><span class="il-rank">${i+1}</span><span class="il-name">${formatDate(d.date)}</span><span class="il-val">${fmtTime(d.minutes)}</span></li>`).join('');
 
     // Build repeat episodes
     const repeatHtml = a.repeatEpisodes.map((e,i) => `<li data-podcast-show="${escAttr(e.show)}" style="cursor:pointer">
@@ -141,7 +142,7 @@ export function renderPodcastUI(dataToRender) {
     // Discovery timeline
     const recentDiscoveries = a.showTimeline.slice(-12).reverse();
     const discoverHtml = recentDiscoveries.map((sh,i) => `<li data-podcast-show="${escAttr(sh.name)}" style="cursor:pointer">
-        <span class="il-rank">${i+1}</span><span class="il-name">${esc(trunc(sh.name,40))}<br><small style="color:var(--text-muted)">First: ${sh.firstDate}</small></span>
+        <span class="il-rank">${i+1}</span><span class="il-name">${esc(trunc(sh.name,40))}<br><small style="color:var(--text-muted)">First: ${formatDate(sh.firstDate)}</small></span>
         <span class="il-val">${fmtTime(sh.minutes)}</span></li>`).join('');
 
     container.innerHTML = `
@@ -161,7 +162,7 @@ export function renderPodcastUI(dataToRender) {
         <div class="podcast-habits">
             <div class="ph-item"><span class="ph-emoji">🕐</span> You prefer listening at <strong>${s.topHour}</strong></div>
             <div class="ph-item"><span class="ph-emoji">📆</span> Your top podcast day is <strong>${s.topWeekday}</strong></div>
-            ${s.topDay ? `<div class="ph-item"><span class="ph-emoji">🎉</span> Biggest binge: <strong>${fmtTime(s.topDay.minutes)}</strong> on ${s.topDay.date}</div>` : ''}
+            ${s.topDay ? `<div class="ph-item"><span class="ph-emoji">🎉</span> Biggest binge: <strong>${fmtTime(s.topDay.minutes)}</strong> on ${formatDate(s.topDay.date)}</div>` : ''}
         </div>
 
         <div class="charts-grid">
@@ -366,6 +367,6 @@ function getWeekStart(date) {
 
 function fmtLabel(dateStr, unit) {
     if (unit === 'year') return dateStr;
-    if (unit === 'month') return parseLocalDate(`${dateStr}-01`).toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
-    return parseLocalDate(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    if (unit === 'month') return formatDate(`${dateStr}-01`);
+    return formatDate(dateStr);
 }

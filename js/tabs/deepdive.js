@@ -2,6 +2,7 @@
 
 import * as store from '../store.js';
 import { esc } from '../utils.js';
+import { formatDate } from '../utils.js';
 import { openDetail } from '../detail.js';
 
 export function renderDeepDiveTab() {
@@ -87,7 +88,7 @@ export function renderDeepDiveTab() {
             <ul class="insight-list">
                 ${ins.replayKings.slice(0, 10).map((r, i) => `
                     <li data-detail-type="track" data-detail-name="${r.track.replace(/"/g, '&quot;')}" data-detail-extra="${(r.artist || '').replace(/"/g, '&quot;')}">
-                        <span class="il-rank">${i + 1}</span><span class="il-name">${esc(r.track)}</span><span class="il-val">${r.count}x on ${r.date}</span>
+                        <span class="il-rank">${i + 1}</span><span class="il-name">${esc(r.track)}</span><span class="il-val">${r.count}x on ${formatDate(r.date)}</span>
                     </li>`).join('')}
             </ul>
         </div>
@@ -98,7 +99,7 @@ export function renderDeepDiveTab() {
             <p class="insight-desc">The days with the most track plays ever.</p>
             <ul class="insight-list">
                 ${ins.topPlayDays.map((d, i) => `
-                    <li><span class="il-rank">${i + 1}</span><span class="il-name">${d.date}</span><span class="il-val">${d.plays} plays</span></li>
+                    <li><span class="il-rank">${i + 1}</span><span class="il-name">${formatDate(d.date)}</span><span class="il-val">${d.plays} plays</span></li>
                 `).join('')}
             </ul>
         </div>

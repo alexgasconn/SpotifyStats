@@ -2,6 +2,7 @@
 
 import * as store from '../store.js';
 import { esc } from '../utils.js';
+import { formatDate } from '../utils.js';
 
 const gameContainer = document.getElementById('game-container');
 let score = 0;
@@ -372,8 +373,8 @@ function handleTimelineChoice(e) {
     cards[chosen].classList.add(isCorrect ? 'correct' : 'incorrect');
     cards[correct].classList.add('correct');
 
-    cards[0].querySelector('.gc-hidden-val').textContent = `First: ${currentChallenge.dates[0]}`;
-    cards[1].querySelector('.gc-hidden-val').textContent = `First: ${currentChallenge.dates[1]}`;
+    cards[0].querySelector('.gc-hidden-val').textContent = `First: ${formatDate(currentChallenge.dates[0])}`;
+    cards[1].querySelector('.gc-hidden-val').textContent = `First: ${formatDate(currentChallenge.dates[1])}`;
     cards[0].querySelector('.gc-hidden-val').classList.add('revealed');
     cards[1].querySelector('.gc-hidden-val').classList.add('revealed');
 

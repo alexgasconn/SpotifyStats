@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { formatDate, parseDateInput } from '../js/utils.js';
 
 const mainSource = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8').replace(/^import .*$/gm, '');
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
@@ -20,6 +21,8 @@ class Element {
     addEventListener(type, callback) {
         this.listeners.set(type, callback);
     }
+    setCustomValidity(message) { this.validationMessage = message; }
+    reportValidity() { return !this.validationMessage; }
     fire(type) {
         return this.listeners.get(type)?.({ target: this });
     }
@@ -66,7 +69,7 @@ async function dashboard(data = history) {
         addEventListener(type, callback) { if (type === 'DOMContentLoaded') callback(); }
     };
     const context = {
-        document, window: {}, console,
+        document, window: {}, console, formatDate, parseDateInput,
         setTimeout: callback => callback(),
         processSpotifyZip: async () => data
     };
@@ -123,6 +126,24 @@ test('countries are multi-select; selection is a union retained while searching'
     assert.deepEqual(app.ids(), [1, 2, 3, 4, 5]);
     assert.equal(app.get('country-filter-search').value, '');
     assert.equal(app.get('country-filter').selectedOptions.length, 0);
+});
+
+test('global date filters display and accept dd/mm/yyyy while validating impossible dates', async () => {
+    const data = [
+        { ...entry(1, 'ES', 'A', 'One', 'First'), date: '2025-01-02' },
+        { ...entry(2, 'FR', 'A', 'Two', 'Second'), date: '2025-02-03' }
+    ];
+    const app = await dashboard(data);
+    assert.equal(app.get('date-from').value, '02/01/2025');
+    assert.equal(app.get('date-to').value, '03/02/2025');
+    app.get('date-from').value = '03/02/2025';
+    app.get('date-to').value = '03/02/2025';
+    app.apply();
+    assert.deepEqual(app.ids(), [2]);
+    app.get('date-from').value = '31/02/2025';
+    app.apply();
+    assert.deepEqual(app.ids(), [2]);
+    assert.match(app.get('date-from').validationMessage, /dd\/mm\/yyyy/);
 });
 
 for (const [key, value, included, excluded] of [
@@ -206,10 +227,10 @@ test('country bars use a logarithmic X axis and preserve exact counts, including
         destroy() {}
     }
     const context = vm.createContext({
-        Chart, ChartDataLabels: {},
+        Chart, ChartDataLabels: {}, formatDate,
         document: { getElementById: () => ({}), querySelector: () => null }
     });
-    const source = readFileSync(new URL('../js/charts.js', import.meta.url), 'utf8').replace(/^export /gm, '');
+    const source = readFileSync(new URL('../js/charts.js', import.meta.url), 'utf8').replace(/^import .*$/gm, '').replace(/^export /gm, '');
     vm.runInContext(source, context);
     const rows = [{ value: 'ES', count: 10000, percent: 99.99 }, { value: 'FR', count: 1, percent: 0.01 }];
     context.renderBarChart('test', rows, 'Country');

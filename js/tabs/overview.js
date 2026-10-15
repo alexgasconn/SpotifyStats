@@ -2,7 +2,7 @@
 
 import * as store from '../store.js';
 import * as charts from '../charts.js';
-import { esc } from '../utils.js';
+import { esc, formatDate } from '../utils.js';
 import { openDetail } from '../detail.js';
 
 let currentTimelineUnit = 'week';
@@ -41,8 +41,8 @@ function renderKPIs(data) {
         <div class="kpi-card"><div class="kpi-icon">🎤</div><h4>Unique Artists</h4><div class="kpi-value">${fmt(k.uniqueArtists)}</div><div class="kpi-sub">artists discovered</div></div>
         <div class="kpi-card"><div class="kpi-icon">📅</div><h4>Active Days</h4><div class="kpi-value">${fmt(k.activeDays)}</div><div class="kpi-sub">${fmt(k.avgPerDay)} min/day avg</div></div>
         <div class="kpi-card"><div class="kpi-icon">⏭</div><h4>Skip Rate</h4><div class="kpi-value">${k.skipRate}%</div><div class="kpi-sub">${fmt(k.skipped)} skipped plays</div></div>
-        <div class="kpi-card"><div class="kpi-icon">🏆</div><h4>Best Day Ever</h4><div class="kpi-value">${fmt(k.maxDayMinutes)}</div><div class="kpi-sub">min on ${k.maxDay || '—'}</div></div>
-        <div class="kpi-card"><div class="kpi-icon">📆</div><h4>Time Span</h4><div class="kpi-value">${k.years ? k.years.length : '?'}</div><div class="kpi-sub">${k.firstDate || ''} → ${k.lastDate || ''}</div></div>
+        <div class="kpi-card"><div class="kpi-icon">🏆</div><h4>Best Day Ever</h4><div class="kpi-value">${fmt(k.maxDayMinutes)}</div><div class="kpi-sub">min on ${formatDate(k.maxDay) || '—'}</div></div>
+        <div class="kpi-card"><div class="kpi-icon">📆</div><h4>Time Span</h4><div class="kpi-value">${k.years ? k.years.length : '?'}</div><div class="kpi-sub">${formatDate(k.firstDate)} → ${formatDate(k.lastDate)}</div></div>
         <div class="kpi-card"><div class="kpi-icon">🔄</div><h4>Plays / Track</h4><div class="kpi-value">${playsPerTrack}</div><div class="kpi-sub">average replay rate</div></div>
         <div class="kpi-card"><div class="kpi-icon">🌱</div><h4>Discovery Rate</h4><div class="kpi-value">${discoveryRate}%</div><div class="kpi-sub">of plays are unique tracks</div></div>
     `;

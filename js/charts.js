@@ -1,4 +1,5 @@
 // js/charts.js — All chart rendering
+import { formatDate } from './utils.js';
 
 Chart.register(ChartDataLabels);
 
@@ -32,9 +33,9 @@ export function renderTimelineChart(data, unit = 'week') {
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { ...noLegend, tooltip: { callbacks: { label: ctx => `${Math.round(ctx.raw.y).toLocaleString()} min` } } },
+            plugins: { ...noLegend, tooltip: { callbacks: { title: items => formatDate(items[0]?.parsed?.x), label: ctx => `${Math.round(ctx.raw.y).toLocaleString()} min` } } },
             scales: {
-                x: { type: 'time', time: { unit }, ticks: { color: TICK }, grid: { color: GRID } },
+                x: { type: 'time', time: { unit, tooltipFormat: 'dd/MM/yyyy', displayFormats: { day: 'dd/MM/yyyy', week: 'dd/MM/yyyy', month: 'dd/MM/yyyy', year: 'dd/MM/yyyy' } }, ticks: { color: TICK, callback: value => formatDate(value) }, grid: { color: GRID } },
                 y: { ticks: { color: TICK }, grid: { color: GRID }, title: { display: true, text: 'Minutes', color: TICK } }
             }
         }
@@ -168,6 +169,7 @@ export function renderSkipRateTrendChart(data, unit = 'week') {
                 datalabels: false,
                 tooltip: {
                     callbacks: {
+                        title: items => formatDate(items[0]?.parsed?.x),
                         label: ctx => {
                             const raw = ctx.raw || {};
                             return `${raw.y}% skip (${raw.skipped || 0}/${raw.plays || 0} plays)`;
@@ -178,8 +180,8 @@ export function renderSkipRateTrendChart(data, unit = 'week') {
             scales: {
                 x: {
                     type: 'time',
-                    time: { unit },
-                    ticks: { color: TICK },
+                    time: { unit, tooltipFormat: 'dd/MM/yyyy', displayFormats: { day: 'dd/MM/yyyy', week: 'dd/MM/yyyy', month: 'dd/MM/yyyy', year: 'dd/MM/yyyy' } },
+                    ticks: { color: TICK, callback: value => formatDate(value) },
                     grid: { color: GRID }
                 },
                 y: {
@@ -319,7 +321,7 @@ export function renderF1EvolutionChart(labels, series) {
     make('f1-evolution-chart', {
         type: 'line',
         data: {
-            labels,
+            labels: labels.map(label => formatDate(label) || label),
             datasets: series.map((s, i) => ({
                 label: s.subtitle ? `${s.name} — ${s.subtitle}` : s.name,
                 data: s.data,
@@ -366,6 +368,7 @@ export function forecastPlaysChartConfig(series, { cumulative = true } = {}) {
         actual = [...months.values()].map(month => month.actual);
         predicted = [...months.values()].map(month => month.predicted);
     }
+    labels = labels.map(label => formatDate(label) || label);
     return {
         type: cumulative ? 'line' : 'bar',
         data: {
@@ -425,7 +428,7 @@ export function renderCompareRaceChart(canvasId, labels, seriesA, seriesB, artis
     make(canvasId, {
         type: 'line',
         data: {
-            labels,
+            labels: labels.map(label => formatDate(label) || label),
             datasets: [
                 {
                     label: `${artistA} cumulative`,
@@ -477,7 +480,7 @@ export function renderCompareGroupedBar(canvasId, labels, aValues, bValues, arti
     make(canvasId, {
         type: 'bar',
         data: {
-            labels,
+            labels: labels.map(label => formatDate(label) || label),
             datasets: [
                 {
                     label: artistA,

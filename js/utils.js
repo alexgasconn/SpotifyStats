@@ -39,3 +39,35 @@ export function hideLoading() {
 export function fmt(n) {
     return Number(n).toLocaleString();
 }
+
+export function formatDate(value) {
+    if (value === null || value === undefined || value === '') return '';
+    let date;
+    if (value instanceof Date) {
+        date = value;
+    } else {
+        const dateOnly = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        const monthOnly = String(value).match(/^(\d{4})-(\d{2})$/);
+        date = dateOnly ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+            : monthOnly ? new Date(Number(monthOnly[1]), Number(monthOnly[2]) - 1, 1)
+                : new Date(value);
+    }
+    if (!Number.isFinite(date.getTime())) return '';
+    return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+}
+
+export function formatDateTime(value) {
+    const date = value instanceof Date ? value : new Date(value);
+    if (!Number.isFinite(date.getTime())) return '';
+    return `${formatDate(date)} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+export function parseDateInput(value) {
+    const match = String(value || '').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!match) return value ? null : '';
+    const [, dayText, monthText, yearText] = match;
+    const day = Number(dayText), month = Number(monthText), year = Number(yearText);
+    const date = new Date(year, month - 1, day);
+    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+    return `${yearText}-${monthText}-${dayText}`;
+}

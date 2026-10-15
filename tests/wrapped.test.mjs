@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { calculateWrappedStats } from '../js/store.js';
-import { esc } from '../js/utils.js';
+import { esc, formatDate } from '../js/utils.js';
 
 function entry(year, month, trackName, artistName = 'Artist', durationMin = 2) {
     return {
@@ -69,8 +69,8 @@ test('monthly volume chart has only the selected year and retains monthly toolti
         static register() {}
         constructor(canvas, config) { configs.push(config); }
     }
-    const context = vm.createContext({ Chart, ChartDataLabels: {}, document: { getElementById: () => ({}) } });
-    vm.runInContext(readFileSync(new URL('../js/charts.js', import.meta.url), 'utf8').replace(/^export /gm, ''), context);
+    const context = vm.createContext({ Chart, ChartDataLabels: {}, formatDate, document: { getElementById: () => ({}) } });
+    vm.runInContext(readFileSync(new URL('../js/charts.js', import.meta.url), 'utf8').replace(/^import .*$/gm, '').replace(/^export /gm, ''), context);
     const stats = calculateWrappedStats(2025, history());
     context.renderWrappedMonthlyChart(stats.monthlyMinutes, 2025, stats.monthlyPlays);
     const config = configs[0];
@@ -94,7 +94,7 @@ test('Wrapped renders all months, escaped clickable songs, and selected-year cha
     const button = { dataset: { detailName: '<Song & ">', detailType: 'track', detailExtra: 'Artist & "' }, addEventListener(type, callback) { this.click = callback; } };
     const container = { innerHTML: '', querySelectorAll: () => [button] };
     const context = vm.createContext({
-        store: { calculateWrappedStats }, esc,
+        store: { calculateWrappedStats }, esc, formatDate,
         charts: { renderWrappedMonthlyChart: (...args) => calls.push(args) },
         openDetail: (...args) => details.push(args),
         window: { spotifyData: { full: data } },

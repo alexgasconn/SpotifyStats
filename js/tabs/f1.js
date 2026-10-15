@@ -1,6 +1,7 @@
 // js/tabs/f1.js — F1 Championship tab logic
 
 import * as store from '../store.js';
+import { formatDate } from '../utils.js';
 import * as charts from '../charts.js';
 import { esc } from '../utils.js';
 
@@ -103,7 +104,7 @@ export function renderF1Tab() {
                         <label for="f1-week-selector" style="font-size:0.8rem;color:var(--green);font-weight:600;">SELECT WEEK:</label>
                         <select id="f1-week-selector" style="padding:0.5rem 0.8rem;background:var(--gray);color:var(--text);border:1px solid rgba(29,185,84,0.3);border-radius:var(--radius);font-size:0.9rem;cursor:pointer;">
                             <option value="-1" ${f1WeekIndex === -1 ? 'selected' : ''}>Latest Week</option>
-                            ${weeks.map(w => `<option value="${w.idx}" ${f1WeekIndex === w.idx ? 'selected' : ''}>${w.label} (${w.weekStart})</option>`).join('')}
+                            ${weeks.map(w => `<option value="${w.idx}" ${f1WeekIndex === w.idx ? 'selected' : ''}>${w.label} (${formatDate(w.weekStart)})</option>`).join('')}
                         </select>
                         <button id="f1-week-prev" class="secondary-btn" ${activeWeekIndex <= 0 ? 'disabled' : ''}>◀ Prev</button>
                         <button id="f1-week-next" class="secondary-btn" ${activeWeekIndex >= (stats.weekly.length - 1) ? 'disabled' : ''}>Next ▶</button>
@@ -213,7 +214,7 @@ function renderF1WeekDetails(stats, weekIdx, sortState = { key: 'rank', dir: 'as
 
     container.innerHTML = `
         <div style="padding:0.8rem;margin-bottom:1rem;background:rgba(29,185,84,0.08);border-radius:var(--radius);text-align:center;">
-            <div style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Week of <strong style="color:var(--green);font-size:1rem">${targetWeek.weekStart}</strong> ${weekLabel}</div>
+            <div style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Week of <strong style="color:var(--green);font-size:1rem">${formatDate(targetWeek.weekStart)}</strong> ${weekLabel}</div>
         </div>
         <table class="f1-standings f1-standings-week"><thead><tr>
             <th class="f1-sortable-th" data-f1-table="week" data-sort-key="rank">#${weekSortMark('rank')}</th>
@@ -251,7 +252,7 @@ function buildF1SeasonHighlights(stats) {
 
     const items = [];
     items.push({ icon: '👑', text: `<strong>${esc(top.name)}</strong> dominated with ${dominancePct}% win rate (${top.weeksWon}/${totalWeeks} weeks)` });
-    if (closestWeek) items.push({ icon: '⚔️', text: `Closest battle: Week ${closestWeek.idx} (${closestWeek.start}) — ${esc(closestWeek.p1)} vs ${esc(closestWeek.p2)}` });
+    if (closestWeek) items.push({ icon: '⚔️', text: `Closest battle: Week ${closestWeek.idx} (${formatDate(closestWeek.start)}) — ${esc(closestWeek.p1)} vs ${esc(closestWeek.p2)}` });
     if (contenders) items.push({ icon: '🏎️', text: `Top contenders: ${contenders}` });
     items.push({ icon: '📊', text: `Season lasted <strong>${totalWeeks}</strong> scored weeks` });
 

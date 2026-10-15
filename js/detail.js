@@ -3,6 +3,7 @@
 import * as store from './store.js';
 import { forecastPlaySeries } from './forecast.js';
 import { forecastPlaysChartConfig } from './charts.js';
+import { formatDate } from './utils.js';
 
 let detailChartInstances = {};
 let detailForecastWorker = null;
@@ -254,7 +255,7 @@ function showDetailForecastError(message, fullData) {
 function renderDetailForecast(cached = false) {
     const context = detailForecastContext;
     const result = context.result;
-    document.getElementById('detail-forecast-content').innerHTML = `<div class="forecast-status" role="status">As of ${result.asOf} · ${result.simulations.toLocaleString()} simulations · ${result.validation.selected === 'hybrid' ? 'Validated hybrid' : 'Fixed-share baseline'}${cached ? ' · Cached' : ''}</div>
+    document.getElementById('detail-forecast-content').innerHTML = `<div class="forecast-status" role="status">As of ${formatDate(result.asOf)} · ${result.simulations.toLocaleString()} simulations · ${result.validation.selected === 'hybrid' ? 'Validated hybrid' : 'Fixed-share baseline'}${cached ? ' · Cached' : ''}</div>
         <div class="forecast-controls">
             <label for="detail-forecast-year">Year<select id="detail-forecast-year">${result.periods.map(period => `<option value="${period.year}" ${period.year === context.year ? 'selected' : ''}>${period.year}</option>`).join('')}</select></label>
             <label for="detail-forecast-scope">Totals<select id="detail-forecast-scope"><option value="annual" ${context.scope === 'annual' ? 'selected' : ''}>Selected year only</option><option value="allTime" ${context.scope === 'allTime' ? 'selected' : ''}>All time to year end</option></select></label>
@@ -313,7 +314,7 @@ function renderDetailCharts(s) {
     // Timeline chart
     if (s.monthlyTimeline && s.monthlyTimeline.length > 0) {
         const valKey = s.type === 'artist' || s.type === 'album' || s.type === 'podcast' ? 'minutes' : 'plays';
-        const labels = s.monthlyTimeline.map(m => m.month);
+        const labels = s.monthlyTimeline.map(m => formatDate(m.month));
         const values = s.monthlyTimeline.map(m => m[valKey]);
 
         createDetailChart('detail-timeline-chart', {

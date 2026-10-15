@@ -2,7 +2,7 @@
 
 import * as store from '../store.js';
 import * as charts from '../charts.js';
-import { esc } from '../utils.js';
+import { esc, formatDate } from '../utils.js';
 import { openDetail } from '../detail.js';
 
 export function populateWrappedFilter() {
@@ -100,7 +100,7 @@ export function renderWrappedContent() {
             <div><dt>New discoveries</dt><dd>${number(s.newArtists)} artists · ${number(s.newTracks)} songs</dd></div>
             <div><dt>Top song share</dt><dd>${s.obsessionShare}% of plays</dd></div>
             <div><dt>Top 5 artist share</dt><dd>${s.loyaltyTop5Share}% of minutes</dd></div>
-            <div><dt>Best listening day</dt><dd>${s.topDay ? `${s.topDay.date} · ${number(s.topDay.minutes)} min` : '—'}</dd></div></dl>
+            <div><dt>Best listening day</dt><dd>${s.topDay ? `${formatDate(s.topDay.date)} · ${number(s.topDay.minutes)} min` : '—'}</dd></div></dl>
         </section>
     `;
 

@@ -312,7 +312,7 @@ test('monthly chart uses bars with one category per month; cumulative stays a da
         const monthly = forecastPlaysChartConfig(forecastPlaySeries(fixture, { cumulative: false }), { cumulative: false });
         assert.equal(monthly.type, 'bar');
         assert.equal(monthly.data.labels.length, 12);
-        const october = monthly.data.labels.indexOf('2025-10');
+        const october = monthly.data.labels.indexOf('01/10/2025');
         assert.equal(monthly.data.datasets[0].data[october], 4);
         assert.equal(monthly.data.datasets[1].data[october], 10);
         assert.equal(monthly.data.datasets[1].data[0], null);
