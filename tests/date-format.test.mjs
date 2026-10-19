@@ -4,7 +4,7 @@ import { formatDate, formatDateTime, parseDateInput } from '../js/utils.js';
 
 test('dates use dd/mm/yyyy regardless of input representation', () => {
     assert.equal(formatDate('2025-01-02'), '02/01/2025');
-        assert.equal(formatDate('2025-01'), '01/01/2025');
+    assert.equal(formatDate('2025-01'), '01/01/2025');
     assert.equal(formatDate(new Date(2025, 0, 2)), '02/01/2025');
     assert.equal(formatDateTime(new Date(2025, 0, 2, 3, 4)), '02/01/2025 03:04');
 });

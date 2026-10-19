@@ -33,7 +33,8 @@ def format_period_label(period_id):
 
 
 def date_line_chart(data):
-    frame = data.to_frame(name=data.name or 'Minutes') if isinstance(data, pd.Series) else data.copy()
+    frame = data.to_frame(name=data.name or 'Minutes') if isinstance(
+        data, pd.Series) else data.copy()
     frame.index.name = 'Date'
     chart_data = frame.reset_index()
     fig = px.line(chart_data, x='Date', y=list(frame.columns))
@@ -47,22 +48,25 @@ def format_date_column(data, column):
     display[column] = pd.to_datetime(display[column]).dt.strftime('%d/%m/%Y')
     return display
 
+
 st.set_page_config(page_title="Spotify Extended Dashboard", layout="wide")
 st.markdown("### 📦 Spotify Extended Streaming History Dashboard")
 
 
 # UPLOAD ZIP FILE
-uploaded_file = st.sidebar.file_uploader("Upload your ZIP file with Spotify data", type="zip")
+uploaded_file = st.sidebar.file_uploader(
+    "Upload your ZIP file with Spotify data", type="zip")
 
 if uploaded_file:
     with zipfile.ZipFile(uploaded_file, 'r') as archive:
         # The folder name can vary, so we look for the pattern
-        json_files = [f for f in archive.namelist() if f.startswith('MyData/endsong_') and f.endswith('.json')]
+        json_files = [f for f in archive.namelist() if f.startswith(
+            'MyData/endsong_') and f.endswith('.json')]
         # Fallback for the old naming convention if the new one is not found
         if not json_files:
             target_dir = "Spotify Extended Streaming History"
-            json_files = [f for f in archive.namelist() if f.startswith(target_dir) and f.endswith('.json')]
-
+            json_files = [f for f in archive.namelist() if f.startswith(
+                target_dir) and f.endswith('.json')]
 
         if not json_files:
             st.error("No 'endsong_...json' or 'Spotify Extended Streaming History' files found in the ZIP archive. Please make sure you have the correct file from Spotify.")
@@ -78,11 +82,12 @@ if uploaded_file:
 
     # Basic preprocessing
     df['ts'] = pd.to_datetime(df['ts'], errors='coerce')
-    df = df.dropna(subset=['ts', 'master_metadata_track_name']) # Ensure track name is not null
+    # Ensure track name is not null
+    df = df.dropna(subset=['ts', 'master_metadata_track_name'])
     df['minutes'] = df['ms_played'] / 60000
     df['year'] = df['ts'].dt.year
     df['month'] = df['ts'].dt.month
-    df['weekday'] = df['ts'].dt.dayofweek # Monday=0, Sunday=6
+    df['weekday'] = df['ts'].dt.dayofweek  # Monday=0, Sunday=6
     df['hour'] = df['ts'].dt.hour
     df['date'] = df['ts'].dt.date
 
@@ -106,21 +111,27 @@ if uploaded_file:
 
     df = df[(df['date'] >= start_date) & (df['date'] <= end_date)]
 
-
-    artist_filter = st.sidebar.multiselect("Filter by artist", df['master_metadata_album_artist_name'].dropna().unique())
-    album_filter = st.sidebar.multiselect("Filter by album", df['master_metadata_album_album_name'].dropna().unique())
-    track_filter = st.sidebar.multiselect("Filter by track", df['master_metadata_track_name'].dropna().unique())
+    artist_filter = st.sidebar.multiselect(
+        "Filter by artist", df['master_metadata_album_artist_name'].dropna().unique())
+    album_filter = st.sidebar.multiselect(
+        "Filter by album", df['master_metadata_album_album_name'].dropna().unique())
+    track_filter = st.sidebar.multiselect(
+        "Filter by track", df['master_metadata_track_name'].dropna().unique())
 
     filtered_df = df.copy()
     if artist_filter:
-        filtered_df = filtered_df[filtered_df['master_metadata_album_artist_name'].isin(artist_filter)]
+        filtered_df = filtered_df[filtered_df['master_metadata_album_artist_name'].isin(
+            artist_filter)]
     if album_filter:
-        filtered_df = filtered_df[filtered_df['master_metadata_album_album_name'].isin(album_filter)]
+        filtered_df = filtered_df[filtered_df['master_metadata_album_album_name'].isin(
+            album_filter)]
     if track_filter:
-        filtered_df = filtered_df[filtered_df['master_metadata_track_name'].isin(track_filter)]
+        filtered_df = filtered_df[filtered_df['master_metadata_track_name'].isin(
+            track_filter)]
 
     # NUEVO: Lista de pestañas actualizada
-    tabs = st.tabs(["Top", "🏆 Weekly Ranking", "Temporal", "Distributions", "Heatmaps", "Streaks", "Artists & Albums", "Summary", "Game", "🌟 Your Wrapped", "🏁 Ranking Race"])
+    tabs = st.tabs(["Top", "🏆 Weekly Ranking", "Temporal", "Distributions", "Heatmaps",
+                   "Streaks", "Artists & Albums", "Summary", "Game", "🌟 Your Wrapped", "🏁 Ranking Race"])
 
     with tabs[0]:
         st.subheader("🏆 Your All-Time & Filtered Top Lists")
@@ -153,7 +164,8 @@ if uploaded_file:
                     text_auto='.0f',
                     title=f"Top {TOP_N} Tracks by Listening Time"
                 )
-                fig_tracks.update_traces(textposition='outside', marker_color='#1DB954')
+                fig_tracks.update_traces(
+                    textposition='outside', marker_color='#1DB954')
                 fig_tracks.update_layout(
                     yaxis_title=None,
                     xaxis_title="Total Minutes",
@@ -164,14 +176,16 @@ if uploaded_file:
 
                 # Tabla con detalles adicionales
                 st.markdown("###### Detailed View")
-                display_tracks = top_tracks_df[['master_metadata_track_name', 'master_metadata_album_artist_name', 'play_count', 'total_minutes']]
-                display_tracks.columns = ['Track', 'Artist', 'Plays', 'Minutes']
-                display_tracks['Minutes'] = display_tracks['Minutes'].round(0).astype(int)
+                display_tracks = top_tracks_df[[
+                    'master_metadata_track_name', 'master_metadata_album_artist_name', 'play_count', 'total_minutes']]
+                display_tracks.columns = [
+                    'Track', 'Artist', 'Plays', 'Minutes']
+                display_tracks['Minutes'] = display_tracks['Minutes'].round(
+                    0).astype(int)
                 display_tracks.index = range(1, len(display_tracks) + 1)
                 st.dataframe(display_tracks, use_container_width=True)
             else:
                 st.warning("No track data available for the selected filters.")
-
 
         # --- COLUMNA 2: TOP ARTISTS ---
         with col2:
@@ -186,14 +200,16 @@ if uploaded_file:
             # Gráfico de barras horizontal con Plotly
             if not top_artists_df.empty:
                 fig_artists = px.bar(
-                    top_artists_df.sort_values('total_minutes', ascending=True),
+                    top_artists_df.sort_values(
+                        'total_minutes', ascending=True),
                     x='total_minutes',
                     y='master_metadata_album_artist_name',
                     orientation='h',
                     text_auto='.0f',
                     title=f"Top {TOP_N} Artists by Listening Time"
                 )
-                fig_artists.update_traces(textposition='outside', marker_color='#1DB954')
+                fig_artists.update_traces(
+                    textposition='outside', marker_color='#1DB954')
                 fig_artists.update_layout(
                     yaxis_title=None,
                     xaxis_title="Total Minutes",
@@ -204,12 +220,15 @@ if uploaded_file:
 
                 # Tabla con detalles adicionales
                 st.markdown("###### Detailed View")
-                display_artists = top_artists_df.rename(columns={'master_metadata_album_artist_name': 'Artist', 'unique_tracks': 'Unique Tracks', 'total_minutes': 'Minutes'})
-                display_artists['Minutes'] = display_artists['Minutes'].round(0).astype(int)
+                display_artists = top_artists_df.rename(
+                    columns={'master_metadata_album_artist_name': 'Artist', 'unique_tracks': 'Unique Tracks', 'total_minutes': 'Minutes'})
+                display_artists['Minutes'] = display_artists['Minutes'].round(
+                    0).astype(int)
                 display_artists.index = range(1, len(display_artists) + 1)
                 st.dataframe(display_artists, use_container_width=True)
             else:
-                st.warning("No artist data available for the selected filters.")
+                st.warning(
+                    "No artist data available for the selected filters.")
 
         # --- COLUMNA 3: TOP ALBUMS ---
         with col3:
@@ -231,7 +250,8 @@ if uploaded_file:
                     text_auto='.0f',
                     title=f"Top {TOP_N} Albums by Listening Time"
                 )
-                fig_albums.update_traces(textposition='outside', marker_color='#1DB954')
+                fig_albums.update_traces(
+                    textposition='outside', marker_color='#1DB954')
                 fig_albums.update_layout(
                     yaxis_title=None,
                     xaxis_title="Total Minutes",
@@ -242,14 +262,16 @@ if uploaded_file:
 
                 # Tabla con detalles adicionales
                 st.markdown("###### Detailed View")
-                display_albums = top_albums_df.rename(columns={'master_metadata_album_album_name': 'Album', 'master_metadata_album_artist_name': 'Artist', 'unique_tracks': 'Unique Tracks', 'total_minutes': 'Minutes'})
-                display_albums['Minutes'] = display_albums['Minutes'].round(0).astype(int)
+                display_albums = top_albums_df.rename(
+                    columns={'master_metadata_album_album_name': 'Album', 'master_metadata_album_artist_name': 'Artist', 'unique_tracks': 'Unique Tracks', 'total_minutes': 'Minutes'})
+                display_albums['Minutes'] = display_albums['Minutes'].round(
+                    0).astype(int)
                 display_albums.index = range(1, len(display_albums) + 1)
                 st.dataframe(display_albums, use_container_width=True)
             else:
                 st.warning("No album data available for the selected filters.")
 
-    ## NUEVO: Pestaña completa de Ranking Semanal con récords y historial por canción
+    # NUEVO: Pestaña completa de Ranking Semanal con récords y historial por canción
     # NUEVO: Pestaña completa de Ranking Semanal con analytics de "data nerd", manejo de empates y formato mejorado
     with tabs[1]:
         st.subheader("🏆 Weekly Ranking Leaderboard (F1 Style)")
@@ -262,31 +284,43 @@ if uploaded_file:
 
         @st.cache_data(show_spinner="Calculating weekly rankings...")
         def calculate_weekly_ranking(df):
-            track_artist_map = df.drop_duplicates(subset=['master_metadata_track_name'])[['master_metadata_track_name', 'master_metadata_album_artist_name']]
+            track_artist_map = df.drop_duplicates(subset=['master_metadata_track_name'])[
+                ['master_metadata_track_name', 'master_metadata_album_artist_name']]
             df_copy = df.copy()
-            df_copy['week_id'] = df_copy['ts'].dt.isocalendar().year.astype(str) + '-W' + df_copy['ts'].dt.isocalendar().week.astype(str).str.zfill(2)
-            weekly_minutes = df_copy.groupby(['week_id', 'master_metadata_track_name'])['minutes'].sum().reset_index()
-            points_map = {1: 25, 2: 18, 3: 15, 4: 12, 5: 10, 6: 8, 7: 6, 8: 4, 9: 2, 10: 1}
+            df_copy['week_id'] = df_copy['ts'].dt.isocalendar().year.astype(
+                str) + '-W' + df_copy['ts'].dt.isocalendar().week.astype(str).str.zfill(2)
+            weekly_minutes = df_copy.groupby(['week_id', 'master_metadata_track_name'])[
+                'minutes'].sum().reset_index()
+            points_map = {1: 25, 2: 18, 3: 15, 4: 12,
+                          5: 10, 6: 8, 7: 6, 8: 4, 9: 2, 10: 1}
+
             def rank_and_score(group):
                 top10 = group.nlargest(10, 'minutes').copy()
                 top10['rank'] = range(1, len(top10) + 1)
                 top10['points'] = top10['rank'].map(points_map)
                 return top10
-            weekly_ranking_df = weekly_minutes.groupby('week_id', group_keys=False).apply(rank_and_score)
-            weekly_ranking_df = pd.merge(weekly_ranking_df, track_artist_map, on='master_metadata_track_name', how='left')
+            weekly_ranking_df = weekly_minutes.groupby(
+                'week_id', group_keys=False).apply(rank_and_score)
+            weekly_ranking_df = pd.merge(
+                weekly_ranking_df, track_artist_map, on='master_metadata_track_name', how='left')
             return weekly_ranking_df
 
         weekly_results_df = calculate_weekly_ranking(filtered_df)
 
         if weekly_results_df.empty:
-            st.warning("Not enough listening data in the selected period to generate weekly rankings.")
+            st.warning(
+                "Not enough listening data in the selected period to generate weekly rankings.")
         else:
             st.markdown("---")
             st.subheader("🏁 All-Time Points Leaderboard")
-            overall_scores = weekly_results_df.groupby('master_metadata_track_name').agg(total_points=('points', 'sum'), total_minutes=('minutes', 'sum')).sort_values(by='total_points', ascending=False).reset_index()
-            overall_scores.rename(columns={'master_metadata_track_name': 'Track Name', 'total_points': 'Total Points', 'total_minutes': 'Total Minutes'}, inplace=True)
-            overall_scores['Total Minutes'] = overall_scores['Total Minutes'].round(1)
-            overall_scores = overall_scores[['Track Name', 'Total Points', 'Total Minutes']]
+            overall_scores = weekly_results_df.groupby('master_metadata_track_name').agg(total_points=(
+                'points', 'sum'), total_minutes=('minutes', 'sum')).sort_values(by='total_points', ascending=False).reset_index()
+            overall_scores.rename(columns={'master_metadata_track_name': 'Track Name',
+                                  'total_points': 'Total Points', 'total_minutes': 'Total Minutes'}, inplace=True)
+            overall_scores['Total Minutes'] = overall_scores['Total Minutes'].round(
+                1)
+            overall_scores = overall_scores[[
+                'Track Name', 'Total Points', 'Total Minutes']]
             overall_scores.index += 1
             st.dataframe(overall_scores, use_container_width=True)
 
@@ -296,124 +330,165 @@ if uploaded_file:
 
             # --- Funciones de ayuda para calcular récords y manejar empates ---
             def get_ties(series):
-                if series.empty: return ("N/A", 0)
+                if series.empty:
+                    return ("N/A", 0)
                 max_value = series.max()
                 tied_songs = series[series == max_value].index.tolist()
                 return (", ".join(tied_songs), max_value)
 
             def get_max_consecutive_streak_series(df, rank_threshold):
                 filtered_df = df[df['rank'] <= rank_threshold].copy()
-                if filtered_df.empty: return pd.Series(dtype='int64')
+                if filtered_df.empty:
+                    return pd.Series(dtype='int64')
+
                 def calculate_streaks(group):
                     group = group.sort_values('week_id')
-                    group['week_num'] = group['week_id'].str.split('-W').str[1].astype(int)
+                    group['week_num'] = group['week_id'].str.split(
+                        '-W').str[1].astype(int)
                     streaks = (group['week_num'].diff() != 1).cumsum()
                     return streaks.value_counts().max()
                 return filtered_df.groupby('master_metadata_track_name').apply(calculate_streaks)
 
             def display_record(column, title, songs_str, value_str):
                 column.markdown(f"**{title}**")
-                column.markdown(f"<small>{songs_str}</small>", unsafe_allow_html=True)
+                column.markdown(
+                    f"<small>{songs_str}</small>", unsafe_allow_html=True)
                 column.markdown(f"### {value_str}")
 
             with st.expander("👑 The GOATs (Greatest of All Time - Track Records)", expanded=True):
                 st.markdown("#### Most Total Weeks In...")
                 col1, col2, col3, col4 = st.columns(4)
-                
+
                 # Most Weeks in Top 1
-                counts_t1 = weekly_results_df[weekly_results_df['rank'] <= 1].groupby('master_metadata_track_name').size()
+                counts_t1 = weekly_results_df[weekly_results_df['rank'] <= 1].groupby(
+                    'master_metadata_track_name').size()
                 songs_t1, value_t1 = get_ties(counts_t1)
-                display_record(col1, "Top 1", songs_t1, f"{int(value_t1)} weeks")
+                display_record(col1, "Top 1", songs_t1,
+                               f"{int(value_t1)} weeks")
 
                 # Most Weeks in Top 3
-                counts_t3 = weekly_results_df[weekly_results_df['rank'] <= 3].groupby('master_metadata_track_name').size()
+                counts_t3 = weekly_results_df[weekly_results_df['rank'] <= 3].groupby(
+                    'master_metadata_track_name').size()
                 songs_t3, value_t3 = get_ties(counts_t3)
-                display_record(col2, "Top 3", songs_t3, f"{int(value_t3)} weeks")
+                display_record(col2, "Top 3", songs_t3,
+                               f"{int(value_t3)} weeks")
 
                 # Most Weeks in Top 5
-                counts_t5 = weekly_results_df[weekly_results_df['rank'] <= 5].groupby('master_metadata_track_name').size()
+                counts_t5 = weekly_results_df[weekly_results_df['rank'] <= 5].groupby(
+                    'master_metadata_track_name').size()
                 songs_t5, value_t5 = get_ties(counts_t5)
-                display_record(col3, "Top 5", songs_t5, f"{int(value_t5)} weeks")
+                display_record(col3, "Top 5", songs_t5,
+                               f"{int(value_t5)} weeks")
 
                 # Most Weeks in Top 10
-                counts_t10 = weekly_results_df.groupby('master_metadata_track_name').size()
+                counts_t10 = weekly_results_df.groupby(
+                    'master_metadata_track_name').size()
                 songs_t10, value_t10 = get_ties(counts_t10)
-                display_record(col4, "Top 10", songs_t10, f"{int(value_t10)} weeks")
-                
+                display_record(col4, "Top 10", songs_t10,
+                               f"{int(value_t10)} weeks")
+
                 st.divider()
-                
+
                 st.markdown("#### Most Consecutive Weeks In...")
                 colA, colB, colC, colD = st.columns(4)
 
                 # Most Consecutive Weeks in Top 1
-                streaks_t1 = get_max_consecutive_streak_series(weekly_results_df, 1)
+                streaks_t1 = get_max_consecutive_streak_series(
+                    weekly_results_df, 1)
                 songs_s_t1, value_s_t1 = get_ties(streaks_t1)
-                display_record(colA, "Top 1", songs_s_t1, f"{int(value_s_t1)} weeks")
+                display_record(colA, "Top 1", songs_s_t1,
+                               f"{int(value_s_t1)} weeks")
 
                 # Most Consecutive Weeks in Top 3
-                streaks_t3 = get_max_consecutive_streak_series(weekly_results_df, 3)
+                streaks_t3 = get_max_consecutive_streak_series(
+                    weekly_results_df, 3)
                 songs_s_t3, value_s_t3 = get_ties(streaks_t3)
-                display_record(colB, "Top 3", songs_s_t3, f"{int(value_s_t3)} weeks")
+                display_record(colB, "Top 3", songs_s_t3,
+                               f"{int(value_s_t3)} weeks")
 
                 # Most Consecutive Weeks in Top 5
-                streaks_t5 = get_max_consecutive_streak_series(weekly_results_df, 5)
+                streaks_t5 = get_max_consecutive_streak_series(
+                    weekly_results_df, 5)
                 songs_s_t5, value_s_t5 = get_ties(streaks_t5)
-                display_record(colC, "Top 5", songs_s_t5, f"{int(value_s_t5)} weeks")
+                display_record(colC, "Top 5", songs_s_t5,
+                               f"{int(value_s_t5)} weeks")
 
                 # Most Consecutive Weeks in Top 10
-                streaks_t10 = get_max_consecutive_streak_series(weekly_results_df, 10)
+                streaks_t10 = get_max_consecutive_streak_series(
+                    weekly_results_df, 10)
                 songs_s_t10, value_s_t10 = get_ties(streaks_t10)
-                display_record(colD, "Top 10", songs_s_t10, f"{int(value_s_t10)} weeks")
-
+                display_record(colD, "Top 10", songs_s_t10,
+                               f"{int(value_s_t10)} weeks")
 
             with st.expander("👩‍🎤 Artist Dominance & Chart Volatility Records"):
                 col1, col2, col3 = st.columns(3)
                 # Constructor's Champion
-                constructor_points = weekly_results_df.groupby('master_metadata_album_artist_name')['points'].sum()
+                constructor_points = weekly_results_df.groupby(
+                    'master_metadata_album_artist_name')['points'].sum()
                 songs_c, value_c = get_ties(constructor_points)
-                display_record(col1, "Constructor's Champion", songs_c, f"{int(value_c)} points")
-                
+                display_record(col1, "Constructor's Champion",
+                               songs_c, f"{int(value_c)} points")
+
                 # Most Chart Hits
-                artist_chart_hits = weekly_results_df.groupby('master_metadata_album_artist_name')['master_metadata_track_name'].nunique()
+                artist_chart_hits = weekly_results_df.groupby('master_metadata_album_artist_name')[
+                    'master_metadata_track_name'].nunique()
                 songs_h, value_h = get_ties(artist_chart_hits)
-                display_record(col2, "Most Chart Hits (Artist)", songs_h, f"{int(value_h)} songs")
+                display_record(col2, "Most Chart Hits (Artist)",
+                               songs_h, f"{int(value_h)} songs")
 
                 # Highest Debut
-                debuts = weekly_results_df.loc[weekly_results_df.groupby('master_metadata_track_name')['week_id'].idxmin()]
+                debuts = weekly_results_df.loc[weekly_results_df.groupby(
+                    'master_metadata_track_name')['week_id'].idxmin()]
                 min_rank = debuts['rank'].min()
-                highest_debut_songs = debuts[debuts['rank'] == min_rank]['master_metadata_track_name'].tolist()
-                display_record(col3, "Highest Debut of All Time", ", ".join(highest_debut_songs), f"#{int(min_rank)}")
-
+                highest_debut_songs = debuts[debuts['rank'] ==
+                                             min_rank]['master_metadata_track_name'].tolist()
+                display_record(col3, "Highest Debut of All Time", ", ".join(
+                    highest_debut_songs), f"#{int(min_rank)}")
 
             # --- SECCIÓN DE HISTORIAL POR CANCIÓN ---
             st.markdown("---")
             st.subheader("📜 Track Position History")
-            track_list = ["Select a track..."] + sorted(weekly_results_df['master_metadata_track_name'].unique())
-            selected_track = st.selectbox("Choose a track to see its full history:", track_list)
+            track_list = ["Select a track..."] + \
+                sorted(
+                    weekly_results_df['master_metadata_track_name'].unique())
+            selected_track = st.selectbox(
+                "Choose a track to see its full history:", track_list)
             if selected_track != "Select a track...":
-                history_df = weekly_results_df[weekly_results_df['master_metadata_track_name'] == selected_track].sort_values('week_id')
-                history_df['week_start'] = history_df['week_id'].map(iso_week_start)
-                fig = px.line(history_df, x='week_start', y='rank', title=f'Weekly Rank for "{selected_track}"', markers=True, labels={'week_start': 'Week', 'rank': 'Rank'})
+                history_df = weekly_results_df[weekly_results_df['master_metadata_track_name'] == selected_track].sort_values(
+                    'week_id')
+                history_df['week_start'] = history_df['week_id'].map(
+                    iso_week_start)
+                fig = px.line(history_df, x='week_start', y='rank', title=f'Weekly Rank for "{selected_track}"', markers=True, labels={
+                              'week_start': 'Week', 'rank': 'Rank'})
                 fig.update_xaxes(tickformat='%d/%m/%Y')
-                fig.update_traces(hovertemplate='%{x|%d/%m/%Y}<br>Rank: %{y}<extra></extra>')
+                fig.update_traces(
+                    hovertemplate='%{x|%d/%m/%Y}<br>Rank: %{y}<extra></extra>')
                 fig.update_yaxes(autorange="reversed", tick0=1, dtick=1)
                 st.plotly_chart(fig, use_container_width=True)
                 st.write("#### Weekly Data")
-                history_display = history_df[['week_id', 'rank', 'minutes', 'points']].rename(columns={'week_id': 'Week', 'rank': 'Rank', 'minutes': 'Minutes Listened', 'points': 'Points Awarded'}).set_index('Week')
-                history_display.index = history_display.index.map(format_iso_week)
-                history_display['Minutes Listened'] = history_display['Minutes Listened'].round(1)
+                history_display = history_df[['week_id', 'rank', 'minutes', 'points']].rename(
+                    columns={'week_id': 'Week', 'rank': 'Rank', 'minutes': 'Minutes Listened', 'points': 'Points Awarded'}).set_index('Week')
+                history_display.index = history_display.index.map(
+                    format_iso_week)
+                history_display['Minutes Listened'] = history_display['Minutes Listened'].round(
+                    1)
                 st.dataframe(history_display, use_container_width=True)
 
             # --- VISTA SEMANAL ---
             st.markdown("---")
             st.subheader("📅 View a Specific Week's Ranking")
-            unique_weeks = sorted(weekly_results_df['week_id'].unique(), reverse=True)
-            selected_week = st.selectbox("Choose a week to inspect:", unique_weeks, format_func=format_iso_week)
+            unique_weeks = sorted(
+                weekly_results_df['week_id'].unique(), reverse=True)
+            selected_week = st.selectbox(
+                "Choose a week to inspect:", unique_weeks, format_func=format_iso_week)
             if selected_week:
-                week_data = weekly_results_df[weekly_results_df['week_id'] == selected_week].sort_values('rank').copy()
+                week_data = weekly_results_df[weekly_results_df['week_id'] == selected_week].sort_values(
+                    'rank').copy()
                 week_data['Minutes Listened'] = week_data['minutes'].round(1)
-                week_data_display = week_data[['rank', 'master_metadata_track_name', 'minutes', 'points']].rename(columns={'rank': 'Rank', 'master_metadata_track_name': 'Track Name', 'minutes': 'Minutes Listened', 'points': 'Points Awarded'})
-                st.dataframe(week_data_display.set_index('Rank'), use_container_width=True)
+                week_data_display = week_data[['rank', 'master_metadata_track_name', 'minutes', 'points']].rename(
+                    columns={'rank': 'Rank', 'master_metadata_track_name': 'Track Name', 'minutes': 'Minutes Listened', 'points': 'Points Awarded'})
+                st.dataframe(week_data_display.set_index(
+                    'Rank'), use_container_width=True)
 
     with tabs[2]:
         st.subheader("📈 Monthly Evolution")
@@ -425,29 +500,42 @@ if uploaded_file:
         st.plotly_chart(date_line_chart(weekly), use_container_width=True)
 
         # Selector for number of artists, albums, and tracks
-        num_artists = st.number_input("Number of artists to show", min_value=1, max_value=20, value=5, step=1, key="artist_num")
-        num_albums = st.number_input("Number of albums to show", min_value=1, max_value=20, value=5, step=1, key="album_num")
-        num_tracks = st.number_input("Number of tracks to show", min_value=1, max_value=20, value=5, step=1, key="track_num")
+        num_artists = st.number_input(
+            "Number of artists to show", min_value=1, max_value=20, value=5, step=1, key="artist_num")
+        num_albums = st.number_input(
+            "Number of albums to show", min_value=1, max_value=20, value=5, step=1, key="album_num")
+        num_tracks = st.number_input(
+            "Number of tracks to show", min_value=1, max_value=20, value=5, step=1, key="track_num")
 
         # Monthly evolution by artist
         st.subheader("📈 Monthly Evolution by Artist")
-        top_artists = filtered_df.groupby('master_metadata_album_artist_name')['minutes'].sum().nlargest(num_artists).index
-        artist_monthly = filtered_df[filtered_df['master_metadata_album_artist_name'].isin(top_artists)].copy()
-        pivot_artist = artist_monthly.pivot_table(index=pd.Grouper(key='ts', freq='M'), columns='master_metadata_album_artist_name', values='minutes', aggfunc='sum', fill_value=0)
-        st.plotly_chart(date_line_chart(pivot_artist), use_container_width=True)
+        top_artists = filtered_df.groupby('master_metadata_album_artist_name')[
+            'minutes'].sum().nlargest(num_artists).index
+        artist_monthly = filtered_df[filtered_df['master_metadata_album_artist_name'].isin(
+            top_artists)].copy()
+        pivot_artist = artist_monthly.pivot_table(index=pd.Grouper(
+            key='ts', freq='M'), columns='master_metadata_album_artist_name', values='minutes', aggfunc='sum', fill_value=0)
+        st.plotly_chart(date_line_chart(pivot_artist),
+                        use_container_width=True)
 
         # Monthly evolution by album
         st.subheader("📈 Monthly Evolution by Album")
-        top_albums = filtered_df.groupby('master_metadata_album_album_name')['minutes'].sum().nlargest(num_albums).index
-        album_monthly = filtered_df[filtered_df['master_metadata_album_album_name'].isin(top_albums)].copy()
-        pivot_album = album_monthly.pivot_table(index=pd.Grouper(key='ts', freq='M'), columns='master_metadata_album_album_name', values='minutes', aggfunc='sum', fill_value=0)
+        top_albums = filtered_df.groupby('master_metadata_album_album_name')[
+            'minutes'].sum().nlargest(num_albums).index
+        album_monthly = filtered_df[filtered_df['master_metadata_album_album_name'].isin(
+            top_albums)].copy()
+        pivot_album = album_monthly.pivot_table(index=pd.Grouper(
+            key='ts', freq='M'), columns='master_metadata_album_album_name', values='minutes', aggfunc='sum', fill_value=0)
         st.plotly_chart(date_line_chart(pivot_album), use_container_width=True)
 
         # Monthly evolution by track
         st.subheader("📈 Monthly Evolution by Track")
-        top_tracks = filtered_df.groupby('master_metadata_track_name')['minutes'].sum().nlargest(num_tracks).index
-        track_monthly = filtered_df[filtered_df['master_metadata_track_name'].isin(top_tracks)].copy()
-        pivot_track = track_monthly.pivot_table(index=pd.Grouper(key='ts', freq='M'), columns='master_metadata_track_name', values='minutes', aggfunc='sum', fill_value=0)
+        top_tracks = filtered_df.groupby('master_metadata_track_name')[
+            'minutes'].sum().nlargest(num_tracks).index
+        track_monthly = filtered_df[filtered_df['master_metadata_track_name'].isin(
+            top_tracks)].copy()
+        pivot_track = track_monthly.pivot_table(index=pd.Grouper(
+            key='ts', freq='M'), columns='master_metadata_track_name', values='minutes', aggfunc='sum', fill_value=0)
         st.plotly_chart(date_line_chart(pivot_track), use_container_width=True)
 
     with tabs[3]:
@@ -455,33 +543,40 @@ if uploaded_file:
         fig, axs = plt.subplots(3, 2, figsize=(15, 12))
         fig.tight_layout(pad=4.0)
 
-        sns.histplot(filtered_df['hour'], bins=24, ax=axs[0, 0], kde=True).set_title("By Hour of Day")
-        sns.histplot(filtered_df['weekday'], bins=7, ax=axs[0, 1], kde=True).set_title("By Day of Week")
-        axs[0, 1].set_xticks(range(7), ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])
+        sns.histplot(filtered_df['hour'], bins=24, ax=axs[0, 0], kde=True).set_title(
+            "By Hour of Day")
+        sns.histplot(filtered_df['weekday'], bins=7, ax=axs[0, 1], kde=True).set_title(
+            "By Day of Week")
+        axs[0, 1].set_xticks(
+            range(7), ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])
 
-        sns.histplot(filtered_df['month'], bins=12, ax=axs[1, 0], kde=True).set_title("By Month")
+        sns.histplot(filtered_df['month'], bins=12,
+                     ax=axs[1, 0], kde=True).set_title("By Month")
         axs[1, 0].set_xticks(range(1, 13))
-        
+
         years = sorted(filtered_df['year'].unique())
-        sns.histplot(filtered_df['year'], bins=len(years), ax=axs[1, 1]).set_title("By Year")
+        sns.histplot(filtered_df['year'], bins=len(
+            years), ax=axs[1, 1]).set_title("By Year")
         axs[1, 1].set_xticks(years)
 
         # Distribution of track duration
-        sns.histplot(filtered_df[filtered_df['minutes'] < 10]['minutes'], bins=50, ax=axs[2, 0], kde=True).set_title("Track Duration (Minutes, <10min)")
-        
+        sns.histplot(filtered_df[filtered_df['minutes'] < 10]['minutes'], bins=50,
+                     ax=axs[2, 0], kde=True).set_title("Track Duration (Minutes, <10min)")
+
         # Distribution of playback start second
         filtered_df['start_second'] = filtered_df['ts'].dt.second
-        sns.histplot(filtered_df['start_second'], bins=60, ax=axs[2, 1], color='orange', kde=True)
+        sns.histplot(filtered_df['start_second'], bins=60,
+                     ax=axs[2, 1], color='orange', kde=True)
         axs[2, 1].set_title("Playback Start Second")
         axs[2, 1].set_xlabel("Second of the Minute (0-59)")
         axs[2, 1].set_ylabel("Count")
 
         st.pyplot(fig)
 
-
     with tabs[4]:
         st.subheader("🗺️ Activity Heatmap (Day of Week vs Hour)")
-        pivot = filtered_df.pivot_table(index='weekday', columns='hour', values='minutes', aggfunc='sum', fill_value=0)
+        pivot = filtered_df.pivot_table(
+            index='weekday', columns='hour', values='minutes', aggfunc='sum', fill_value=0)
         pivot.index = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
         fig = plt.figure(figsize=(12, 5))
         sns.heatmap(pivot, cmap="viridis", linewidths=.5)
@@ -490,7 +585,8 @@ if uploaded_file:
 
         st.subheader("📅 Calendar Heatmap (Day vs Month)")
         filtered_df['day_of_month'] = filtered_df['ts'].dt.day
-        calendar_pivot = filtered_df.pivot_table(index='month', columns='day_of_month', values='minutes', aggfunc='sum', fill_value=0)
+        calendar_pivot = filtered_df.pivot_table(
+            index='month', columns='day_of_month', values='minutes', aggfunc='sum', fill_value=0)
         fig = plt.figure(figsize=(14, 6))
         sns.heatmap(calendar_pivot, cmap="viridis", linewidths=.5)
         plt.title("Listening activity by day and month")
@@ -499,59 +595,77 @@ if uploaded_file:
         col1, col2, col3 = st.columns(3)
         with col1:
             st.subheader("Top 5 Artists")
-            top_artists = filtered_df.groupby('master_metadata_album_artist_name')['minutes'].sum().nlargest(5).index
-            top_artists_df = filtered_df[filtered_df['master_metadata_album_artist_name'].isin(top_artists)]
-            artist_pivot = top_artists_df.pivot_table(index='year', columns='master_metadata_album_artist_name', values='minutes', aggfunc='sum', fill_value=0)
+            top_artists = filtered_df.groupby('master_metadata_album_artist_name')[
+                'minutes'].sum().nlargest(5).index
+            top_artists_df = filtered_df[filtered_df['master_metadata_album_artist_name'].isin(
+                top_artists)]
+            artist_pivot = top_artists_df.pivot_table(
+                index='year', columns='master_metadata_album_artist_name', values='minutes', aggfunc='sum', fill_value=0)
             fig = plt.figure(figsize=(10, 4))
             sns.heatmap(artist_pivot, cmap="viridis", annot=True, fmt=".0f")
             st.pyplot(fig)
         with col2:
             st.subheader("Top 5 Albums")
-            top_albums = filtered_df.groupby('master_metadata_album_album_name')['minutes'].sum().nlargest(5).index
-            top_albums_df = filtered_df[filtered_df['master_metadata_album_album_name'].isin(top_albums)]
-            album_pivot = top_albums_df.pivot_table(index='year', columns='master_metadata_album_album_name', values='minutes', aggfunc='sum', fill_value=0)
+            top_albums = filtered_df.groupby('master_metadata_album_album_name')[
+                'minutes'].sum().nlargest(5).index
+            top_albums_df = filtered_df[filtered_df['master_metadata_album_album_name'].isin(
+                top_albums)]
+            album_pivot = top_albums_df.pivot_table(
+                index='year', columns='master_metadata_album_album_name', values='minutes', aggfunc='sum', fill_value=0)
             fig = plt.figure(figsize=(10, 4))
             sns.heatmap(album_pivot, cmap="viridis", annot=True, fmt=".0f")
             st.pyplot(fig)
         with col3:
             st.subheader("Top 5 Tracks")
-            top_tracks = filtered_df.groupby('master_metadata_track_name')['minutes'].sum().nlargest(5).index
-            top_tracks_df = filtered_df[filtered_df['master_metadata_track_name'].isin(top_tracks)]
-            track_pivot = top_tracks_df.pivot_table(index='year', columns='master_metadata_track_name', values='minutes', aggfunc='sum', fill_value=0)
+            top_tracks = filtered_df.groupby('master_metadata_track_name')[
+                'minutes'].sum().nlargest(5).index
+            top_tracks_df = filtered_df[filtered_df['master_metadata_track_name'].isin(
+                top_tracks)]
+            track_pivot = top_tracks_df.pivot_table(
+                index='year', columns='master_metadata_track_name', values='minutes', aggfunc='sum', fill_value=0)
             fig = plt.figure(figsize=(10, 4))
             sns.heatmap(track_pivot, cmap="viridis", annot=True, fmt=".0f")
             st.pyplot(fig)
-
 
     with tabs[5]:
         st.subheader("📆 Listening Streaks")
 
         daily_minutes = filtered_df.groupby('date')['minutes'].sum()
-        full_date_range = pd.date_range(start=daily_minutes.index.min(), end=daily_minutes.index.max())
-        daily_minutes = daily_minutes.reindex(full_date_range.date, fill_value=0)
+        full_date_range = pd.date_range(
+            start=daily_minutes.index.min(), end=daily_minutes.index.max())
+        daily_minutes = daily_minutes.reindex(
+            full_date_range.date, fill_value=0)
 
         days_with = (daily_minutes > 0).sum()
         days_without = (daily_minutes == 0).sum()
         total_days_in_range = len(daily_minutes)
 
-        streaks = (daily_minutes > 0).astype(int).groupby(daily_minutes.eq(0).cumsum()).sum()
+        streaks = (daily_minutes > 0).astype(int).groupby(
+            daily_minutes.eq(0).cumsum()).sum()
         max_streak = streaks.max() if not streaks.empty else 0
 
-        zero_streaks = (daily_minutes == 0).astype(int).groupby(daily_minutes.gt(0).cumsum()).sum()
+        zero_streaks = (daily_minutes == 0).astype(
+            int).groupby(daily_minutes.gt(0).cumsum()).sum()
         max_zero_streak = zero_streaks.max() if not zero_streaks.empty else 0
 
         st.metric("Total days in selected range", total_days_in_range)
         st.metric("Days with listening", f"{days_with} days")
         st.metric("Days without listening", f"{days_without} days")
-        st.metric("Longest streak of consecutive listening days", f"{max_streak} days")
-        st.metric("Longest streak of consecutive days without listening", f"{max_zero_streak} days")
-        st.write(f"Average minutes per day (on days you listened): {daily_minutes[daily_minutes > 0].mean():.2f}")
-        st.write(f"Average minutes per day (across all days in range): {daily_minutes.mean():.2f}")
+        st.metric("Longest streak of consecutive listening days",
+                  f"{max_streak} days")
+        st.metric("Longest streak of consecutive days without listening",
+                  f"{max_zero_streak} days")
+        st.write(
+            f"Average minutes per day (on days you listened): {daily_minutes[daily_minutes > 0].mean():.2f}")
+        st.write(
+            f"Average minutes per day (across all days in range): {daily_minutes.mean():.2f}")
 
     with tabs[6]:
         st.subheader("👑 Top 5 Artists by Year")
-        artist_year = filtered_df.groupby(['year', 'master_metadata_album_artist_name'])['minutes'].sum().reset_index()
-        top = artist_year.sort_values(['year','minutes'], ascending=[True, False]).groupby('year').head(5)
+        artist_year = filtered_df.groupby(['year', 'master_metadata_album_artist_name'])[
+            'minutes'].sum().reset_index()
+        top = artist_year.sort_values(['year', 'minutes'], ascending=[
+                                      True, False]).groupby('year').head(5)
         fig = px.bar(top, x='year', y='minutes', color='master_metadata_album_artist_name',
                      title="Top 5 Most Listened Artists Each Year", barmode='group',
                      labels={'minutes': 'Total Minutes Listened', 'year': 'Year', 'master_metadata_album_artist_name': 'Artist'})
@@ -559,14 +673,17 @@ if uploaded_file:
 
     with tabs[7]:
         st.subheader("📋 Global Statistics Summary")
-        
+
         total_minutes = int(filtered_df['minutes'].sum())
         total_hours = round(filtered_df['minutes'].sum() / 60, 2)
         total_tracks = filtered_df['master_metadata_track_name'].nunique()
-        total_albums = filtered_df['master_metadata_album_album_name'].nunique()
-        total_artists = filtered_df['master_metadata_album_artist_name'].nunique()
+        total_albums = filtered_df['master_metadata_album_album_name'].nunique(
+        )
+        total_artists = filtered_df['master_metadata_album_artist_name'].nunique(
+        )
         total_days = filtered_df['date'].nunique()
-        total_weeks = filtered_df.groupby([filtered_df['ts'].dt.isocalendar().year, filtered_df['ts'].dt.isocalendar().week]).ngroups
+        total_weeks = filtered_df.groupby([filtered_df['ts'].dt.isocalendar(
+        ).year, filtered_df['ts'].dt.isocalendar().week]).ngroups
         total_months = filtered_df.groupby(['year', 'month']).ngroups
         total_years = filtered_df['year'].nunique()
 
@@ -578,50 +695,68 @@ if uploaded_file:
         col1.metric("Unique Tracks", f"{total_tracks:,}")
         col2.metric("Unique Albums", f"{total_albums:,}")
         col3.metric("Unique Artists", f"{total_artists:,}")
-        
-        st.markdown("---")
-        most_played_track = filtered_df.groupby('master_metadata_track_name')['minutes'].sum().idxmax()
-        most_played_track_minutes = filtered_df.groupby('master_metadata_track_name')['minutes'].sum().max()
-        most_played_artist = filtered_df.groupby('master_metadata_album_artist_name')['minutes'].sum().idxmax()
-        most_played_artist_minutes = filtered_df.groupby('master_metadata_album_artist_name')['minutes'].sum().max()
-        most_played_album = filtered_df.groupby('master_metadata_album_album_name')['minutes'].sum().idxmax()
-        most_played_album_minutes = filtered_df.groupby('master_metadata_album_album_name')['minutes'].sum().max()
 
-        st.write(f"🔝 **Most played track:** {most_played_track} ({int(most_played_track_minutes)} min)")
-        st.write(f"👑 **Most played artist:** {most_played_artist} ({int(most_played_artist_minutes)} min)")
-        st.write(f"🏆 **Most played album:** {most_played_album} ({int(most_played_album_minutes)} min)")
         st.markdown("---")
-        
-        avg_minutes_per_day = filtered_df.groupby('date')['minutes'].sum().mean()
-        st.write(f"📊 **Average minutes per day (on listening days):** {avg_minutes_per_day:.2f} min")
-        
+        most_played_track = filtered_df.groupby('master_metadata_track_name')[
+            'minutes'].sum().idxmax()
+        most_played_track_minutes = filtered_df.groupby(
+            'master_metadata_track_name')['minutes'].sum().max()
+        most_played_artist = filtered_df.groupby('master_metadata_album_artist_name')[
+            'minutes'].sum().idxmax()
+        most_played_artist_minutes = filtered_df.groupby(
+            'master_metadata_album_artist_name')['minutes'].sum().max()
+        most_played_album = filtered_df.groupby('master_metadata_album_album_name')[
+            'minutes'].sum().idxmax()
+        most_played_album_minutes = filtered_df.groupby(
+            'master_metadata_album_album_name')['minutes'].sum().max()
+
+        st.write(
+            f"🔝 **Most played track:** {most_played_track} ({int(most_played_track_minutes)} min)")
+        st.write(
+            f"👑 **Most played artist:** {most_played_artist} ({int(most_played_artist_minutes)} min)")
+        st.write(
+            f"🏆 **Most played album:** {most_played_album} ({int(most_played_album_minutes)} min)")
+        st.markdown("---")
+
+        avg_minutes_per_day = filtered_df.groupby(
+            'date')['minutes'].sum().mean()
+        st.write(
+            f"📊 **Average minutes per day (on listening days):** {avg_minutes_per_day:.2f} min")
+
         st.markdown("---")
         col1, col2, col3 = st.columns(3)
         with col1:
             st.markdown("### 🏅 Top 5 Tracks")
-            st.dataframe(filtered_df.groupby('master_metadata_track_name')['minutes'].sum().nlargest(5).reset_index().rename(columns={'minutes': 'Minutes (sum)'}))
+            st.dataframe(filtered_df.groupby('master_metadata_track_name')['minutes'].sum(
+            ).nlargest(5).reset_index().rename(columns={'minutes': 'Minutes (sum)'}))
         with col2:
             st.markdown("### 🏅 Top 5 Artists")
-            st.dataframe(filtered_df.groupby('master_metadata_album_artist_name')['minutes'].sum().nlargest(5).reset_index().rename(columns={'minutes': 'Minutes (sum)'}))
+            st.dataframe(filtered_df.groupby('master_metadata_album_artist_name')['minutes'].sum(
+            ).nlargest(5).reset_index().rename(columns={'minutes': 'Minutes (sum)'}))
         with col3:
             st.markdown("### 🏅 Top 5 Albums")
-            st.dataframe(filtered_df.groupby('master_metadata_album_album_name')['minutes'].sum().nlargest(5).reset_index().rename(columns={'minutes': 'Minutes (sum)'}))
-            
+            st.dataframe(filtered_df.groupby('master_metadata_album_album_name')['minutes'].sum(
+            ).nlargest(5).reset_index().rename(columns={'minutes': 'Minutes (sum)'}))
+
         st.markdown("---")
         filtered_df['datetime_hour'] = filtered_df['ts'].dt.floor('H')
         hourly_minutes = filtered_df.groupby('datetime_hour')['minutes'].sum()
         if not hourly_minutes.empty:
-            full_hour_range = pd.date_range(start=hourly_minutes.index.min(), end=hourly_minutes.index.max(), freq='H')
-            hourly_minutes = hourly_minutes.reindex(full_hour_range, fill_value=0)
-            
-            hourly_streaks = (hourly_minutes > 0).astype(int).groupby(hourly_minutes.eq(0).cumsum()).sum()
-            max_hour_streak = hourly_streaks.max() if not hourly_streaks.empty else 0
-            st.write(f"⏰ **Longest streak of consecutive hours with listening:** {max_hour_streak} hours")
+            full_hour_range = pd.date_range(
+                start=hourly_minutes.index.min(), end=hourly_minutes.index.max(), freq='H')
+            hourly_minutes = hourly_minutes.reindex(
+                full_hour_range, fill_value=0)
 
+            hourly_streaks = (hourly_minutes > 0).astype(
+                int).groupby(hourly_minutes.eq(0).cumsum()).sum()
+            max_hour_streak = hourly_streaks.max() if not hourly_streaks.empty else 0
+            st.write(
+                f"⏰ **Longest streak of consecutive hours with listening:** {max_hour_streak} hours")
 
     with tabs[8]:
         st.subheader("🎲 Game: Which is more played?")
-        game_type = st.radio("What do you want to compare?", ["Artists", "Tracks"], horizontal=True)
+        game_type = st.radio("What do you want to compare?", [
+                             "Artists", "Tracks"], horizontal=True)
 
         @st.cache_data(show_spinner=False)
         def get_top_items(df, col_name, n):
@@ -632,36 +767,42 @@ if uploaded_file:
                       .rename(columns={col_name: 'name', 'minutes': 'minutes'}))
 
         if game_type == "Artists":
-            top_items = get_top_items(filtered_df, 'master_metadata_album_artist_name', 100)
+            top_items = get_top_items(
+                filtered_df, 'master_metadata_album_artist_name', 100)
             label = "artist"
-        else: # Tracks
-            top_items = get_top_items(filtered_df, 'master_metadata_track_name', 200)
+        else:  # Tracks
+            top_items = get_top_items(
+                filtered_df, 'master_metadata_track_name', 200)
             label = "track"
 
         if f"game_score_{label}" not in st.session_state:
-            st.session_state[f"game_score_{label}"] = {'correct': 0, 'incorrect': 0}
+            st.session_state[f"game_score_{label}"] = {
+                'correct': 0, 'incorrect': 0}
         if f"game_pair_{label}" not in st.session_state:
             st.session_state[f"game_pair_{label}"] = None
         if f"game_answered_{label}" not in st.session_state:
             st.session_state[f"game_answered_{label}"] = True
 
         if len(top_items) < 2:
-            st.warning(f"Not enough {label} data to play. Try adjusting filters.")
+            st.warning(
+                f"Not enough {label} data to play. Try adjusting filters.")
         else:
             if st.session_state[f"game_answered_{label}"]:
-                st.session_state[f"game_pair_{label}"] = random.sample(range(len(top_items)), 2)
+                st.session_state[f"game_pair_{label}"] = random.sample(
+                    range(len(top_items)), 2)
                 st.session_state[f"game_answered_{label}"] = False
-            
+
             idx1, idx2 = st.session_state[f"game_pair_{label}"]
             option1 = top_items.iloc[idx1]
             option2 = top_items.iloc[idx2]
 
             st.write(f"Which {label} have you listened to more?")
-            
+
             colA, colB = st.columns(2)
-            
-            is_answered = st.session_state.get(f"game_show_result_{label}", False)
-            
+
+            is_answered = st.session_state.get(
+                f"game_show_result_{label}", False)
+
             with colA:
                 if st.button(option1['name'], key=f"{label}_A", use_container_width=True, disabled=is_answered):
                     st.session_state[f"game_show_result_{label}"] = True
@@ -673,18 +814,19 @@ if uploaded_file:
                     st.session_state[f"game_show_result_{label}"] = True
                     st.session_state[f"game_player_choice_{label}"] = option2['name']
                     st.rerun()
-            
+
             score = st.session_state[f"game_score_{label}"]
-            st.info(f"Score: {score['correct']} Correct | {score['incorrect']} Incorrect")
+            st.info(
+                f"Score: {score['correct']} Correct | {score['incorrect']} Incorrect")
 
             if is_answered:
                 player_choice_name = st.session_state[f"game_player_choice_{label}"]
-                
+
                 if option1['minutes'] >= option2['minutes']:
                     correct_choice = option1
                 else:
                     correct_choice = option2
-                
+
                 if player_choice_name == correct_choice['name']:
                     st.success("Correct!")
                     if not st.session_state.get(f"game_scored_this_round_{label}", False):
@@ -695,18 +837,19 @@ if uploaded_file:
                         st.session_state[f"game_score_{label}"]['incorrect'] += 1
 
                 st.session_state[f"game_scored_this_round_{label}"] = True
-                
-                st.write(f"**{option1['name']}**: {option1['minutes']:.0f} minutes")
-                st.write(f"**{option2['name']}**: {option2['minutes']:.0f} minutes")
-                
+
+                st.write(
+                    f"**{option1['name']}**: {option1['minutes']:.0f} minutes")
+                st.write(
+                    f"**{option2['name']}**: {option2['minutes']:.0f} minutes")
+
                 if st.button("Next Question", key=f"{label}_next"):
                     st.session_state[f"game_answered_{label}"] = True
                     st.session_state[f"game_show_result_{label}"] = False
                     st.session_state[f"game_scored_this_round_{label}"] = False
                     st.rerun()
 
-
-    with tabs[9]: # Ajustado para la posición 9
+    with tabs[9]:  # Ajustado para la posición 9
         st.title("🌟 Your Personalized Wrapped")
         st.markdown("Relive your year in music. Unlike the official Wrapped, here *you* are in control. Select a year to generate a deep and interactive analysis of your listening habits.")
 
@@ -715,56 +858,73 @@ if uploaded_file:
         if not available_years:
             st.warning("No data available to generate a Wrapped report.")
             st.stop()
-        
+
         header_cols = st.columns([3, 1])
         with header_cols[0]:
             st.markdown("###")
-            selected_year = st.selectbox("Select a year to analyze:", available_years, label_visibility="collapsed", key="wrapped_year_selector_final")
+            selected_year = st.selectbox("Select a year to analyze:", available_years,
+                                         label_visibility="collapsed", key="wrapped_year_selector_final")
         with header_cols[1]:
-            st.image("https://storage.googleapis.com/pr-newsroom-wp/1/2023/11/Spotify_Wrapped_2023_Logo_Black.png", width=150)
+            st.image(
+                "https://storage.googleapis.com/pr-newsroom-wp/1/2023/11/Spotify_Wrapped_2023_Logo_Black.png", width=150)
 
         wrapped_df = df[df['year'] == selected_year].copy()
 
         if wrapped_df.empty:
-            st.error(f"No listening data found for the year {selected_year}. Please select another year.")
+            st.error(
+                f"No listening data found for the year {selected_year}. Please select another year.")
         else:
             # --- SECCIÓN 2: HEADLINES Y FUN FACTS AMPLIADO ---
             st.header(f"Your {selected_year} Headlines")
-            
+
             # Cálculos principales
             total_minutes = wrapped_df['minutes'].sum()
-            top_artist_info = wrapped_df.groupby('master_metadata_album_artist_name')['minutes'].sum().nlargest(1).reset_index()
-            top_track_info = wrapped_df.groupby(['master_metadata_track_name', 'master_metadata_album_artist_name'])['minutes'].sum().nlargest(1).reset_index()
+            top_artist_info = wrapped_df.groupby('master_metadata_album_artist_name')[
+                'minutes'].sum().nlargest(1).reset_index()
+            top_track_info = wrapped_df.groupby(['master_metadata_track_name', 'master_metadata_album_artist_name'])[
+                'minutes'].sum().nlargest(1).reset_index()
             top_artist_name = top_artist_info['master_metadata_album_artist_name'].iloc[0]
             top_track_name = top_track_info['master_metadata_track_name'].iloc[0]
 
             card_cols = st.columns(3)
             with card_cols[0]:
-                st.markdown(f'<div style="background: linear-gradient(135deg, #003973, #E5E5BE); border-radius: 10px; padding: 20px; height: 160px; display: flex; flex-direction: column; justify-content: center;"><p style="font-size: 16px; color: #FFFFFF; margin:0;">Total Listening Time</p><p style="font-size: 36px; font-weight: bold; color: #FFFFFF;">{int(total_minutes):,}</p><p style="font-size: 16px; color: #FFFFFF; margin:0;">minutes</p></div>', unsafe_allow_html=True)
+                st.markdown(
+                    f'<div style="background: linear-gradient(135deg, #003973, #E5E5BE); border-radius: 10px; padding: 20px; height: 160px; display: flex; flex-direction: column; justify-content: center;"><p style="font-size: 16px; color: #FFFFFF; margin:0;">Total Listening Time</p><p style="font-size: 36px; font-weight: bold; color: #FFFFFF;">{int(total_minutes):,}</p><p style="font-size: 16px; color: #FFFFFF; margin:0;">minutes</p></div>', unsafe_allow_html=True)
             with card_cols[1]:
-                st.markdown(f'<div style="background: linear-gradient(135deg, #B43B3B, #FF7878); border-radius: 10px; padding: 20px; height: 160px; display: flex; flex-direction: column; justify-content: center;"><p style="font-size: 16px; color: #FFFFFF; margin:0;">Your Top Artist</p><p style="font-size: 28px; font-weight: bold; color: #FFFFFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-top:10px" title="{top_artist_name}">{top_artist_name}</p></div>', unsafe_allow_html=True)
+                st.markdown(
+                    f'<div style="background: linear-gradient(135deg, #B43B3B, #FF7878); border-radius: 10px; padding: 20px; height: 160px; display: flex; flex-direction: column; justify-content: center;"><p style="font-size: 16px; color: #FFFFFF; margin:0;">Your Top Artist</p><p style="font-size: 28px; font-weight: bold; color: #FFFFFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-top:10px" title="{top_artist_name}">{top_artist_name}</p></div>', unsafe_allow_html=True)
             with card_cols[2]:
-                st.markdown(f'<div style="background: linear-gradient(135deg, #2A52BE, #5F9EA0); border-radius: 10px; padding: 20px; height: 160px; display: flex; flex-direction: column; justify-content: center;"><p style="font-size: 16px; color: #FFFFFF; margin:0;">Your Top Track</p><p style="font-size: 28px; font-weight: bold; color: #FFFFFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-top:10px" title="{top_track_name}">{top_track_name}</p></div>', unsafe_allow_html=True)
+                st.markdown(
+                    f'<div style="background: linear-gradient(135deg, #2A52BE, #5F9EA0); border-radius: 10px; padding: 20px; height: 160px; display: flex; flex-direction: column; justify-content: center;"><p style="font-size: 16px; color: #FFFFFF; margin:0;">Your Top Track</p><p style="font-size: 28px; font-weight: bold; color: #FFFFFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-top:10px" title="{top_track_name}">{top_track_name}</p></div>', unsafe_allow_html=True)
 
             # Fun Facts Ampliado
             st.subheader("🧐 Did You Know?")
             facts_cols = st.columns(5)
             # 1. Busiest Day
-            most_listened_day = wrapped_df.groupby('date')['minutes'].sum().idxmax()
-            most_listened_day_minutes = wrapped_df.groupby('date')['minutes'].sum().max()
-            facts_cols[0].metric("Busiest Day", most_listened_day.strftime('%d/%m/%Y'), f"{int(most_listened_day_minutes)} min")
+            most_listened_day = wrapped_df.groupby(
+                'date')['minutes'].sum().idxmax()
+            most_listened_day_minutes = wrapped_df.groupby(
+                'date')['minutes'].sum().max()
+            facts_cols[0].metric("Busiest Day", most_listened_day.strftime(
+                '%d/%m/%Y'), f"{int(most_listened_day_minutes)} min")
             # 2. Unique Artists
-            facts_cols[1].metric("Unique Artists", f"{wrapped_df['master_metadata_album_artist_name'].nunique():,}")
+            facts_cols[1].metric(
+                "Unique Artists", f"{wrapped_df['master_metadata_album_artist_name'].nunique():,}")
             # 3. Unique Tracks
-            facts_cols[2].metric("Unique Tracks", f"{wrapped_df['master_metadata_track_name'].nunique():,}")
+            facts_cols[2].metric(
+                "Unique Tracks", f"{wrapped_df['master_metadata_track_name'].nunique():,}")
             # 4. Top Listening Hour
             top_hour = wrapped_df['hour'].mode()[0]
-            facts_cols[3].metric("Top Listening Hour", f"{top_hour}:00 - {top_hour+1}:00")
+            facts_cols[3].metric("Top Listening Hour",
+                                 f"{top_hour}:00 - {top_hour+1}:00")
             # 5. Most Played Album
-            top_album = wrapped_df.groupby('master_metadata_album_album_name')['minutes'].sum().idxmax()
-            top_album_minutes = wrapped_df.groupby('master_metadata_album_album_name')['minutes'].sum().max()
-            facts_cols[4].metric("Top Album", top_album, f"{int(top_album_minutes)} min")
-            
+            top_album = wrapped_df.groupby('master_metadata_album_album_name')[
+                'minutes'].sum().idxmax()
+            top_album_minutes = wrapped_df.groupby('master_metadata_album_album_name')[
+                'minutes'].sum().max()
+            facts_cols[4].metric("Top Album", top_album,
+                                 f"{int(top_album_minutes)} min")
+
             st.markdown("---")
 
             # --- SECCIÓN 3: THE MONTHLY RACE (REINCORPORADO Y MEJORADO) ---
@@ -774,8 +934,10 @@ if uploaded_file:
             @st.cache_data
             def calculate_monthly_race(df_year):
                 df_year['month_name'] = df_year['ts'].dt.strftime('%B')
-                monthly_top5 = df_year.groupby(['month_name', 'master_metadata_album_artist_name'])['minutes'].sum().reset_index()
-                monthly_top5['rank'] = monthly_top5.groupby('month_name')['minutes'].rank(method='first', ascending=False)
+                monthly_top5 = df_year.groupby(['month_name', 'master_metadata_album_artist_name'])[
+                    'minutes'].sum().reset_index()
+                monthly_top5['rank'] = monthly_top5.groupby(
+                    'month_name')['minutes'].rank(method='first', ascending=False)
                 return monthly_top5[monthly_top5['rank'] <= 5]
 
             @st.cache_data
@@ -783,31 +945,41 @@ if uploaded_file:
                 df_year['month_num'] = df_year['ts'].dt.month
                 df_year['month_name'] = df_year['ts'].dt.strftime('%B')
                 # Get all top artists in the year
-                top_artists = df_year.groupby('master_metadata_album_artist_name')['minutes'].sum().nlargest(5).index.tolist()
+                top_artists = df_year.groupby('master_metadata_album_artist_name')[
+                    'minutes'].sum().nlargest(5).index.tolist()
                 # Prepare cumulative data
                 cumulative = []
                 for m in range(1, 13):
                     month_df = df_year[df_year['month_num'] <= m]
-                    cum_minutes = month_df.groupby('master_metadata_album_artist_name')['minutes'].sum().reset_index()
+                    cum_minutes = month_df.groupby('master_metadata_album_artist_name')[
+                        'minutes'].sum().reset_index()
                     cum_minutes['month_num'] = m
-                    cum_minutes['month_name'] = pd.to_datetime(f'{m}', format='%m').strftime('%B')
-                    cum_minutes = cum_minutes[cum_minutes['master_metadata_album_artist_name'].isin(top_artists)]
-                    cum_minutes['rank'] = cum_minutes['minutes'].rank(method='first', ascending=False)
+                    cum_minutes['month_name'] = pd.to_datetime(
+                        f'{m}', format='%m').strftime('%B')
+                    cum_minutes = cum_minutes[cum_minutes['master_metadata_album_artist_name'].isin(
+                        top_artists)]
+                    cum_minutes['rank'] = cum_minutes['minutes'].rank(
+                        method='first', ascending=False)
                     cumulative.append(cum_minutes)
                 cumulative_df = pd.concat(cumulative)
                 return cumulative_df[cumulative_df['rank'] <= 5]
 
             race_df = calculate_monthly_race(wrapped_df.copy())
-            cumulative_race_df = calculate_cumulative_monthly_race(wrapped_df.copy())
+            cumulative_race_df = calculate_cumulative_monthly_race(
+                wrapped_df.copy())
 
-            month_order = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-            race_df['month_name'] = pd.Categorical(race_df['month_name'], categories=month_order, ordered=True)
+            month_order = ['January', 'February', 'March', 'April', 'May', 'June',
+                           'July', 'August', 'September', 'October', 'November', 'December']
+            race_df['month_name'] = pd.Categorical(
+                race_df['month_name'], categories=month_order, ordered=True)
             race_df.sort_values('month_name', inplace=True)
-            cumulative_race_df['month_name'] = pd.Categorical(cumulative_race_df['month_name'], categories=month_order, ordered=True)
+            cumulative_race_df['month_name'] = pd.Categorical(
+                cumulative_race_df['month_name'], categories=month_order, ordered=True)
             cumulative_race_df.sort_values('month_name', inplace=True)
 
             # Slower animation speed: set frame duration
-            animation_opts = dict(frame=dict(duration=1200, redraw=True), transition=dict(duration=500, easing='linear'))
+            animation_opts = dict(frame=dict(duration=1200, redraw=True), transition=dict(
+                duration=500, easing='linear'))
 
             col1, col2 = st.columns(2)
             with col1:
@@ -825,7 +997,8 @@ if uploaded_file:
                         title="Monthly Top 5 Artists"
                     )
                     fig_race.update_layout(
-                        yaxis=dict(autorange="reversed", showticklabels=False, title="Rank"),
+                        yaxis=dict(autorange="reversed",
+                                   showticklabels=False, title="Rank"),
                         xaxis=dict(title="Minutes Listened"),
                         legend_title_text='Artist',
                         height=500,
@@ -845,8 +1018,10 @@ if uploaded_file:
                             ]
                         }]
                     )
-                    fig_race.update_traces(textposition='outside', textfont_size=14)
-                    fig_race.layout.xaxis.range = [0, race_df['minutes'].max() * 1.15]
+                    fig_race.update_traces(
+                        textposition='outside', textfont_size=14)
+                    fig_race.layout.xaxis.range = [
+                        0, race_df['minutes'].max() * 1.15]
                     st.plotly_chart(fig_race, use_container_width=True)
                 else:
                     st.warning("Not enough data for the monthly race.")
@@ -866,7 +1041,8 @@ if uploaded_file:
                         title="Cumulative Top 5 Artists"
                     )
                     fig_cum_race.update_layout(
-                        yaxis=dict(autorange="reversed", showticklabels=False, title="Rank"),
+                        yaxis=dict(autorange="reversed",
+                                   showticklabels=False, title="Rank"),
                         xaxis=dict(title="Cumulative Minutes Listened"),
                         legend_title_text='Artist',
                         height=500,
@@ -886,61 +1062,83 @@ if uploaded_file:
                             ]
                         }]
                     )
-                    fig_cum_race.update_traces(textposition='outside', textfont_size=14)
-                    fig_cum_race.layout.xaxis.range = [0, cumulative_race_df['minutes'].max() * 1.15]
+                    fig_cum_race.update_traces(
+                        textposition='outside', textfont_size=14)
+                    fig_cum_race.layout.xaxis.range = [
+                        0, cumulative_race_df['minutes'].max() * 1.15]
                     st.plotly_chart(fig_cum_race, use_container_width=True)
                 else:
-                    st.warning("Not enough data for the cumulative monthly race.")
+                    st.warning(
+                        "Not enough data for the cumulative monthly race.")
 
             st.markdown("---")
-            
+
             # --- SECCIÓN 4: DEEP DIVE (ARREGLADO) ---
             st.header("🔎 Deep Dive into Your Tops")
-            st.markdown("Select one of your top items to see its evolution throughout the year.")
+            st.markdown(
+                "Select one of your top items to see its evolution throughout the year.")
 
             drill_tabs = st.tabs(["🎤 Artists", "🎶 Tracks", "📀 Albums"])
 
             def create_drill_down_charts(df_year, item_name, item_value):
                 item_df = df_year[df_year[item_name] == item_value]
-                
+
                 # Agrupar por mes
-                monthly_data = item_df.set_index('ts').resample('ME').agg(minutes=('minutes', 'sum')).reset_index()
-                st.dataframe(format_date_column(monthly_data, 'ts'), use_container_width=True)
-                
+                monthly_data = item_df.set_index('ts').resample(
+                    'ME').agg(minutes=('minutes', 'sum')).reset_index()
+                st.dataframe(format_date_column(
+                    monthly_data, 'ts'), use_container_width=True)
+
                 # Rellenar meses faltantes para un año completo
-                all_months = pd.date_range(start=f'{selected_year}-01-01', end=f'{selected_year}-12-31', freq='ME')
-                monthly_data = monthly_data.set_index('ts').reindex(all_months, fill_value=0).reset_index()
+                all_months = pd.date_range(
+                    start=f'{selected_year}-01-01', end=f'{selected_year}-12-31', freq='ME')
+                monthly_data = monthly_data.set_index('ts').reindex(
+                    all_months, fill_value=0).reset_index()
                 monthly_data.rename(columns={'index': 'ts'}, inplace=True)
-                st.dataframe(format_date_column(monthly_data, 'ts'), use_container_width=True)
-                
-                monthly_data['month_name'] = monthly_data['ts'].dt.strftime('%b')
+                st.dataframe(format_date_column(
+                    monthly_data, 'ts'), use_container_width=True)
+
+                monthly_data['month_name'] = monthly_data['ts'].dt.strftime(
+                    '%b')
                 monthly_data['cumulative_minutes'] = monthly_data['minutes'].cumsum()
-                st.dataframe(format_date_column(monthly_data, 'ts'), use_container_width=True)
-                
-                fig_bar = px.bar(monthly_data, x='month_name', y='minutes', title=f"Monthly Listening for: {item_value}", labels={'month_name': 'Month', 'minutes': 'Minutes Listened'})
+                st.dataframe(format_date_column(
+                    monthly_data, 'ts'), use_container_width=True)
+
+                fig_bar = px.bar(monthly_data, x='month_name', y='minutes', title=f"Monthly Listening for: {item_value}", labels={
+                                 'month_name': 'Month', 'minutes': 'Minutes Listened'})
                 st.plotly_chart(fig_bar, use_container_width=True)
 
-                fig_line = px.area(monthly_data, x='month_name', y='cumulative_minutes', title=f"Cumulative Listening Growth for: {item_value}", labels={'month_name': 'Month', 'cumulative_minutes': 'Total Minutes Accumulated'}, markers=True)
+                fig_line = px.area(monthly_data, x='month_name', y='cumulative_minutes', title=f"Cumulative Listening Growth for: {item_value}", labels={
+                                   'month_name': 'Month', 'cumulative_minutes': 'Total Minutes Accumulated'}, markers=True)
                 st.plotly_chart(fig_line, use_container_width=True)
 
             with drill_tabs[0]:
-                top_items_list = wrapped_df.groupby('master_metadata_album_artist_name')['minutes'].sum().nlargest(10).index.tolist()
-                selected_item = st.selectbox("Select an artist:", ["Select..."] + top_items_list, key="artist_drill")
+                top_items_list = wrapped_df.groupby('master_metadata_album_artist_name')[
+                    'minutes'].sum().nlargest(10).index.tolist()
+                selected_item = st.selectbox(
+                    "Select an artist:", ["Select..."] + top_items_list, key="artist_drill")
                 if selected_item != "Select...":
-                    create_drill_down_charts(wrapped_df, 'master_metadata_album_artist_name', selected_item)
-            
+                    create_drill_down_charts(
+                        wrapped_df, 'master_metadata_album_artist_name', selected_item)
+
             with drill_tabs[1]:
-                top_items_list = wrapped_df.groupby('master_metadata_track_name')['minutes'].sum().nlargest(10).index.tolist()
-                selected_item = st.selectbox("Select a track:", ["Select..."] + top_items_list, key="track_drill")
+                top_items_list = wrapped_df.groupby('master_metadata_track_name')[
+                    'minutes'].sum().nlargest(10).index.tolist()
+                selected_item = st.selectbox(
+                    "Select a track:", ["Select..."] + top_items_list, key="track_drill")
                 if selected_item != "Select...":
-                    create_drill_down_charts(wrapped_df, 'master_metadata_track_name', selected_item)
+                    create_drill_down_charts(
+                        wrapped_df, 'master_metadata_track_name', selected_item)
 
             with drill_tabs[2]:
-                top_items_list = wrapped_df.groupby('master_metadata_album_album_name')['minutes'].sum().nlargest(10).index.tolist()
-                selected_item = st.selectbox("Select an album:", ["Select..."] + top_items_list, key="album_drill")
+                top_items_list = wrapped_df.groupby('master_metadata_album_album_name')[
+                    'minutes'].sum().nlargest(10).index.tolist()
+                selected_item = st.selectbox(
+                    "Select an album:", ["Select..."] + top_items_list, key="album_drill")
                 if selected_item != "Select...":
-                    create_drill_down_charts(wrapped_df, 'master_metadata_album_album_name', selected_item)
-            
+                    create_drill_down_charts(
+                        wrapped_df, 'master_metadata_album_album_name', selected_item)
+
             st.markdown("---")
 
             # --- SECCIÓN 5: TU PERFIL DE ESCUCHA (NUEVO "TIME TRAVELER") ---
@@ -950,39 +1148,59 @@ if uploaded_file:
             # --- DEFINICIÓN DE LA FUNCIÓN MOVIda AQUÍ ---
             @st.cache_data
             def analyze_listener_dna(full_df, year_df, current_year):
-                first_listen_df = full_df.loc[full_df.groupby('master_metadata_track_name')['ts'].idxmin()]
-                new_discoveries_this_year = first_listen_df[first_listen_df['year'] == current_year]['master_metadata_track_name'].unique()
-                plays_in_year = year_df['master_metadata_track_name'].value_counts()
-                explorer_tracks = plays_in_year[plays_in_year.isin([1, 2]) & plays_in_year.index.isin(new_discoveries_this_year)].index
-                minutes_explorer = year_df[year_df['master_metadata_track_name'].isin(explorer_tracks)]['minutes'].sum()
+                first_listen_df = full_df.loc[full_df.groupby(
+                    'master_metadata_track_name')['ts'].idxmin()]
+                new_discoveries_this_year = first_listen_df[first_listen_df['year']
+                                                            == current_year]['master_metadata_track_name'].unique()
+                plays_in_year = year_df['master_metadata_track_name'].value_counts(
+                )
+                explorer_tracks = plays_in_year[plays_in_year.isin(
+                    [1, 2]) & plays_in_year.index.isin(new_discoveries_this_year)].index
+                minutes_explorer = year_df[year_df['master_metadata_track_name'].isin(
+                    explorer_tracks)]['minutes'].sum()
                 loyalist_tracks = plays_in_year[plays_in_year >= 5].index
-                minutes_loyalist = year_df[year_df['master_metadata_track_name'].isin(loyalist_tracks)]['minutes'].sum()
-                old_discoveries = first_listen_df[first_listen_df['year'] < current_year]['master_metadata_track_name'].unique()
-                deep_cut_tracks = plays_in_year[(plays_in_year < 5) & (plays_in_year.index.isin(old_discoveries))].index
-                minutes_deep_cuts = year_df[year_df['master_metadata_track_name'].isin(deep_cut_tracks)]['minutes'].sum()
+                minutes_loyalist = year_df[year_df['master_metadata_track_name'].isin(
+                    loyalist_tracks)]['minutes'].sum()
+                old_discoveries = first_listen_df[first_listen_df['year']
+                                                  < current_year]['master_metadata_track_name'].unique()
+                deep_cut_tracks = plays_in_year[(plays_in_year < 5) & (
+                    plays_in_year.index.isin(old_discoveries))].index
+                minutes_deep_cuts = year_df[year_df['master_metadata_track_name'].isin(
+                    deep_cut_tracks)]['minutes'].sum()
                 minutes_total = year_df['minutes'].sum()
-                minutes_casual = minutes_total - minutes_explorer - minutes_loyalist - minutes_deep_cuts
-                dna_df = pd.DataFrame([{'Category': 'Explorer (New songs)', 'Minutes': minutes_explorer}, {'Category': 'Loyalist (Heavy rotation)', 'Minutes': minutes_loyalist}, {'Category': 'Deep Cuts (Old favorites)', 'Minutes': minutes_deep_cuts}, {'Category': 'Casual (The rest)', 'Minutes': minutes_casual}])
+                minutes_casual = minutes_total - minutes_explorer - \
+                    minutes_loyalist - minutes_deep_cuts
+                dna_df = pd.DataFrame([{'Category': 'Explorer (New songs)', 'Minutes': minutes_explorer}, {'Category': 'Loyalist (Heavy rotation)', 'Minutes': minutes_loyalist}, {
+                                      'Category': 'Deep Cuts (Old favorites)', 'Minutes': minutes_deep_cuts}, {'Category': 'Casual (The rest)', 'Minutes': minutes_casual}])
                 return dna_df
-            
+
             with profile_cols[0]:
                 st.subheader("🕰️ The Time of Day")
                 wrapped_df['hour'] = wrapped_df['ts'].dt.hour
-                bins = [-1, 4, 11, 17, 21, 23]; labels = ['Late Night', 'Morning', 'Afternoon', 'Evening', 'Late Night']
-                wrapped_df['time_of_day'] = pd.cut(wrapped_df['hour'], bins=bins, labels=labels, ordered=False)
-                time_of_day_dist = wrapped_df.groupby('time_of_day')['minutes'].sum().reset_index()
-                fig_tod = px.pie(time_of_day_dist, names='time_of_day', values='minutes', hole=0.4, title="Listening by Time of Day", color_discrete_sequence=px.colors.sequential.Plasma_r)
-                fig_tod.update_layout(legend_title_text=None, legend=dict(orientation="h", yanchor="bottom", y=-0.4))
+                bins = [-1, 4, 11, 17, 21, 23]
+                labels = ['Late Night', 'Morning',
+                          'Afternoon', 'Evening', 'Late Night']
+                wrapped_df['time_of_day'] = pd.cut(
+                    wrapped_df['hour'], bins=bins, labels=labels, ordered=False)
+                time_of_day_dist = wrapped_df.groupby(
+                    'time_of_day')['minutes'].sum().reset_index()
+                fig_tod = px.pie(time_of_day_dist, names='time_of_day', values='minutes', hole=0.4,
+                                 title="Listening by Time of Day", color_discrete_sequence=px.colors.sequential.Plasma_r)
+                fig_tod.update_layout(legend_title_text=None, legend=dict(
+                    orientation="h", yanchor="bottom", y=-0.4))
                 st.plotly_chart(fig_tod, use_container_width=True)
             with profile_cols[1]:
                 st.subheader("🧭 Listener DNA")
                 dna_df = analyze_listener_dna(df, wrapped_df, selected_year)
-                fig_dna = px.pie(dna_df, names='Category', values='Minutes', hole=0.4, title="Breakdown of Your Listening", color_discrete_sequence=px.colors.sequential.Viridis, hover_data={'Minutes':':.0f'})
-                fig_dna.update_layout(legend_title_text=None, legend=dict(orientation="h", yanchor="bottom", y=-0.4))
+                fig_dna = px.pie(dna_df, names='Category', values='Minutes', hole=0.4, title="Breakdown of Your Listening",
+                                 color_discrete_sequence=px.colors.sequential.Viridis, hover_data={'Minutes': ':.0f'})
+                fig_dna.update_layout(legend_title_text=None, legend=dict(
+                    orientation="h", yanchor="bottom", y=-0.4))
                 st.plotly_chart(fig_dna, use_container_width=True)
             with profile_cols[2]:
                 st.subheader("⏳ Audio Nostalgia")
-                st.markdown("How did your listening change over the year? Here's a heatmap of your listening activity by day and month.")
+                st.markdown(
+                    "How did your listening change over the year? Here's a heatmap of your listening activity by day and month.")
 
                 # Create a pivot table for heatmap: month vs day, sum of minutes
                 wrapped_df['day_of_month'] = wrapped_df['ts'].dt.day
@@ -1001,42 +1219,63 @@ if uploaded_file:
             # --- SECCIÓN 6: TARJETA "MASTERPIECE" (MEJORADA Y AMPLIADA) ---
             st.markdown("---")
             st.header(f"Your {selected_year} Masterpiece")
-            st.markdown("This is your year, summarized. The ultimate shareable card.")
+            st.markdown(
+                "This is your year, summarized. The ultimate shareable card.")
 
             with st.container():
                 # Main stats
-                total_tracks_unique = wrapped_df['master_metadata_track_name'].nunique()
-                total_albums_unique = wrapped_df['master_metadata_album_album_name'].nunique()
-                total_artists_unique = wrapped_df['master_metadata_album_artist_name'].nunique()
+                total_tracks_unique = wrapped_df['master_metadata_track_name'].nunique(
+                )
+                total_albums_unique = wrapped_df['master_metadata_album_album_name'].nunique(
+                )
+                total_artists_unique = wrapped_df['master_metadata_album_artist_name'].nunique(
+                )
                 total_hours = round(total_minutes / 60, 1)
                 total_days = wrapped_df['date'].nunique()
-                top_dna = dna_df.loc[dna_df['Minutes'].idxmax()]['Category'] if not dna_df.empty else "Unique"
+                top_dna = dna_df.loc[dna_df['Minutes'].idxmax(
+                )]['Category'] if not dna_df.empty else "Unique"
 
                 # % of new songs/albums/artists (not listened in previous years)
-                first_listen_df = df.loc[df.groupby('master_metadata_track_name')['ts'].idxmin()]
-                new_songs_this_year = first_listen_df[first_listen_df['year'] == selected_year]['master_metadata_track_name'].unique()
-                percent_new_songs = 100 * len(new_songs_this_year) / total_tracks_unique if total_tracks_unique else 0
+                first_listen_df = df.loc[df.groupby(
+                    'master_metadata_track_name')['ts'].idxmin()]
+                new_songs_this_year = first_listen_df[first_listen_df['year']
+                                                      == selected_year]['master_metadata_track_name'].unique()
+                percent_new_songs = 100 * \
+                    len(new_songs_this_year) / \
+                    total_tracks_unique if total_tracks_unique else 0
 
-                first_album_df = df.loc[df.groupby('master_metadata_album_album_name')['ts'].idxmin()]
-                new_albums_this_year = first_album_df[first_album_df['year'] == selected_year]['master_metadata_album_album_name'].unique()
-                percent_new_albums = 100 * len(new_albums_this_year) / total_albums_unique if total_albums_unique else 0
+                first_album_df = df.loc[df.groupby(
+                    'master_metadata_album_album_name')['ts'].idxmin()]
+                new_albums_this_year = first_album_df[first_album_df['year'] ==
+                                                      selected_year]['master_metadata_album_album_name'].unique()
+                percent_new_albums = 100 * \
+                    len(new_albums_this_year) / \
+                    total_albums_unique if total_albums_unique else 0
 
-                first_artist_df = df.loc[df.groupby('master_metadata_album_artist_name')['ts'].idxmin()]
-                new_artists_this_year = first_artist_df[first_artist_df['year'] == selected_year]['master_metadata_album_artist_name'].unique()
-                percent_new_artists = 100 * len(new_artists_this_year) / total_artists_unique if total_artists_unique else 0
+                first_artist_df = df.loc[df.groupby(
+                    'master_metadata_album_artist_name')['ts'].idxmin()]
+                new_artists_this_year = first_artist_df[first_artist_df['year']
+                                                        == selected_year]['master_metadata_album_artist_name'].unique()
+                percent_new_artists = 100 * \
+                    len(new_artists_this_year) / \
+                    total_artists_unique if total_artists_unique else 0
 
                 # Top 5 songs
-                top_tracks_df = wrapped_df.groupby(['master_metadata_track_name', 'master_metadata_album_artist_name'])['minutes'].sum().nlargest(5).reset_index()
+                top_tracks_df = wrapped_df.groupby(['master_metadata_track_name', 'master_metadata_album_artist_name'])[
+                    'minutes'].sum().nlargest(5).reset_index()
                 top_tracks_html = ""
                 for i, row in top_tracks_df.iterrows():
                     top_tracks_html += f"<li><b>{row['master_metadata_track_name']}</b> <span style='color:#B3B3B3;'>by {row['master_metadata_album_artist_name']}</span> <span style='color:#1DB954;'>({int(row['minutes'])} min)</span></li>"
 
                 # Calculate % of skips (songs played less than 10 seconds)
-                skips_count = wrapped_df[wrapped_df['ms_played'] < 10000]['master_metadata_track_name'].count()
-                percent_skips = 100 * skips_count / len(wrapped_df) if len(wrapped_df) else 0
+                skips_count = wrapped_df[wrapped_df['ms_played']
+                                         < 10000]['master_metadata_track_name'].count()
+                percent_skips = 100 * skips_count / \
+                    len(wrapped_df) if len(wrapped_df) else 0
 
                 # Number of devices used (if device info exists)
-                device_col_candidates = [col for col in wrapped_df.columns if 'device' in col.lower()]
+                device_col_candidates = [
+                    col for col in wrapped_df.columns if 'device' in col.lower()]
                 if device_col_candidates:
                     device_col = device_col_candidates[0]
                     num_devices = wrapped_df[device_col].nunique()
@@ -1126,8 +1365,6 @@ if uploaded_file:
                 """
                 st.html(card_html)
 
-
-
     with tabs[10]:
         # --- INYECCIÓN DE CSS PARA BOTONES ESTILO SPOTIFY ---
         st.markdown("""
@@ -1158,13 +1395,17 @@ if uploaded_file:
         st.markdown("#### ⚙️ Controles de la Carrera")
         controls_cols = st.columns([1, 1, 1, 2])
         with controls_cols[0]:
-            item_type = st.selectbox("Analizar por:", ["Artists", "Tracks", "Albums"], key="race_item_type_v2")
+            item_type = st.selectbox(
+                "Analizar por:", ["Artists", "Tracks", "Albums"], key="race_item_type_v2")
         with controls_cols[1]:
-            time_period = st.selectbox("Agrupar por:", ["Weekly", "Monthly", "Yearly"], key="race_time_period_v2")
+            time_period = st.selectbox(
+                "Agrupar por:", ["Weekly", "Monthly", "Yearly"], key="race_time_period_v2")
         with controls_cols[2]:
-            metric_type = st.radio("Medir por:", ["Minutes", "Plays"], horizontal=True, key="race_metric_v2")
+            metric_type = st.radio(
+                "Medir por:", ["Minutes", "Plays"], horizontal=True, key="race_metric_v2")
         with controls_cols[3]:
-            top_n = st.slider("Mostrar Top N:", 3, 25, 10, 1, key="race_top_n_v2")
+            top_n = st.slider("Mostrar Top N:", 3, 25,
+                              10, 1, key="race_top_n_v2")
 
         # --- LÓGICA DE PROCESAMIENTO DE DATOS MEJORADA ---
         @st.cache_data(show_spinner="Calculando la carrera de rankings...")
@@ -1173,19 +1414,25 @@ if uploaded_file:
 
             # Definir período
             if time_period == 'Weekly':
-                df_copy['period_id'] = df_copy['ts'].dt.to_period('W').astype(str)
+                df_copy['period_id'] = df_copy['ts'].dt.to_period(
+                    'W').astype(str)
             elif time_period == 'Monthly':
-                df_copy['period_id'] = df_copy['ts'].dt.to_period('M').astype(str)
+                df_copy['period_id'] = df_copy['ts'].dt.to_period(
+                    'M').astype(str)
             else:
-                df_copy['period_id'] = df_copy['ts'].dt.to_period('Y').astype(str)
+                df_copy['period_id'] = df_copy['ts'].dt.to_period(
+                    'Y').astype(str)
 
             metric_col = 'minutes' if metric_type == 'Minutes' else 'ts'
             agg_func = 'sum' if metric_type == 'Minutes' else 'count'
 
             # Calcular ranking periódico (sin cambios)
-            periodic_data = df_copy.groupby(['period_id', item_col])[metric_col].agg(agg_func).reset_index(name='value')
-            periodic_data['rank'] = periodic_data.groupby('period_id')['value'].rank(method='first', ascending=False)
-            periodic_data = periodic_data[periodic_data['rank'] <= top_n].sort_values(['period_id', 'rank'])
+            periodic_data = df_copy.groupby(['period_id', item_col])[
+                metric_col].agg(agg_func).reset_index(name='value')
+            periodic_data['rank'] = periodic_data.groupby(
+                'period_id')['value'].rank(method='first', ascending=False)
+            periodic_data = periodic_data[periodic_data['rank'] <= top_n].sort_values([
+                                                                                      'period_id', 'rank'])
 
             # *** CORRECCIÓN CRÍTICA: Lógica acumulativa rehecha ***
             # Ahora calcula el top N en CADA paso, no basado en el total general.
@@ -1194,31 +1441,39 @@ if uploaded_file:
             for period in all_periods:
                 current_data = df_copy[df_copy['period_id'] <= period]
                 # Agrupar TODO hasta la fecha actual
-                cum_summary = current_data.groupby(item_col)[metric_col].agg(agg_func).reset_index(name='value')
+                cum_summary = current_data.groupby(item_col)[metric_col].agg(
+                    agg_func).reset_index(name='value')
                 # OBTENER EL TOP N DE *ESTE* MOMENTO
                 cum_summary = cum_summary.nlargest(top_n, 'value')
                 cum_summary['period_id'] = period
-                cum_summary['rank'] = cum_summary['value'].rank(method='first', ascending=False)
+                cum_summary['rank'] = cum_summary['value'].rank(
+                    method='first', ascending=False)
                 cumulative_data_list.append(cum_summary)
 
-            cumulative_data = pd.concat(cumulative_data_list, ignore_index=True)
+            cumulative_data = pd.concat(
+                cumulative_data_list, ignore_index=True)
             return periodic_data, cumulative_data
 
         # Mapeo de opciones y ejecución del cálculo
-        item_col_map = {"Artists": "master_metadata_album_artist_name", "Tracks": "master_metadata_track_name", "Albums": "master_metadata_album_album_name"}
+        item_col_map = {"Artists": "master_metadata_album_artist_name",
+                        "Tracks": "master_metadata_track_name", "Albums": "master_metadata_album_album_name"}
         selected_item_col = item_col_map[item_type]
 
-        race_data_periodic, race_data_cumulative = calculate_race_data_v2(filtered_df, selected_item_col, time_period, metric_type, top_n)
+        race_data_periodic, race_data_cumulative = calculate_race_data_v2(
+            filtered_df, selected_item_col, time_period, metric_type, top_n)
 
         # --- LÓGICA DE VISUALIZACIÓN MEJORADA ---
         if race_data_periodic.empty or race_data_cumulative.empty:
-            st.warning("No hay suficientes datos para generar la carrera con los filtros seleccionados.")
+            st.warning(
+                "No hay suficientes datos para generar la carrera con los filtros seleccionados.")
         else:
             # Función para crear el gráfico con eje X dinámico
             def create_dynamic_race_chart(df, value_col, item_col, title, xaxis_title):
                 chart_df = df.copy()
-                chart_df['period_label'] = chart_df['period_id'].map(format_period_label)
-                period_labels = chart_df.sort_values('period_id')['period_label'].drop_duplicates().tolist()
+                chart_df['period_label'] = chart_df['period_id'].map(
+                    format_period_label)
+                period_labels = chart_df.sort_values(
+                    'period_id')['period_label'].drop_duplicates().tolist()
                 fig = px.bar(
                     chart_df,
                     x=value_col,
@@ -1229,28 +1484,33 @@ if uploaded_file:
                     animation_frame='period_label',
                     animation_group=item_col,
                     category_orders={'period_label': period_labels},
-                    color_discrete_sequence=px.colors.qualitative.Vivid, # Paleta de colores variada
+                    color_discrete_sequence=px.colors.qualitative.Vivid,  # Paleta de colores variada
                     template='plotly_dark'
                 )
 
                 # *** MEJORA CLAVE: EJE X DINÁMICO POR FOTOGRAMA ***
                 # Iteramos sobre cada frame para ajustar su rango de eje X individualmente.
                 for frame in fig.frames:
-                    max_value_frame = chart_df[chart_df['period_label'] == frame.name]['value'].max()
-                    frame.layout.xaxis.range = [0, max_value_frame * 1.35] # Damos 35% de espacio extra para la etiqueta
+                    max_value_frame = chart_df[chart_df['period_label'] == frame.name]['value'].max(
+                    )
+                    # Damos 35% de espacio extra para la etiqueta
+                    frame.layout.xaxis.range = [0, max_value_frame * 1.35]
 
                 # Ajustar el estado inicial del gráfico (el primer fotograma)
                 initial_period = period_labels[0]
-                max_value_initial = chart_df[chart_df['period_label'] == initial_period]['value'].max()
+                max_value_initial = chart_df[chart_df['period_label']
+                                             == initial_period]['value'].max()
                 fig.update_layout(xaxis_range=[0, max_value_initial * 1.35])
 
                 # Estilizado general del gráfico
                 fig.update_layout(
                     title=dict(text=title, font=dict(size=20), x=0.5),
-                    yaxis=dict(autorange="reversed", showticklabels=False, title=None),
+                    yaxis=dict(autorange="reversed",
+                               showticklabels=False, title=None),
                     xaxis=dict(title=xaxis_title, showticklabels=True),
                     legend_title_text=None,
-                    legend=dict(orientation="h", yanchor="bottom", y=-0.25, traceorder="normal"),
+                    legend=dict(orientation="h", yanchor="bottom",
+                                y=-0.25, traceorder="normal"),
                     height=500 + top_n * 10,
                     margin=dict(l=10, r=10, t=60, b=120),
                     paper_bgcolor='rgba(0,0,0,0)',
@@ -1262,8 +1522,10 @@ if uploaded_file:
                         "x": 0.5, "xanchor": "center",
                         "y": -0.35, "yanchor": "bottom",
                         "buttons": [
-                            {"label": "▶ Play", "method": "animate", "args": [None, {"frame": {"duration": 800, "redraw": True}, "transition": {"duration": 300, "easing": "linear-out"}}]},
-                            {"label": "❚❚ Pause", "method": "animate", "args": [[None], {"frame": {"duration": 0, "redraw": False}, "mode": "immediate"}]}
+                            {"label": "▶ Play", "method": "animate", "args": [None, {"frame": {
+                                "duration": 800, "redraw": True}, "transition": {"duration": 300, "easing": "linear-out"}}]},
+                            {"label": "❚❚ Pause", "method": "animate", "args": [
+                                [None], {"frame": {"duration": 0, "redraw": False}, "mode": "immediate"}]}
                         ]
                     }]
                 )

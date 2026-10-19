@@ -66,7 +66,7 @@ test('Wrapped summarizes podcast listening time and ranks the top five shows', (
 test('monthly volume chart has only the selected year and retains monthly tooltip counts', () => {
     const configs = [];
     class Chart {
-        static register() {}
+        static register() { }
         constructor(canvas, config) { configs.push(config); }
     }
     const context = vm.createContext({ Chart, ChartDataLabels: {}, formatDate, document: { getElementById: () => ({}) } });

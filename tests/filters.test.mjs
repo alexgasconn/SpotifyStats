@@ -14,7 +14,7 @@ class Element {
         this.value = id.endsWith('-mode') ? 'include' : '';
         this.options = [];
         this.listeners = new Map();
-        this.classList = { add() {}, remove() {}, toggle() { return false; } };
+        this.classList = { add() { }, remove() { }, toggle() { return false; } };
         this.scrollTop = 0;
         this.dataset = {};
     }
@@ -78,8 +78,8 @@ async function dashboard(data = history) {
         'renderDeepDiveTab', 'renderF1Tab', 'renderExplorerTab', 'renderViewerTab', 'renderCompareTab',
         'populateWrappedFilter', 'renderWrappedContent', 'setupGame', 'openDetail', 'closeDetail',
         'renderCalendarTab', 'renderForecastTab', 'resetForecast'
-    ]) context[name] = () => {};
-    context.podcasts = { renderPodcastUI() {} };
+    ]) context[name] = () => { };
+    context.podcasts = { renderPodcastUI() { } };
     context.alert = message => { throw new Error(message); };
     vm.runInNewContext(mainSource, context);
 
@@ -222,9 +222,9 @@ test('entity names round-trip special characters and remain escaped in exclusion
 test('country bars use a logarithmic X axis and preserve exact counts, including one play', () => {
     const configs = [];
     class Chart {
-        static register() {}
+        static register() { }
         constructor(canvas, config) { configs.push(config); }
-        destroy() {}
+        destroy() { }
     }
     const context = vm.createContext({
         Chart, ChartDataLabels: {}, formatDate,
@@ -235,7 +235,7 @@ test('country bars use a logarithmic X axis and preserve exact counts, including
     const rows = [{ value: 'ES', count: 10000, percent: 99.99 }, { value: 'FR', count: 1, percent: 0.01 }];
     context.renderBarChart('test', rows, 'Country');
     assert.equal(configs.at(-1).options.scales.x.type, 'linear');
-    context.charts = new Proxy({}, { get: (_, key) => key === 'renderBarChart' ? context.renderBarChart : () => {} });
+    context.charts = new Proxy({}, { get: (_, key) => key === 'renderBarChart' ? context.renderBarChart : () => { } });
     context.store = new Proxy({}, { get: (_, key) => () => key === 'calculateDistributionPercent' ? rows : [] });
     context.document.getElementById = id => id === 'country-chart' ? {} : null;
     vm.runInContext(readFileSync(new URL('../js/tabs/trends.js', import.meta.url), 'utf8')
