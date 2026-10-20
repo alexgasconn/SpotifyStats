@@ -450,7 +450,7 @@ Filtered music events grouped weekly.
 - quarter momentum, daypart DNA, monthly new-artist rhythm
 - top songs/artists/albums lists
 - monthly listening volume chart for the selected year only (no previous-year series)
-- top 3 songs by plays for each month of the selected year, with artist names, play counts and clickable details; months without music are explicitly marked
+- top 5 songs or artists by plays for each month of the selected year, with artist names, play counts and clickable details; months without music are explicitly marked
 
 ### Data used
 

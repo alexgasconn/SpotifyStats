@@ -1251,13 +1251,13 @@ header {
     color: var(--text-muted);
 }
 
-.wc-monthly-switch input:checked + span {
+.wc-monthly-switch input:checked+span {
     background: var(--green);
     color: #121212;
     font-weight: 600;
 }
 
-.wc-monthly-switch input:focus-visible + span {
+.wc-monthly-switch input:focus-visible+span {
     outline: 2px solid var(--green);
     outline-offset: 2px;
 }

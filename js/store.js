@@ -2275,11 +2275,11 @@ export function calculateWrappedStats(year, fullData) {
     const podcastMinutes = yearPodcasts.reduce((sum, d) => sum + d.durationMin, 0);
     const monthlyTopSongs = monthNames.map((month, index) => ({
         month,
-        songs: calculateTopItems(yearData.filter(d => d.month === index), 'trackName', 'plays', 3)
+        songs: calculateTopItems(yearData.filter(d => d.month === index), 'trackName', 'plays', 5)
     }));
     const monthlyTopArtists = monthNames.map((month, index) => ({
         month,
-        artists: calculateTopItems(yearData.filter(d => d.month === index), 'artistName', 'plays', 3)
+        artists: calculateTopItems(yearData.filter(d => d.month === index), 'artistName', 'plays', 5)
     }));
 
     // Quarters and year arc

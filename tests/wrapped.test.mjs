@@ -22,32 +22,34 @@ function history() {
         ...repeat(3, entry(2025, 0, 'Shared', 'Artist B')),
         ...repeat(2, entry(2025, 0, 'Third')),
         entry(2025, 0, 'Fourth'),
+        entry(2025, 0, 'Fifth'),
         entry(2025, 1, 'February only'),
         ...repeat(10, { ...entry(2025, 0, 'Podcast'), isPodcast: true }),
         ...repeat(10, entry(2025, 0, null))
     ];
 }
 
-test('monthly top 3 use selected-year music, separate same-named songs and keep empty months', () => {
+test('monthly top 5 use selected-year music, separate same-named songs and keep empty months', () => {
     const stats = calculateWrappedStats(2025, history());
     assert.equal(stats.monthlyTopSongs.length, 12);
     assert.deepEqual(stats.monthlyTopSongs[0].songs.map(({ name, artistName, plays }) => [name, artistName, plays]), [
-        ['Shared', 'Artist A', 4], ['Shared', 'Artist B', 3], ['Third', 'Artist', 2]
+        ['Shared', 'Artist A', 4], ['Shared', 'Artist B', 3], ['Third', 'Artist', 2],
+        ['Fifth', 'Artist', 1], ['Fourth', 'Artist', 1]
     ]);
     assert.equal(stats.monthlyTopSongs[1].songs.length, 1);
     assert.equal(stats.monthlyTopSongs[1].songs[0].name, 'February only');
     assert.deepEqual(stats.monthlyTopSongs[11], { month: 'Dec', songs: [] });
-    assert.equal(stats.monthlyPlays[0], 10);
-    assert.equal(stats.monthlyMinutes[0], 20);
+    assert.equal(stats.monthlyPlays[0], 11);
+    assert.equal(stats.monthlyMinutes[0], 22);
     assert.equal(stats.comparePrev.available, true);
     assert.equal(calculateWrappedStats(2026, history()), null);
 });
 
 test('monthly song ties follow the existing alphabetical ranking', () => {
     const stats = calculateWrappedStats(2025, [
-        entry(2025, 0, 'Z'), entry(2025, 0, 'B'), entry(2025, 0, 'A'), entry(2025, 0, 'C')
+        ...['Z', 'B', 'A', 'C', 'D', 'E'].map(name => entry(2025, 0, name))
     ]);
-    assert.deepEqual(stats.monthlyTopSongs[0].songs.map(song => song.name), ['A', 'B', 'C']);
+    assert.deepEqual(stats.monthlyTopSongs[0].songs.map(song => song.name), ['A', 'B', 'C', 'D', 'E']);
 });
 
 test('monthly artists aggregate songs within the selected year and retain empty months', () => {
@@ -56,11 +58,11 @@ test('monthly artists aggregate songs within the selected year and retain empty 
     ]);
     assert.equal(stats.monthlyTopArtists.length, 12);
     assert.deepEqual(stats.monthlyTopArtists[0].artists.map(({ name, plays }) => [name, plays]), [
-        ['Artist B', 5], ['Artist A', 4], ['Artist', 3]
+        ['Artist B', 5], ['Artist', 4], ['Artist A', 4]
     ]);
     assert.deepEqual(stats.monthlyTopArtists[11], { month: 'Dec', artists: [] });
-    const ties = calculateWrappedStats(2025, ['Z', 'B', 'A', 'C'].map(artist => entry(2025, 0, 'Song', artist)));
-    assert.deepEqual(ties.monthlyTopArtists[0].artists.map(artist => artist.name), ['A', 'B', 'C']);
+    const ties = calculateWrappedStats(2025, ['Z', 'B', 'A', 'C', 'D', 'E'].map(artist => entry(2025, 0, 'Song', artist)));
+    assert.deepEqual(ties.monthlyTopArtists[0].artists.map(artist => artist.name), ['A', 'B', 'C', 'D', 'E']);
 });
 
 test('Wrapped summarizes podcast listening time and ranks the top five shows', () => {
@@ -94,7 +96,7 @@ test('monthly volume chart has only the selected year and retains monthly toolti
     assert.deepEqual(Array.from(config.data.datasets[0].data), stats.monthlyMinutes);
     assert.equal(config.options.plugins.tooltip.callbacks.label({
         dataset: config.data.datasets[0], raw: 20, dataIndex: 0
-    }), '2025: 20 min · 10 plays');
+    }), '2025: 20 min · 11 plays');
 });
 
 test('Wrapped renders all months, escaped clickable songs, and selected-year chart label', () => {
@@ -124,7 +126,7 @@ test('Wrapped renders all months, escaped clickable songs, and selected-year cha
     vm.runInContext(readFileSync(new URL('../js/tabs/wrapped.js', import.meta.url), 'utf8')
         .replace(/^import .*$/gm, '').replace(/^export /gm, ''), context);
     context.renderWrappedContent();
-    assert.match(container.innerHTML, /Top 3 songs each month/);
+    assert.match(container.innerHTML, /Top 5 songs each month/);
     assert.match(container.innerHTML, /Top podcasts/);
     assert.match(container.innerHTML, /1 h 30 min total/);
     assert.match(container.innerHTML, /Wrapped podcast/);
@@ -138,7 +140,7 @@ test('Wrapped renders all months, escaped clickable songs, and selected-year cha
     assert.deepEqual(details[0], ['<Song & ">', 'track', 'Artist & "', data]);
     modes[1].checked = true;
     modes[1].change();
-    assert.equal(title.textContent, 'Top 3 artists each month');
+    assert.equal(title.textContent, 'Top 5 artists each month');
     assert.equal((monthly.innerHTML.match(/class="wc-month-songs"/g) || []).length, 12);
     assert.equal((monthly.innerHTML.match(/No artists played this month/g) || []).length, 10);
     assert.match(monthly.innerHTML, /data-detail-type="artist"/);
@@ -147,11 +149,11 @@ test('Wrapped renders all months, escaped clickable songs, and selected-year cha
     assert.deepEqual(details[1], ['Artist A', 'artist', '', data]);
     assert.equal(calls.length, 1);
     context.renderWrappedContent();
-    assert.match(container.innerHTML, /Top 3 artists each month/);
+    assert.match(container.innerHTML, /Top 5 artists each month/);
     assert.match(container.innerHTML, /value="artists" checked/);
     modes[0].checked = true;
     modes[0].change();
-    assert.equal(title.textContent, 'Top 3 songs each month');
+    assert.equal(title.textContent, 'Top 5 songs each month');
     assert.match(monthly.innerHTML, /data-detail-type="track"/);
     assert.match(monthly.innerHTML, /&lt;Song &amp; &quot;&gt;/);
 });

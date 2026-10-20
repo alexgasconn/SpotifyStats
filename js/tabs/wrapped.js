@@ -97,7 +97,7 @@ export function renderWrappedContent() {
             <div class="wc-volume-footer"><span>${s.quarterPeak} was your strongest quarter</span><span>${s.playsPerActiveDay} plays / active day</span><span>${Math.round(s.minutesPerActiveDay)} min / active day</span></div>
         </section>
         <section class="wrapped-section wrapped-wide-card">
-            <div class="wc-section-heading"><h3 id="wrapped-monthly-title">Top 3 ${monthlyRankingMode} each month</h3>
+            <div class="wc-section-heading"><h3 id="wrapped-monthly-title">Top 5 ${monthlyRankingMode} each month</h3>
                 <div class="wc-monthly-switch" role="group" aria-label="Monthly ranking">
                     <label><input type="radio" name="wrapped-monthly-mode" value="songs" ${monthlyRankingMode === 'songs' ? 'checked' : ''}><span>Songs</span></label>
                     <label><input type="radio" name="wrapped-monthly-mode" value="artists" ${monthlyRankingMode === 'artists' ? 'checked' : ''}><span>Artists</span></label>
@@ -125,7 +125,7 @@ export function renderWrappedContent() {
         input.addEventListener('change', () => {
             if (!input.checked) return;
             monthlyRankingMode = input.value;
-            container.querySelector('#wrapped-monthly-title').textContent = `Top 3 ${monthlyRankingMode} each month`;
+            container.querySelector('#wrapped-monthly-title').textContent = `Top 5 ${monthlyRankingMode} each month`;
             const monthly = container.querySelector('.wc-monthly-songs');
             monthly.innerHTML = monthlyRankings();
             bindDetails(monthly);
