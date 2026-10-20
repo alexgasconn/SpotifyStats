@@ -1829,6 +1829,44 @@ export function calculateF1Championship(data, mode = 'artists', selectedYear = n
 //  DETAIL PAGE STATS
 // ─────────────────────────────────────────────
 
+export function calculateDayDetail(dateKey, fullData) {
+    const entries = fullData.filter(entry => entry.date === dateKey).sort((first, second) => first.ts - second.ts);
+    if (!entries.length) return null;
+
+    const music = entries.filter(entry => !entry.isPodcast && entry.trackName);
+    const totalMinutes = entries.reduce((sum, entry) => sum + entry.durationMin, 0);
+    const byHour = Array(24).fill(0);
+    entries.forEach(entry => { byHour[entry.ts.getHours()]++; });
+    const time = date => `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+
+    return {
+        type: 'day',
+        name: formatDate(dateKey),
+        subtitle: entries[0].ts.toLocaleDateString('en-GB', { weekday: 'long' }),
+        totalPlays: entries.length,
+        totalMinutes: Math.round(totalMinutes),
+        skipRate: ((entries.filter(entry => entry.skipped).length / entries.length) * 100).toFixed(1),
+        uniqueTracks: new Set(music.map(entry => JSON.stringify([entry.trackName, entry.artistName]))).size,
+        uniqueArtists: new Set(music.map(entry => entry.artistName).filter(Boolean)).size,
+        firstPlay: time(entries[0].ts),
+        lastPlay: time(entries[entries.length - 1].ts),
+        podcastPlays: entries.filter(entry => entry.isPodcast).length,
+        byHour,
+        topTracks: calculateTopItems(music, 'trackName', 'plays', 10),
+        topArtists: calculateTopItems(music, 'artistName', 'plays', 10),
+        topAlbums: calculateTopItems(music, 'albumName', 'plays', 10),
+        history: entries.map(entry => ({
+            name: entry.isPodcast ? (entry.episodeName || 'Podcast') : (entry.trackName || 'Unknown'),
+            artistName: entry.isPodcast ? (entry.episodeShowName || '') : (entry.artistName || ''),
+            detailName: entry.isPodcast ? entry.episodeShowName : entry.trackName,
+            type: entry.isPodcast ? 'podcast' : 'track',
+            time: time(entry.ts),
+            minutes: Math.round(entry.durationMin * 10) / 10,
+            skipped: entry.skipped
+        }))
+    };
+}
+
 export function calculateTrackDetail(trackName, artistName, fullData) {
     const d = fullData.filter(e => e.trackName === trackName && e.artistName === artistName);
     if (!d.length) return null;
@@ -2239,6 +2277,10 @@ export function calculateWrappedStats(year, fullData) {
         month,
         songs: calculateTopItems(yearData.filter(d => d.month === index), 'trackName', 'plays', 3)
     }));
+    const monthlyTopArtists = monthNames.map((month, index) => ({
+        month,
+        artists: calculateTopItems(yearData.filter(d => d.month === index), 'artistName', 'plays', 3)
+    }));
 
     // Quarters and year arc
     const quarterMinutes = [0, 0, 0, 0];
@@ -2313,6 +2355,7 @@ export function calculateWrappedStats(year, fullData) {
         prevMonthlyMinutes: prevMonthlyMinutes.map(m => Math.round(m)),
         monthlyPlays,
         monthlyTopSongs,
+        monthlyTopArtists,
         quarterMinutes: quarterMinutes.map(v => Math.round(v)),
         uniques: { tracks: uniqueTracks.size, artists: uniqueArtists.size, albums: uniqueAlbums.size },
         discoveries: {

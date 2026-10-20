@@ -5,6 +5,8 @@ import * as charts from '../charts.js';
 import { esc, formatDate } from '../utils.js';
 import { openDetail } from '../detail.js';
 
+let monthlyRankingMode = 'songs';
+
 export function populateWrappedFilter() {
     const years = [...new Set(window.spotifyData.full.map(d => d.year))].sort((a, b) => b - a);
     const sel = document.getElementById('wrapped-year-filter');
@@ -39,6 +41,19 @@ export function renderWrappedContent() {
                 <span class="wc-rank-metric">${number(item[metric])}<small>${metric === 'minutes' ? 'min' : 'plays'}</small></span>
             </button></li>`).join('')}</ol>`;
     };
+
+    const monthlyRankings = () => {
+        const artists = monthlyRankingMode === 'artists';
+        return (artists ? s.monthlyTopArtists : s.monthlyTopSongs).map(month => {
+            const items = month[monthlyRankingMode];
+            return `<section class="wc-month-songs"><h4>${month.month}</h4>
+                ${items.length ? rankList(items, artists ? 'artist' : 'track', 'plays') : `<p class="wc-month-empty">No ${monthlyRankingMode} played this month.</p>`}
+            </section>`;
+        }).join('');
+    };
+    const bindDetails = root => root.querySelectorAll('.wc-rank-button[data-detail-type]').forEach(el => {
+        el.addEventListener('click', () => openDetail(el.dataset.detailName, el.dataset.detailType, el.dataset.detailExtra || '', window.spotifyData.full));
+    });
 
     const milestones = [];
     if (s.totalPlays >= 10000) milestones.push({ icon: '🎵', label: '10K+ plays this year' });
@@ -82,11 +97,12 @@ export function renderWrappedContent() {
             <div class="wc-volume-footer"><span>${s.quarterPeak} was your strongest quarter</span><span>${s.playsPerActiveDay} plays / active day</span><span>${Math.round(s.minutesPerActiveDay)} min / active day</span></div>
         </section>
         <section class="wrapped-section wrapped-wide-card">
-            <div class="wc-section-heading"><h3>Top 3 songs each month</h3><span>By plays · ${year}</span></div>
-            <div class="wc-monthly-songs">${s.monthlyTopSongs.map(({ month, songs }) => `
-                <section class="wc-month-songs"><h4>${month}</h4>
-                    ${songs.length ? rankList(songs, 'track', 'plays') : '<p class="wc-month-empty">No songs played this month.</p>'}
-                </section>`).join('')}</div>
+            <div class="wc-section-heading"><h3 id="wrapped-monthly-title">Top 3 ${monthlyRankingMode} each month</h3>
+                <div class="wc-monthly-switch" role="group" aria-label="Monthly ranking">
+                    <label><input type="radio" name="wrapped-monthly-mode" value="songs" ${monthlyRankingMode === 'songs' ? 'checked' : ''}><span>Songs</span></label>
+                    <label><input type="radio" name="wrapped-monthly-mode" value="artists" ${monthlyRankingMode === 'artists' ? 'checked' : ''}><span>Artists</span></label>
+                </div><span>By plays · ${year}</span></div>
+            <div class="wc-monthly-songs">${monthlyRankings()}</div>
         </section>
         <section class="wrapped-section"><div class="wc-section-heading"><h3>Top songs</h3><span>By plays · ${year}</span></div>${rankList(s.topSong, 'track', 'plays')}</section>
         <section class="wrapped-section"><div class="wc-section-heading"><h3>Top artists</h3><span>By plays · ${year}</span></div>${rankList(s.topArtist, 'artist', 'plays')}</section>
@@ -104,8 +120,16 @@ export function renderWrappedContent() {
         </section>
     `;
 
-    container.querySelectorAll('.wc-rank-button[data-detail-type]').forEach(el => {
-        el.addEventListener('click', () => openDetail(el.dataset.detailName, el.dataset.detailType, el.dataset.detailExtra || '', window.spotifyData.full));
+    bindDetails(container);
+    container.querySelectorAll('input[name="wrapped-monthly-mode"]').forEach(input => {
+        input.addEventListener('change', () => {
+            if (!input.checked) return;
+            monthlyRankingMode = input.value;
+            container.querySelector('#wrapped-monthly-title').textContent = `Top 3 ${monthlyRankingMode} each month`;
+            const monthly = container.querySelector('.wc-monthly-songs');
+            monthly.innerHTML = monthlyRankings();
+            bindDetails(monthly);
+        });
     });
 
     charts.renderWrappedMonthlyChart(s.monthlyMinutes, year, s.monthlyPlays);

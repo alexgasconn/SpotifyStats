@@ -50,6 +50,19 @@ test('monthly song ties follow the existing alphabetical ranking', () => {
     assert.deepEqual(stats.monthlyTopSongs[0].songs.map(song => song.name), ['A', 'B', 'C']);
 });
 
+test('monthly artists aggregate songs within the selected year and retain empty months', () => {
+    const stats = calculateWrappedStats(2025, [
+        ...history(), ...repeat(2, entry(2025, 0, 'Another song', 'Artist B'))
+    ]);
+    assert.equal(stats.monthlyTopArtists.length, 12);
+    assert.deepEqual(stats.monthlyTopArtists[0].artists.map(({ name, plays }) => [name, plays]), [
+        ['Artist B', 5], ['Artist A', 4], ['Artist', 3]
+    ]);
+    assert.deepEqual(stats.monthlyTopArtists[11], { month: 'Dec', artists: [] });
+    const ties = calculateWrappedStats(2025, ['Z', 'B', 'A', 'C'].map(artist => entry(2025, 0, 'Song', artist)));
+    assert.deepEqual(ties.monthlyTopArtists[0].artists.map(artist => artist.name), ['A', 'B', 'C']);
+});
+
 test('Wrapped summarizes podcast listening time and ranks the top five shows', () => {
     const podcasts = Array.from({ length: 6 }, (_, index) => ({
         ...entry(2025, 0, null, '', index + 1),
@@ -92,7 +105,15 @@ test('Wrapped renders all months, escaped clickable songs, and selected-year cha
     const calls = [];
     const details = [];
     const button = { dataset: { detailName: '<Song & ">', detailType: 'track', detailExtra: 'Artist & "' }, addEventListener(type, callback) { this.click = callback; } };
-    const container = { innerHTML: '', querySelectorAll: () => [button] };
+    const modes = ['songs', 'artists'].map(value => ({ value, checked: false, addEventListener(type, callback) { this.change = callback; } }));
+    const title = { textContent: '' };
+    const artistButton = { dataset: { detailName: 'Artist A', detailType: 'artist', detailExtra: '' }, addEventListener(type, callback) { this.click = callback; } };
+    const monthly = { innerHTML: '', querySelectorAll: () => [artistButton] };
+    const container = {
+        innerHTML: '',
+        querySelectorAll: selector => selector.startsWith('input') ? modes : [button],
+        querySelector: selector => selector === '#wrapped-monthly-title' ? title : monthly
+    };
     const context = vm.createContext({
         store: { calculateWrappedStats }, esc, formatDate,
         charts: { renderWrappedMonthlyChart: (...args) => calls.push(args) },
@@ -115,4 +136,22 @@ test('Wrapped renders all months, escaped clickable songs, and selected-year cha
     assert.deepEqual(calls[0], [stats.monthlyMinutes, 2025, stats.monthlyPlays]);
     button.click();
     assert.deepEqual(details[0], ['<Song & ">', 'track', 'Artist & "', data]);
+    modes[1].checked = true;
+    modes[1].change();
+    assert.equal(title.textContent, 'Top 3 artists each month');
+    assert.equal((monthly.innerHTML.match(/class="wc-month-songs"/g) || []).length, 12);
+    assert.equal((monthly.innerHTML.match(/No artists played this month/g) || []).length, 10);
+    assert.match(monthly.innerHTML, /data-detail-type="artist"/);
+    assert.doesNotMatch(monthly.innerHTML, /data-detail-type="track"/);
+    artistButton.click();
+    assert.deepEqual(details[1], ['Artist A', 'artist', '', data]);
+    assert.equal(calls.length, 1);
+    context.renderWrappedContent();
+    assert.match(container.innerHTML, /Top 3 artists each month/);
+    assert.match(container.innerHTML, /value="artists" checked/);
+    modes[0].checked = true;
+    modes[0].change();
+    assert.equal(title.textContent, 'Top 3 songs each month');
+    assert.match(monthly.innerHTML, /data-detail-type="track"/);
+    assert.match(monthly.innerHTML, /&lt;Song &amp; &quot;&gt;/);
 });
